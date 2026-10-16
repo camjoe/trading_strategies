@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 import scripts.checks.pr as pr_checks
 
@@ -185,8 +185,8 @@ def test_run_pr_reaches_the_branch_targeted_python_checks_and_the_frontend(monke
 
 def test_frontend_paths_match_the_ci_frontend_filter() -> None:
     ci_yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    block = re.search(r"^\s+frontend_related:\s*\n((?:\s+- .*\n)+)", ci_yml, re.MULTILINE)
-    assert block is not None, "ci.yml no longer lists a frontend_related filter"
-    ci_paths = [line.strip()[2:].removesuffix("**") for line in block.group(1).splitlines()]
+    steps = yaml.safe_load(ci_yml)["jobs"]["changes"]["steps"]
+    scope = next(step for step in steps if step.get("id") == "scope")
+    ci_paths = scope["env"]["FRONTEND_RELATED"].split()
 
-    assert sorted(ci_paths) == sorted(pr_checks.FRONTEND_PATHS)
+    assert sorted(ci_paths) == sorted(path.removesuffix("/") for path in pr_checks.FRONTEND_PATHS)

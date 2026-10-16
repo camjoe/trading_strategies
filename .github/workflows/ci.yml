@@ -25,6 +25,9 @@ on:
       - .github/workflows/ci.yml
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -33,45 +36,35 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      python_related: ${{ steps.filter.outputs.python_related }}
-      frontend_related: ${{ steps.filter.outputs.frontend_related }}
-      docs_enforcement_related: ${{ steps.filter.outputs.docs_enforcement_related }}
+      python_related: ${{ steps.scope.outputs.python_related }}
+      frontend_related: ${{ steps.scope.outputs.frontend_related }}
+      docs_enforcement_related: ${{ steps.scope.outputs.docs_enforcement_related }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect quality gate scope
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            python_related:
-              - src/**
-              - apps/trends/**
-              - apps/paper_trading_web/backend/**
-              - apps/paper_trading_web/__init__.py
-              - tests/**
-              - pytest.ini
-              - pyproject.toml
-              - ruff.toml
-              - requirements-base.txt
-              - requirements-dev.txt
-              - .github/workflows/ci.yml
-            frontend_related:
-              - apps/paper_trading_web/frontend/**
-              - .github/workflows/ci.yml
-            docs_enforcement_related:
-              - docs/**
-              - scripts/**
-              - .ai/**
-              - AGENTS.md
-              - .editorconfig
-              - .gitattributes
-              - apps/paper_trading_web/backend/routes/**
-              - apps/paper_trading_web/frontend/src/assets/**
-              - requirements-base.txt
-              - requirements-dev.txt
-              - .github/workflows/ci.yml
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PYTHON_RELATED: >-
+            src apps/trends apps/paper_trading_web/backend apps/paper_trading_web/__init__.py tests scripts pytest.ini
+            pyproject.toml ruff.toml requirements-base.txt requirements-dev.txt .github/workflows/ci.yml
+          FRONTEND_RELATED: >-
+            apps/paper_trading_web/frontend .github/workflows/ci.yml
+          DOCS_ENFORCEMENT_RELATED: >-
+            docs scripts .ai AGENTS.md .editorconfig .gitattributes apps/paper_trading_web/backend/routes
+            apps/paper_trading_web/frontend/src/assets requirements-base.txt requirements-dev.txt
+            .github/workflows/ci.yml
+        run: |
+          python3 scripts/ci/changed_scope.py "origin/$BASE_REF" \
+            "python_related=$PYTHON_RELATED" \
+            "frontend_related=$FRONTEND_RELATED" \
+            "docs_enforcement_related=$DOCS_ENFORCEMENT_RELATED" >> "$GITHUB_OUTPUT"
 
   python:
     needs: changes
@@ -81,6 +74,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -114,6 +109,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -157,6 +154,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge import local
+from scripts.forge import local, tools
 from scripts.forge.base import ForgeError
 from scripts.forge.fix_loop import RoundTask
 from trading.interfaces.runtime import notifications
@@ -69,8 +69,8 @@ class TestRunClaudeAgent:
             local.run_claude_agent(TASK)
 
     def test_the_agent_may_run_the_repo_test_runner_and_may_not_push(self) -> None:
-        assert "Bash(.venv/Scripts/pytest.exe:*)" in local.ALLOWED_TOOLS
-        assert "Bash(git push:*)" in local.DENIED_TOOLS
+        assert "Bash(.venv/Scripts/pytest.exe:*)" in tools.ALLOWED_TOOLS
+        assert "Bash(git push:*)" in tools.DENIED_TOOLS
 
 
 class TestEmailNotifier:
@@ -104,7 +104,7 @@ class TestEmailNotifier:
         assert "delivery failed" in capsys.readouterr().err
 
 
-class TestModelOption:
+class TestHostAgentCommand:
     def _command_for(self, monkeypatch: pytest.MonkeyPatch, **kwargs: object) -> list[str]:
         seen: list[list[str]] = []
 
@@ -116,10 +116,17 @@ class TestModelOption:
         local.run_claude_agent(TASK, **kwargs)  # type: ignore[arg-type]
         return next(command for command in seen if command[0] == "claude")
 
-    def test_mcp_servers_from_the_repository_are_never_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_it_denies_what_the_allow_list_leaves_out_instead_of_prompting_and_ignores_repository_mcp_servers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         command = self._command_for(monkeypatch)
+        options = list(tools.DENY_BY_DEFAULT_OPTIONS)
+        start = command.index(options[0])
 
-        assert "--strict-mcp-config" in command and "--mcp-config" not in command
+        assert command[start : start + len(options)] == options
+        assert command[command.index("--permission-mode") + 1] == "dontAsk"
+        assert "--mcp-config" not in command
+        assert "bypassPermissions" not in command and "--dangerously-skip-permissions" not in command
 
     def test_the_model_is_passed_to_claude(self, monkeypatch: pytest.MonkeyPatch) -> None:
         command = self._command_for(monkeypatch, model="sonnet")
@@ -227,49 +234,6 @@ def test_each_denied_command_is_listed(monkeypatch: pytest.MonkeyPatch, capsys: 
     local.run_claude_agent(TASK)
 
     assert "denied: cp a b" in capsys.readouterr().err
-
-
-class TestToolLimits:
-    def test_the_agent_may_remove_and_move_files_through_git_and_still_may_not_reset_or_push(self) -> None:
-        allowed = local.ALLOWED_TOOLS.split(",")
-        denied = local.DENIED_TOOLS.split(",")
-
-        assert "Bash(git rm:*)" in allowed and "Bash(git mv:*)" in allowed
-        assert "Bash(git reset:*)" in denied and "Bash(git push:*)" in denied
-
-    def test_the_restricted_shell_note_names_exactly_the_commands_the_allow_list_permits(self) -> None:
-        import re
-
-        from scripts.forge.base import RESTRICTED_SHELL
-
-        git_rule = re.compile(r"Bash\(git (\w+):\*\)")  # the verb in a `Bash(git <verb>:*)` tool rule
-        git_verbs = git_rule.findall(local.ALLOWED_TOOLS)
-        deny_listed = git_rule.findall(local.DENIED_TOOLS)
-
-        assert git_verbs and all(
-            f"`{verb}`" in RESTRICTED_SHELL or f"`git {verb}`" in RESTRICTED_SHELL for verb in git_verbs
-        )
-        assert deny_listed and not any(f"`{verb}`" in RESTRICTED_SHELL for verb in deny_listed)
-        for tool in ("Write", "Edit", "Bash(ls:*)", "scripts.fix_checks", "scripts.run_checks", "run_suite", "pytest"):
-            assert tool in local.ALLOWED_TOOLS
-        for word in ("Write", "Edit", "`ls`", "pytest", "`fix_checks`", "`run_checks`", "`run_suite`"):
-            assert word in RESTRICTED_SHELL
-
-    def test_python_is_allowed_only_for_the_checks_and_the_test_runner(self) -> None:
-        allowed = local.ALLOWED_TOOLS.split(",")
-
-        assert "Bash(python:*)" not in allowed and "Bash(.venv/Scripts/python.exe:*)" not in allowed
-        assert "Bash(.venv/Scripts/python.exe -m scripts.run_checks:*)" in allowed
-        assert "Bash(python -m pytest:*)" in allowed
-
-    def test_the_agent_cannot_write_into_git_or_reach_the_remote(self) -> None:
-        denied = local.DENIED_TOOLS.split(",")
-
-        for item in ("Edit(.git/**)", "Write(.git/**)", "Bash(gh:*)", "Bash(git push:*)", "Bash(git config:*)"):
-            assert item in denied
-
-    def test_nothing_is_both_allowed_and_denied(self) -> None:
-        assert not set(local.ALLOWED_TOOLS.split(",")) & set(local.DENIED_TOOLS.split(","))
 
 
 class TestAgentEnvironment:

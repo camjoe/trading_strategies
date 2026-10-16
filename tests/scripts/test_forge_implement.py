@@ -3,8 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from scripts.forge.base import RESTRICTED_SHELL, ForgeError
+from scripts.forge.base import ForgeError
 from scripts.forge.implement import ImplementResult, ImplementTask, run_implement_plan
+from scripts.forge.tools import RESTRICTED_SHELL
 from tests.scripts.test_forge import FakeSandboxes, StubForge
 
 PLAN = "# Plan: add the thing\n\nStatus: drafted 2026-10-10. Not started.\n\n## Goal\nDo it.\n"

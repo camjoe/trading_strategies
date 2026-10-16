@@ -6,6 +6,9 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: security-checks-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -14,24 +17,28 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      python_deps: ${{ steps.filter.outputs.python_deps }}
-      frontend_deps: ${{ steps.filter.outputs.frontend_deps }}
+      python_deps: ${{ steps.scope.outputs.python_deps }}
+      frontend_deps: ${{ steps.scope.outputs.frontend_deps }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect dependency changes
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            python_deps:
-              - requirements-base.txt
-              - requirements-dev.txt
-              - .github/workflows/security-checks.yml
-            frontend_deps:
-              - apps/paper_trading_web/frontend/package-lock.json
-              - .github/workflows/security-checks.yml
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PYTHON_DEPS: >-
+            requirements-base.txt requirements-dev.txt .github/workflows/security-checks.yml
+          FRONTEND_DEPS: >-
+            apps/paper_trading_web/frontend/package-lock.json .github/workflows/security-checks.yml
+        run: |
+          python3 scripts/ci/changed_scope.py "origin/$BASE_REF" \
+            "python_deps=$PYTHON_DEPS" \
+            "frontend_deps=$FRONTEND_DEPS" >> "$GITHUB_OUTPUT"
 
   python-audit:
     needs: changes
@@ -41,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -63,6 +72,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v6

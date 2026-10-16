@@ -42,8 +42,11 @@ that the token is set, so a missing Docker or token stops the run with nothing o
 - Docker's daemon is privileged. The Docker socket is never mounted into a container.
 - A container does not stop an agent from pushing harmful code that passes the guard and the review. The
   guarded-path list and the owner's review still carry that.
-- On the host runner and in the CI reviewer the CLI is not deny-by-default: a command outside the allow list is
-  not blocked there, only the deny list is.
+- A deny or allow rule matches the usual form of a command, not every spelling of it (`git -C . push` gets past a
+  `git push` rule). Deny-by-default makes that safe for the allow list, and the clone, the stripped environment,
+  and the guarded paths still stand behind it.
+- Claude Code runs its own set of read-only commands without approval even under `dontAsk` (`echo` and `ls` did in
+  a check on 2.1.299), so the allow list does not stop those.
 - A relative directory symlink made inside a container on a Windows bind mount cannot be read or deleted by
   Windows. The agent entrypoint removes the one `python -m venv` makes. The symlink tests run only on Linux.
 
@@ -70,8 +73,9 @@ layer can be removed, tightened, or extended without touching the others.
 | Layer | Where | Today |
 |---|---|---|
 | Throwaway clone; the controller imports the agent's commits | `scripts/forge/sandbox.py` (`build_sandbox`) | Core |
-| Agent tool allow and deny lists (no push, no `gh`) | `scripts/forge/local.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`) | Core |
+| Agent tool allow and deny lists (no push, no `gh`) and the prompt note that names them | `scripts/forge/tools.py` (`ALLOWED_TOOLS`, `DENIED_TOOLS`, `RESTRICTED_SHELL`) | Core |
 | Guarded paths: files an unattended run must never change | `scripts/forge/guarded_paths.py` | Core: GitHub runs workflow files from a pushed commit |
+| Baseline permission rules for every session in this repository (no `.env` reads, no force-push, a prompt before a merge, a hard reset, or a clean) | `.claude/settings.json` | Useful: also applied to headless runs, which never use project allow rules |
 | Gate in a container | `scripts/forge/container.py`, the `gate` stage of `docker/Dockerfile` | Useful: the agent's own tests run without credentials |
 | Clone hardening: reset git config and hooks, git without hooks, scrubbed environment | `scripts/forge/sandbox.py` (`harden_clone`, `NO_EXEC_GIT`) | Useful |
 | Publish and comment filters for paths, account ids, and credential shapes | `scripts/forge/readiness.py` | Useful against careless text |
@@ -83,6 +87,14 @@ layer can be removed, tightened, or extended without touching the others.
 
 - **A path the pipeline must never change:** add it to `_EXTRA_GUARDS`, `_DIRECTORY_REASONS`, or `_AGENT_FILES` in
   `guarded_paths.py`, with a case in `tests/scripts/test_forge_guarded.py`.
+- **A command the agent may run, or may no longer run:** change the constants in `scripts/forge/tools.py`. The
+  allow list, the deny list, and the prompt note follow, and `tests/scripts/test_forge_tools.py` checks they agree.
+  The CI reviewer's own list in `pr-readiness.yml` is separate and is pinned by `test_forge_workflow.py`.
+- **A rule for every session in this repository:** add it to `.claude/settings.json` with its `PowerShell` twin,
+  as a `deny` or `ask` rule only (project allow rules are held back until a folder is trusted and never apply to
+  `claude -p`). The file is a guarded path, so a change needs the owner's yes, and
+  `tests/scripts/test_claude_settings.py` checks its shape. These rules stop the usual form of a command, not
+  every spelling of it (`git -C . push` gets past a `git push` rule).
 - **A different code host:** implement the `Forge` protocol in `scripts/forge/base.py`, as `github.py` does for
   `gh`. The loop, the pickup, and the CLI only see the protocol.
 - **A different container runtime, or a fake in tests:** pass another `Runner` (the protocol in `container.py`)
@@ -113,7 +125,16 @@ The Claude Code version is pinned in two places that must match: `scripts/forge/
   five real plans.
 - 2026-10-14: deny-by-default applies to the container agent only; the host runner and the CI reviewer are
   follow-ups.
+- 2026-10-15: the host runner is deny-by-default too, with the options the container uses (shared in `tools.py`),
+  so all three runners behave alike. On the host CLI 2.1.299 an unlisted `touch` was refused even without the
+  options, so for that version this makes the behavior explicit. The options keep it from depending on the CLI's
+  default, which an earlier check on 2.1.296 in the container found to let unlisted commands run.
 - 2026-10-15: keep all layers for now, knowing some go beyond today's use; revisit as the workflow evolves.
+- 2026-10-15: the CI reviewer runs deny-by-default and ignores a repository's MCP servers, like the container
+  agent; `ci.yml` and `security-checks.yml` get a read-only token and drop it after checkout, and no action
+  outside GitHub is used (`scripts/ci/changed_scope.py` does the path check).
+- 2026-10-15: the Python job in `ci.yml` also runs when only `scripts/` changes. It did not before, so a pull request
+  that changed only the pipeline scripts skipped their tests.
 
 ## Verified, and not yet
 
@@ -122,6 +143,10 @@ the container with only the token; a deny-list session refuses every denied comm
 `implement-plan` runs with both containers completed on throwaway plans. Not yet verified by a real run on
 Linux or macOS (CI runs the Docker-backed tests on Linux).
 
-Follow-ups: the CI reviewer's `--permission-prompts none` and `--strict-mcp-config`; explicit `permissions` and
-`persist-credentials: false` on `ci.yml` and `security-checks.yml`; job-level `PYTHONPATH` and working directory in
-the readiness post job; letting the allow list grow if real plans need more commands.
+Checked on 2026-10-15 with the host CLI 2.1.299 (CI pins 2.1.296 and was not re-run) in a scratch repository
+with `--permission-mode dontAsk --permission-prompts none`: an `Edit(secrets/**)` deny rule refused the `Write`
+tool where the control wrote the file; a `Write` into `.git/hooks` was refused even with no rule, so `.git` is
+protected by default; and with `.claude/settings.json` in place `Read(.env)` was refused while
+`Read(.env.example)` worked, so the `!` carve-out behaves as the permissions page says.
+
+Follow-up: letting the allow list grow if real plans need more commands.

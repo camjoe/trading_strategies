@@ -185,6 +185,7 @@ jobs:
           set -o pipefail
           claude -p \
             --output-format stream-json --verbose \
+            --permission-mode dontAsk --permission-prompts none --strict-mcp-config \
             --allowedTools "$ALLOWED_TOOLS" --disallowedTools "$DENIED_TOOLS" \
             < "$PROMPT_FILE" | tee "$TRANSCRIPT_FILE" > /dev/null
           python3 - <<'PY'
@@ -263,10 +264,15 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       COMMENT_AUTHOR: github-actions[bot]
+      PYTHONPATH: src
+    defaults:
+      run:
+        working-directory: trusted
 
     steps:
       - name: Fail when the review job did not succeed
         if: needs.review.result != 'success'
+        working-directory: ${{ github.workspace }}
         run: |
           echo "::error::The readiness-review job ${{ needs.review.result }}; nothing was posted. See that job's log."
           exit 1
@@ -292,8 +298,6 @@ jobs:
       - name: Read the pass number of the comment being replaced
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: src
-        working-directory: trusted
         run: |
           python -m scripts.forge comment-get --pr "$PR_NUMBER" --author "$COMMENT_AUTHOR" > "$RUNNER_TEMP/previous.json"
           python - <<'PY'
@@ -311,8 +315,6 @@ jobs:
       - name: Check the comment body
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          PYTHONPATH: src
-        working-directory: trusted
         run: |
           python -m scripts.forge check-body --body-file "$BODY_FILE" \
             ${PREVIOUS_PASS:+--previous-pass "$PREVIOUS_PASS"} --forbid-env CLAUDE_CODE_OAUTH_TOKEN
@@ -320,8 +322,6 @@ jobs:
       - name: Confirm the pull request head has not moved
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: src
-        working-directory: trusted
         run: |
           python -m scripts.forge pr-info --pr "$PR_NUMBER" > "$RUNNER_TEMP/pr.json"
           python - <<'PY'
@@ -335,8 +335,6 @@ jobs:
       - name: Post the readiness comment
         env:
           GH_TOKEN: ${{ github.token }}
-          PYTHONPATH: src
-        working-directory: trusted
         run: |
           python -m scripts.forge comment-upsert --pr "$PR_NUMBER" \
             --author "$COMMENT_AUTHOR" --body-file "$BODY_FILE"

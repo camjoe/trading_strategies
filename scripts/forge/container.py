@@ -18,8 +18,9 @@ from typing import Protocol
 
 from common.git import get_repo_root
 from scripts.forge.base import ForgeError
-from scripts.forge.local import AGENT_TIMEOUT_SECONDS, ALLOWED_TOOLS, DENIED_TOOLS, HasPrompt, report_agent_result
+from scripts.forge.local import AGENT_TIMEOUT_SECONDS, HasPrompt, report_agent_result
 from scripts.forge.sandbox import run_bounded
+from scripts.forge.tools import ALLOWED_TOOLS, DENIED_TOOLS, DENY_BY_DEFAULT_OPTIONS
 
 
 class Runner(Protocol):
@@ -41,8 +42,6 @@ DOCKERFILE = Path("docker/Dockerfile")
 IMAGE_REPOSITORY = "trading-gate"
 AGENT_IMAGE_REPOSITORY = "trading-agent"
 CLAUDE_CODE_VERSION = "2.1.296"
-PERMISSION_MODE = "dontAsk"
-PERMISSION_PROMPTS = "none"
 CLAUDE_AUTH_VARIABLE = "CLAUDE_CODE_OAUTH_TOKEN"
 BUILD_TIMEOUT_SECONDS = 1800
 GATE_TIMEOUT_SECONDS = 3600
@@ -284,11 +283,7 @@ def agent_command(
         "-p",
         "--output-format",
         "json",
-        "--permission-mode",
-        PERMISSION_MODE,
-        "--permission-prompts",
-        PERMISSION_PROMPTS,
-        "--strict-mcp-config",
+        *DENY_BY_DEFAULT_OPTIONS,
         "--allowedTools",
         ALLOWED_TOOLS,
         "--disallowedTools",

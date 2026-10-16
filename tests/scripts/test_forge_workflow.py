@@ -1,5 +1,6 @@
 import json
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 import yaml
 
 from common.git import get_repo_root
+from scripts.forge import tools
 from scripts.forge.cli import build_parser
 from scripts.forge.service import review_context
 from tests.scripts.test_forge import StubForge
@@ -29,6 +31,13 @@ PINNED_ALLOWED_TOOLS = [
     "Bash(cat:*)",
     "Bash(ls:*)",
 ]
+# The arguments of the reviewer's `claude -p` call, between the command and the stdin redirect.
+REVIEWER_CALL = re.compile(r"claude -p (.*?) <", re.DOTALL)
+REVIEWER_FLAGS = [
+    "--output-format", "stream-json", "--verbose",
+    "--permission-mode", "dontAsk", "--permission-prompts", "none", "--strict-mcp-config",
+    "--allowedTools", "$ALLOWED_TOOLS", "--disallowedTools", "$DENIED_TOOLS",
+]  # fmt: skip
 PINNED_DENIED_TOOLS = ["Bash(git push:*)", "Bash(gh:*)", "Monitor"]
 
 
@@ -50,6 +59,20 @@ def _step(job: str, name: str) -> dict[str, Any]:
 
 def _run(job: str, name: str) -> str:
     return _step(job, name)["run"]
+
+
+def _job(job: str) -> dict[str, Any]:
+    return _workflow()["jobs"][job]
+
+
+def _directory(job: str, step: dict[str, Any]) -> str | None:
+    """Where *step* runs: its own working directory, else the job's default."""
+    return step.get("working-directory") or _job(job).get("defaults", {}).get("run", {}).get("working-directory")
+
+
+def _variable(job: str, step: dict[str, Any], name: str) -> str | None:
+    """The value *step* sees for *name*: its own, else the job's."""
+    return step.get("env", {}).get(name) or _job(job).get("env", {}).get(name)
 
 
 # `python -m scripts.forge <command> <rest of that line>` as written in the workflow.
@@ -219,9 +242,17 @@ def test_the_review_agent_may_run_exactly_these_tools_and_the_claude_call_uses_t
 
     assert sorted(allowed) == sorted(PINNED_ALLOWED_TOOLS)
     assert sorted(denied) == sorted(PINNED_DENIED_TOOLS)
-    assert '--allowedTools "$ALLOWED_TOOLS"' in run and '--disallowedTools "$DENIED_TOOLS"' in run
     assert '< "$PROMPT_FILE"' in run
-    assert "--dangerously" not in run and "--permission-mode" not in run
+    assert "--dangerously" not in run
+    call = REVIEWER_CALL.search(run.replace("\\\n", " "))
+    assert call and shlex.split(call.group(1)) == REVIEWER_FLAGS
+
+
+def test_the_reviewer_passes_the_same_deny_by_default_options_as_the_agent_runners() -> None:
+    options = list(tools.DENY_BY_DEFAULT_OPTIONS)
+    start = REVIEWER_FLAGS.index(options[0])
+
+    assert REVIEWER_FLAGS[start : start + len(options)] == options
 
 
 def test_no_allowed_entry_lets_the_agent_run_an_arbitrary_python_command() -> None:
@@ -297,9 +328,20 @@ def test_every_forge_call_runs_from_the_trusted_copy_with_its_source_on_the_path
 
     assert len(forge_steps) >= 5
     for job, step in forge_steps:
-        assert step.get("working-directory") == "trusted", (job, step["name"])
-        assert step["env"]["PYTHONPATH"] == "src", (job, step["name"])
+        assert _directory(job, step) == "trusted", (job, step["name"])
+        assert _variable(job, step, "PYTHONPATH") == "src", (job, step["name"])
         assert ".venv" not in step["run"], (job, step["name"])
+
+
+def test_the_post_job_runs_from_the_trusted_copy_unless_the_copy_does_not_exist_yet() -> None:
+    post = _job("post")
+    explicit = [step["name"] for step in post["steps"] if "working-directory" in step]
+    checkout = next(i for i, step in enumerate(post["steps"]) if step.get("with", {}).get("path") == "trusted")
+    before_checkout = [step["name"] for step in post["steps"][:checkout] if "run" in step]
+
+    assert post["defaults"]["run"]["working-directory"] == "trusted" and post["env"]["PYTHONPATH"] == "src"
+    assert explicit == before_checkout == ["Fail when the review job did not succeed"]
+    assert _step("post", explicit[0])["working-directory"] == "${{ github.workspace }}"
 
 
 def test_the_prompt_is_built_with_the_system_python_not_the_pull_requests_virtualenv() -> None:

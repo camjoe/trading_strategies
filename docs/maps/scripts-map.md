@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-10-15
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -66,7 +66,8 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `fix_loop.py` | The fixer loop: one round, its checks (path guard, token scan, plain-file read of the comment body), the post and push, the wait for the next pass |
 | `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, `read_agent_text` reads a file the agent wrote only when it is a plain file, and the no-exec git options and secret-name pattern live here |
 | `container.py` | Runs the gate (no network, no credentials) and the agent (open network, one Claude token) in Docker containers with only the clone mounted; builds the images from the owner's checkout through an injected Docker runner |
-| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits, and `outgoing_text`, the added lines and messages the token scan reads), the headless `claude` runner with a scrubbed environment, the allow and deny tool lists and result reporting the container runner shares, the gate runner, and the email notifier |
+| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits, and `outgoing_text`, the added lines and messages the token scan reads), the headless `claude` runner with a scrubbed environment, the result reporting the container runner shares, the gate runner, and the email notifier |
+| `tools.py` | What an unattended agent may run: the allow and deny tool lists, the prompt note that names them, and the options that make the runners deny-by-default, built from one set of constants |
 | `cli.py` | Argument parsing and JSON output |
 | `__main__.py` | Entry point for `python -m scripts.forge` |
 
@@ -121,6 +122,16 @@ python -m scripts.run_checks pr --base develop
 ```
 python -m scripts.run_checks pr --base develop
 ```
+
+---
+
+## CI Helpers (`scripts/ci/`)
+
+Called from the GitHub workflows with the system Python, so standard library only.
+
+| Module | Responsibility |
+|---|---|
+| `changed_scope.py` | Prints `<group>=true` or `false` for each group of paths a pull request changed, using `git diff --quiet` against the merge base; a git error counts as changed. The `changes` jobs of `ci.yml` and `security-checks.yml` call it |
 
 ---
 
