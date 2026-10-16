@@ -29,10 +29,11 @@ A reviewer reads "Vocabulary", "Rules for every reviewer", and its own section o
 moves differently than intended, a guard error is swallowed, or a documented recovery path does harm.
 
 **CONCERN**: wrong or unsafe in a way that does not move money (an operator misled, a documented step
-that fails, a missing test that hides a bug). Fix it in this PR, or the owner records a Decision. An
+that fails, a bug no current test would catch). Fix it in this PR, or the owner records a Decision. An
 open CONCERN with neither keeps the PR from READY.
 
-**NOTE**: optional or follow-up (simplification, placement, a missing safeguard with no bug today).
+**NOTE**: optional or follow-up (simplification, placement, a missing safeguard with no bug today). A finding
+about the tests alone (a missing case, a redundant or brittle test) is a Tests item and a NOTE at most.
 
 ## Rules for every reviewer
 
@@ -109,8 +110,8 @@ reason from the test and the code.
 - What behavior in the diff has no test? List the paths.
 - Do tests assert behavior or only that code ran? Are mocks hiding the real integration?
 - Is a test copying the implementation's logic instead of stating the expected result?
-- For each behavior gap, say whether it hides a bug (a wrong result today) or only a missing
-  safeguard, and name the missing test.
+- For each behavior gap, say whether the code is wrong today (report the defect, with the missing test in its
+  fix hint) or the tests are only weaker than they could be (report it as `Gap:` or `Extra:`, a NOTE at most).
 
 ## Simplifier
 
@@ -135,10 +136,11 @@ Used by `pr ready` and by a review of a PR by number.
 3. **Verify every finding.** Open the file and line and run or reason through the scenario. Drop
    NOT REAL findings. Merge duplicates by root cause.
 4. **Assign severity.** The highest any reviewer gave, unless verification lowers it. Record a lowered
-   severity on the finding's *Caught by* line with the original and the reason (the format is in
-   `check-pr-readiness/SKILL.md`). One defect can be rated differently by different reviewers.
-5. **Add a *Tests* line to each defect.** Whether the current tests catch it and the test to add,
-   from the Test skeptic's output and your own reading.
+   severity in the finding's reviewer tag with the original and the reason (the format is in
+   `check-pr-readiness/SKILL.md`). One defect can be rated differently by different reviewers. A finding about the
+   tests alone is a Tests item (`Gap:` or `Extra:`) and is never above NOTE.
+5. **Name the test to add in each defect's fix hint**, from the Test skeptic's output and your own reading;
+   say so when the current tests already catch it.
 6. **Cost.** A reviewer costs about 60-90k tokens whatever the model. Run only the selected ones. On a
    later pass the orchestrator re-verifies open findings by hand and runs reviewers only on a large
    incremental diff (the rule is in `check-pr-readiness/SKILL.md`, Step 4).

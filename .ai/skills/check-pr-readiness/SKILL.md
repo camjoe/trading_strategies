@@ -74,7 +74,7 @@ and `ci.checks` names each check. Checks on older commits are never counted.
 - `fail`: stop and print the failing check names. The local gate missed something.
 - `pending` or `none`: continue and show it as pending; the next pass picks up the result. `--wait`
   holds the context call until checks settle or the time runs out.
-- No PR, or the PR head is an older commit: show "not run" in the status table and continue.
+- No PR, or the PR head is an older commit: show CI as "not run" in the header and continue.
 
 ## Step 3 — Architecture and conventions
 
@@ -100,8 +100,8 @@ the same way.
 clear a finding, and READY does not require a fresh reviewer run. Then run the same command on the
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
-200 or more lines outside documentation or adds a source module. Otherwise run none and say so in the
-status table. This shortcut applies only after a pass in which the reviewers ran on the whole diff
+200 or more lines outside documentation or adds a source module. Otherwise run none and say so under
+Review details. This shortcut applies only after a pass in which the reviewers ran on the whole diff
 against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
@@ -141,60 +141,70 @@ Layout:
 <!-- pr-readiness -->
 ## PR readiness: NOT READY | READY
 
-Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | PR head is `<sha>`
+Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | PR head is `<sha>` · Gate ✓ | ✗ <failing command> · CI ✓ <n> of <n> | ✗ <failing checks> | pending | not run
 
-<n blockers, n concerns, n notes open; n closed>
+<n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
-🔴 **Blocker**: fix before merge · 🟠 **Concern**: fix in this PR, or the owner records a Decision · 🟡 **Note**: optional or follow-up.
+#### 🔴 Blockers
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem and the scenario that breaks it, in up to three lines>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
 
-### Status
-| Step | Result |
-|---|---|
-| 1 Gate | ✓ / ✗ <failing command> |
-| 2 CI | ✓ / ✗ / pending / not run |
-| 3 Architecture and conventions | <counts> |
-| 4 <each lens, with its model> | <counts> |
-| 5 Docs drift review | <counts> |
-| Open findings (later passes) | re-verified by hand |
+#### 🟠 Concerns
+(the same form; "None." when there are none)
 
-Standard phrases for a step that did not run: "not run: stopped at <step>" when the pass stopped
-early, and "not re-run: incremental diff below the threshold" for reviewers a later pass skipped.
+<details>
+<summary>🟡 Notes (<n> open, optional): one line each</summary>
 
-### Findings
-#### 🔴 Blockers  (then 🟠 Concerns, 🟡 Notes)
-- [ ] **<n>. <Title>.**
+#### 🟡 Notes (<n>)
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in one line>. → <one-line fix> [<reviewers>]
 
-  <the problem: file, line, scenario>
+</details>
 
-  *Caught by: <reviewers, with their own severity where it differed>*
+<details>
+<summary>🧪 Tests (<n> open, optional): gaps and extras. The code is not wrong; the tests could say more</summary>
 
-  *Tests: <do the current tests catch it; the test to add>*      (every defect; not docs or simplification)
+#### 🧪 Tests (<n>)
+- [ ] **<n>. Gap: <what is not tested>.** `<path>:<line>`: <what a test would pin>. → <the test to add> [<reviewers>]
+- [ ] **<n>. Extra: <what is redundant or brittle>.** `<path>:<line>`: <why>. → <what to remove or merge> [<reviewers>]
 
-  *Pointer: <one-line direction>*   or   *Decision: <the owner's recorded choice and reason>*
+</details>
 
-A NOTE may take one line: `- [ ] **<n>. <Title>.** <problem> *Caught by: <reviewers>*`, with a
-*Tests* line only when the note is a defect.
+<details>
+<summary>✓ Closed (<n>)</summary>
 
-A closed finding (fixed, or covered by a *Decision*) keeps its number and its tier, goes after the
-open ones, and shrinks to one line with its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>`. A finding
-covered by a *Decision* is checked the same way, and its line says `Decided` instead of `Fixed`.
+#### Closed (<n>)
+- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.
+
+</details>
 
 ### How to verify
 <UI route, command, endpoint, expected behavior, and what is not yet true>
 
-<details><summary>Cleanup and obsolescence</summary>
-Each item classed: safe to remove now / needs targeted verification / intentional compatibility path / defer/backlog.
-</details>
+<details>
+<summary>Review details</summary>
 
-<details><summary>Pass history and scorecard</summary>
-| Pass | Commit | Reviewers | Open (blockers / concerns / notes) |
-A pass that ran no reviewers says so: `| 3 | <sha> | none (open findings re-verified by hand) | 0 / 0 / 10 |`
-Findings verified: REAL n, NOT REAL n, MINOR n.
+<the reviewers this pass ran and the diff they read; the docs drift result; any step that did not run>
 </details>
 ```
 
-The scorecard counts only findings that reviewers newly reported in that pass. A pass that ran no
-reviewers reports 0, and re-verifying a finding already in the comment is not counted.
+A finding is one line, plus the fixer's `*Fix attempted*`, `*Not fixed*`, and `*Left*` lines and the
+owner's `*Decision*` line, each on its own indented line directly under it. The text after `→` is the
+finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
+diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
+the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
+CI is the backstop]`. A blocker or concern may run to three lines; a note or a test item takes one.
+
+A finding about the tests alone goes under Tests, titled `Gap:` (a missing case, a mutation that would survive,
+a weak assertion) or `Extra:` (two tests that repeat each other, a redundant or brittle test). It is a NOTE at
+most and never makes the title NOT READY. If the code is wrong today, whether or not a test would catch it, report
+the defect in its usual tier and name the test to add after its `→`. Tests items are fixed and closed like notes.
+
+A closed finding (fixed, or covered by a *Decision*) keeps its number, goes under Closed, and shrinks to one
+line with its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.` A finding
+covered by a *Decision* says `Decided` instead of `Fixed`. When a *Decision* exists, it replaces the finding's
+`*Not fixed*` or `*Left*` line.
+
+Standard phrases for a step that did not run, in Review details: "not run: stopped at <step>" when the pass
+stopped early, and "not re-run: incremental diff below the threshold" for reviewers a later pass skipped.
 
 "current" means the reviewed SHA equals the PR head at the moment of writing. A comment cannot update
 itself, so a later push makes it stale until the next pass; readers compare the SHA in the header with
@@ -202,10 +212,10 @@ the PR head. When the local HEAD is not pushed, the header says `PR head is <sha
 
 Title: READY only when the gate is green, CI has not failed, no BLOCKER is open, every open
 CONCERN is fixed or carries a *Decision*, and the reviewers `review_scope_check` suggests for the whole
-diff have run in this pass or an earlier one. Otherwise NOT READY, and the line under the title says what
+diff have run in this pass or an earlier one. Otherwise NOT READY, and the line under the header says what
 is unmet (for example "2 concerns need a fix or a Decision"). The title carries no counts.
 
-Security-class findings are never posted and do not decide the title. Say once, in the line under the title,
+Security-class findings are never posted and do not decide the title. Say once, in the line under the header,
 whether the owner has recorded a *Decision* on the security review (a finding in the previous comment whose
 *Decision* line covers the security review). If one is
 recorded, say nothing more about security. If none is, add "run /security-review before merge" to that line.
@@ -214,10 +224,6 @@ The title follows the rules above only.
 A *Decision* is the owner's. The owner states it in the session; that pass writes it onto the finding's
 *Decision* line, and every later pass copies it forward from the previous comment unchanged. It exists
 nowhere else, so it survives only if each pass copies it. No pass ever writes one on its own.
-
-A severity lowered after verification stays on the finding, in the lowered tier, with the original
-and the reason on the *Caught by* line: `*Caught by: Break it (rated CONCERN; lowered to NOTE because
-CI is the backstop)*`.
 
 Everything else is re-derived from the code. Each later pass re-reads the previous comment and
 re-verifies every open finding against the new HEAD. Finding numbers never change across passes: a
@@ -228,8 +234,8 @@ owner's tick is re-verified, not trusted: if the finding is fixed it stays check
 unchecks it and says "unchecked: still open at <sha>". Drop a closed finding two passes after the pass
 that closed it (closed in pass 2, dropped in pass 4) to keep the comment short.
 
-If the gate is red and a PR exists, still update the comment: the gate row red, the rest "not run:
-stopped at gate", no findings.
+If the gate is red and a PR exists, still update the comment: the header shows `Gate ✗ <failing command>`,
+Review details says "not run: stopped at gate", and there are no findings.
 
 Before posting, remove local machine paths, broker account ids, credentials, and private strategy
 parameters; the repository is public.

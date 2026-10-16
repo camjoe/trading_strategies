@@ -35,7 +35,7 @@ For every open finding (unchecked box), blockers first, then concerns, then note
 
 | Class | When |
 |---|---|
-| **fix** | A defect or improvement with a clear *Pointer* and no decision needed. For a note: easy to resolve or simply beneficial, such as a missing test, a stale comment or doc line, a small simplification, a clearer name, or a cleanup this branch created. |
+| **fix** | A defect or improvement with a clear *Pointer* (the text after `→`) and no decision needed. For a note: easy to resolve or simply beneficial, such as a missing test, a stale comment or doc line, a small simplification, a clearer name, or a cleanup this branch created. |
 | **needs-decision** | A design choice or tradeoff; a finding an earlier round already attempted that is still open (never attempt a finding twice); or one whose fix touches a path below. An earlier attempt shows in `git log <pull_request.diff_base_ref>..HEAD --grep "finding <n>:"`, because the reviewer removes the `*Fix attempted*` line once it has verified. |
 | **leave** | A note that is subjective, style-only, outside the branch's touched scope, or large enough to deserve its own pull request. |
 
