@@ -2,7 +2,7 @@
 
 Status: partly done, revised 2026-10-16. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
 **DURING #296** below as "a follow-up PR". The guard fix is done. Item B is done (service in
-PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Items D and E remain. The streak and heartbeat checks were dropped on 2026-10-16: the warning emails cover them.
+PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Item E remains. The streak and heartbeat checks (C) and the per-account guard (D) were dropped on 2026-10-16: the warning emails cover the first, and the second adds risk to the guard for little gain.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -44,8 +44,7 @@ Decision: the date counts as done if **any** of that date's logs carries `COMPLE
   run after that still skips. Plus an any-log helper test and the state tests in
   `test_daily_paper_trading_state.py`.
 
-This is what makes item A1's premise hold ("a plain re-run cannot trade anyone twice"). Item D is
-the follow-up.
+This is what makes item A1's premise hold ("a plain re-run cannot trade anyone twice").
 
 ## Items
 
@@ -102,25 +101,11 @@ accounts and their last-seen dates.
 Tests: fresh, 2-weekday stale, 5-weekday stale, weekend gap not counted, account with no snapshot ever,
 digest names several accounts. Docs: `ibkr-operations.md` (alert table), `runtime-operations.md`.
 
-### D. Per-account guard — AFTER #296
-Replace "a day is done or not" with "which accounts are done today". A plain run trades only the
-accounts that have not completed that date, read from the day's success artifacts (`accounts` and
-`status`, per `report_date`); `--force-run` ignores it; with nothing left the run skips.
-- Why: a timer retry or a plain re-run then catches up a skipped account by itself, which makes the
-  repair command in the `warn` alert unnecessary and removes its dropped-options defect (it omits
-  `--account-trade-caps`, `--primary-accounts`, `--fee`, `--seed`, `--as-of-date`). It also makes item
-  A's failed-group re-run safe without relying on one sentinel.
-- Cost: new artifact reading in the guard, new tests; a failed run that traded some accounts before
-  failing is not counted as done, so those accounts retry (reconcile applies their fills first).
-- UNVERIFIED: how artifacts are named and retained per `report_date`, and whether a failed run's
-  artifact lists accounts that were already submitted. Read `write_artifact` callers and
-  `build_run_context` first.
-
 ## Order
 1. Guard fix (above) into #296. Then decide A1 or A2 and add item A to #296 (or leave it for a
    follow-up PR if #296 is merged first).
 2. Item B on its own branch, off `develop`, once #296 is merged.
-3. Item D after B, or before it if catching up skipped accounts by hand proves painful.
+3. Item E, once the owner has decided whether an unresolved order blocks that account's trading.
 
 ## Constraints
 - Layering per `docs/architecture/architecture-conventions.md`. The freshness query belongs in a
