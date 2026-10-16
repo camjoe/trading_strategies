@@ -341,12 +341,10 @@ def _finish_run(
                 f"Run them with: {context.catch_up_command}"
             )
         if broker_anomaly_accounts:
-            anomaly_command = catch_up_command(args, context, broker_anomaly_accounts)
             notes.append(
                 f"completed with broker API anomalies on: {', '.join(broker_anomaly_accounts)}. Their orders may be "
                 "in an unknown state and they were left out of the post-trade reconcile; the next run's pre-trade "
-                "reconcile applies any fills first. Check the broker's open orders before you run them with: "
-                f"{anomaly_command}"
+                "reconcile applies any fills first. Check the broker's open orders before you re-run them"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:

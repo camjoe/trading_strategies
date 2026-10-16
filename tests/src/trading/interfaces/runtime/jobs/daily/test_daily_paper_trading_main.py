@@ -916,7 +916,7 @@ def test_a_broker_anomaly_in_one_group_does_not_stop_the_next_group(
     assert notification["status"] == "warn"
     assert "completed with broker API anomalies on: acct_a" in notification["message"]
     assert "pre-trade reconcile applies any fills first" in notification["message"]
-    assert "--accounts acct_a" in notification["message"] and "--force-run" in notification["message"]
+    assert "--force-run" not in notification["message"]
     assert notification["details"]["broker_anomaly_accounts"] == ["acct_a"]
 
 
@@ -962,14 +962,17 @@ def test_a_trading_crash_still_stops_the_later_groups(monkeypatch, tmp_path: Pat
 ANOMALY_OUTPUT_B = "Broker API anomaly during submission for: acct_b\nBROKER_API_ANOMALY_ACCOUNTS: acct_b\n"
 
 
-def test_the_anomaly_alert_says_to_check_the_broker_first(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+def test_the_anomaly_alert_says_to_check_the_broker_and_gives_no_command(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
     _runtime_harness.accounts = ["acct_a", "acct_b"]
     _runtime_harness.trade_results["acct_a"] = (1, ANOMALY_OUTPUT)
 
     run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, TWO_GROUP_ARGS)
 
     [notification] = _runtime_harness.notifications
-    assert "Check the broker's open orders before you run them with:" in notification["message"]
+    assert "Check the broker's open orders before you re-run them" in notification["message"]
+    assert "--force-run" not in notification["message"]
 
 
 def test_a_skipped_account_and_a_broker_anomaly_are_both_named_in_one_alert(

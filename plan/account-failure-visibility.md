@@ -52,7 +52,8 @@ This is what makes item A1's premise hold ("a plain re-run cannot trade anyone t
 Done: the group loop in `workflow.py` runs every cap group when an account hits a broker API anomaly.
 `run_auto_trades` prints `BROKER_API_ANOMALY_ACCOUNTS: <names>` (constant in `job_helpers.py`) before exiting 1;
 `run_auto_trader_group` reads it from the command output and returns the names. The run writes `COMPLETE` and
-sends a `warn` naming the accounts and the re-run command; the artifact carries `broker_anomaly_accounts`. An
+sends a `warn` naming the accounts and telling the operator to check the broker's open orders before a re-run (no
+re-run command is given: a re-run can send an order twice); the artifact carries `broker_anomaly_accounts`. An
 anomaly on every account, a crash, or an exit 1 without the line still fails the run.
 
 Left, not built:
