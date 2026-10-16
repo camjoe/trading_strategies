@@ -1,7 +1,6 @@
 # Plan: name an account that has stopped being snapshotted
 
-Status: in progress (branch `feature/account-freshness-check`). Before pickup: drafted 2026-10-15.
-Not started.
+Status: in progress (branch `feature/account-freshness-check`).
 Branch to use: `feature/account-freshness-check`, off `develop`.
 
 ## Goal
