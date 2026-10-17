@@ -2,7 +2,7 @@ import json
 from collections.abc import Collection, Sequence
 
 from scripts.forge import cli as cli_module
-from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment
+from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError
 from scripts.forge.findings import parse_findings
 from scripts.forge.github import GitHubForge
 from scripts.forge.scorecard import UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
@@ -89,25 +89,30 @@ class TestGitHubScoring:
         assert GitHubForge(runner).merged_pull_requests(3) == [318, 317, 316]
         assert "merged" in runner.calls[0] and "3" in runner.calls[0]
 
-    def test_reactions_are_summed_per_finding_for_the_named_authors_only(self) -> None:
-        def item(login: str, number: int, up: int, down: int) -> str:
+    def test_reactions_are_read_for_the_named_authors_only(self) -> None:
+        def item(login: str, number: int, comment_id: int, up: int, down: int) -> str:
             return json.dumps(
-                {"author": login, "body": f"{FINDING_MARKER.format(number=number)}\nx", "up": up, "down": down}
+                {
+                    "id": comment_id,
+                    "author": login,
+                    "body": FINDING_MARKER.format(number=number) + "\nx",
+                    "up": up,
+                    "down": down,
+                }
             )
 
         output = "\n".join(
             [
-                item("github-actions[bot]", 1, 2, 0),
-                item("github-actions[bot]", 1, 1, 1),
-                item("stranger", 1, 9, 9),
-                json.dumps({"author": "github-actions[bot]", "body": "plain", "up": 5, "down": 5}),
+                item("github-actions[bot]", 1, 1, 2, 1),
+                item("stranger", 1, 2, 9, 9),
+                json.dumps({"id": 3, "author": "github-actions[bot]", "body": "plain", "up": 5, "down": 5}),
             ]
         )
         runner = FakeRunner({"pulls/3/comments": output})
 
         reactions = GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"])
 
-        assert reactions == {1: (3, 1)}
+        assert reactions == {1: (2, 1)}
         assert "--paginate" in runner.calls[0]
 
 
@@ -168,3 +173,117 @@ class TestCli:
 
         assert code == 1
         assert "cannot score reviews" in capsys.readouterr().err
+
+
+class TestScoringEdges:
+    def _score(self, line: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `a` · d · pass 1\n\n#### Closed (1)\n{line}\n"
+        return parse_findings(body)[0]
+
+    def test_a_closed_finding_that_says_neither_fixed_nor_decided_is_other(self) -> None:
+        assert outcome_of(self._score("- [x] **1. Done.** Covered elsewhere. [Operator]")) == "other"
+
+    def test_a_title_containing_decided_or_fixed_is_not_read_as_the_outcome(self) -> None:
+        assert (
+            outcome_of(self._score("- [x] **1. Decided ordering is wrong.** Fixed in `abc`: ok. [Operator]"))
+            == "fixed"
+        )
+        assert outcome_of(self._score("- [x] **1. Fixed wording.** Decided: keep. [Operator]")) == "decided"
+
+    def test_a_trailing_bracket_that_is_not_a_lens_name_is_not_a_lens(self) -> None:
+        assert lenses_of(self._score("- [x] **1. Done.** Fixed in `abc`: see [x]")) == (UNTAGGED,)
+
+    def test_other_findings_get_their_own_column(self) -> None:
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] **1. Done.** Covered. [Operator]\n"
+
+        rows = tally(score_comment(body))
+
+        assert rows["Operator"]["other"] == 1
+        assert " other " in render_table(rows).splitlines()[0]
+        assert rows["Operator"]["findings"] == sum(
+            rows["Operator"][k] for k in ("fixed", "decided", "left open", "other")
+        )
+
+
+class TestGitHubArguments:
+    def test_the_merged_listing_asks_for_numbers_only(self) -> None:
+        runner = FakeRunner({"pr list": "1\n"})
+
+        GitHubForge(runner).merged_pull_requests(5)
+
+        assert runner.calls[0] == [
+            "pr",
+            "list",
+            "--state",
+            "merged",
+            "--limit",
+            "5",
+            "--json",
+            "number",
+            "--jq",
+            ".[].number",
+        ]
+
+    def test_the_reactions_query_reads_the_fields_the_code_uses(self) -> None:
+        runner = FakeRunner({"pulls/3/comments": ""})
+
+        GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"])
+
+        jq = runner.calls[0][-1]
+        for field in ("id: .id", "author: .user.login", "body: .body", '.reactions["+1"]', '.reactions["-1"]'):
+            assert field in jq
+
+    def test_only_the_latest_comment_of_a_finding_counts(self) -> None:
+        def item(comment_id: int, up: int) -> str:
+            body = f"{FINDING_MARKER.format(number=1)}\nx"
+            return json.dumps({"id": comment_id, "author": "github-actions[bot]", "body": body, "up": up, "down": 0})
+
+        runner = FakeRunner({"pulls/3/comments": item(10, 5) + "\n" + item(20, 1)})
+
+        assert GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"]) == {1: (1, 0)}
+
+
+class TestCliEdges:
+    def test_the_reactions_belong_to_the_pull_request_they_were_read_for(self, capsys) -> None:
+        class Recording(ScoreStub):
+            def __init__(self, bodies: dict[int, str]) -> None:
+                super().__init__(bodies)
+                self.reaction_calls: list[tuple[int, tuple[str, ...]]] = []
+                self.comment_authors: list[tuple[str, ...]] = []
+
+            def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
+                self.comment_authors.append(tuple(authors))
+                return Comment(1, self.bodies[number], "me")
+
+            def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+                self.reaction_calls.append((number, tuple(authors)))
+                return {1: (number, 0)}
+
+        stub = Recording({4: BODY, 9: BODY})
+
+        cli_module.main(["review-scorecard", "--pr", "4", "--pr", "9", "--author", "me", "--json"], forge=stub)  # type: ignore[arg-type]
+
+        data = json.loads(capsys.readouterr().out)
+        assert [call[0] for call in stub.reaction_calls] == [4, 9]
+        assert {call[1] for call in stub.reaction_calls} == {("me",)}
+        assert data["lenses"]["Test skeptic"]["up"] == 13
+
+    def test_a_negative_merged_count_is_refused(self, capsys) -> None:
+        code = cli_module.main(["review-scorecard", "--merged", "-1"], forge=ScoreStub({}))  # type: ignore[arg-type]
+
+        assert code == 1
+        assert "positive" in capsys.readouterr().err
+
+    def test_one_failing_pull_request_does_not_hide_the_others(self, capsys) -> None:
+        class Flaky(ScoreStub):
+            def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
+                if number == 5:
+                    raise ForgeError("gh pr failed")
+                return super().find_comment(number, authors)
+
+        code = cli_module.main(["review-scorecard", "--pr", "5", "--pr", "20"], forge=Flaky({20: BODY}))  # type: ignore[arg-type]
+
+        captured = capsys.readouterr()
+        assert code == 0
+        assert "skipped #5" in captured.err
+        assert captured.out.startswith("Scored 6 findings from 2 pull request(s).")

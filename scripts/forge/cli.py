@@ -24,7 +24,7 @@ from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
-from scripts.forge.scorecard import render_table, score_comment, tally
+from scripts.forge.scorecard import collect_scores, render_table, tally
 from scripts.forge.service import resolve_authors, review_context
 
 
@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
         "review-scorecard", help="Per lens: findings reported, how they ended, and reactions on them (read-only)."
     )
     scorecard.add_argument("--pr", type=int, action="append", default=[], help="Pull request to score; repeatable.")
-    scorecard.add_argument("--merged", type=int, default=0, help="Also score the last N merged pull requests.")
+    scorecard.add_argument("--merged", type=int, default=0, help="Also score the last N merged pull requests (N > 0).")
     scorecard.add_argument(
         "--author",
         action="append",
@@ -188,15 +188,13 @@ def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
 def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     if not isinstance(forge, ScorecardForge):
         raise ForgeError("This forge cannot score reviews.")
+    if args.merged < 0:
+        raise ForgeError("--merged must be a positive number.")
     authors = tuple(args.author) or ("github-actions[bot]",)
     numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
     if not numbers:
         raise ForgeError("Name pull requests with --pr or --merged.")
-    scored = []
-    for number in numbers:
-        comment = forge.find_comment(number, authors)
-        if comment is not None:
-            scored.extend(score_comment(comment.body, forge.finding_reactions(number, authors)))
+    scored, _failed = collect_scores(forge, numbers, authors)
     rows = tally(scored)
     if args.json:
         _print({"pull_requests": numbers, "lenses": {lens: dict(row) for lens, row in rows.items()}})

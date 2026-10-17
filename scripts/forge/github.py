@@ -270,19 +270,18 @@ class GitHubForge:
                 f"repos/{{owner}}/{{repo}}/pulls/{number}/comments",
                 "--paginate",
                 "--jq",
-                '.[] | {author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
+                '.[] | {id: .id, author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
             ],
             None,
         )
         names = {_login(author) for author in authors}
-        reactions: dict[int, tuple[int, int]] = {}
+        latest: dict[int, tuple[int, int, int]] = {}
         with _expect_shape("review comments"):
             for item in _json_values(output):
                 found = finding_marker_number(item["body"])
-                if found is not None and _login(item["author"]) in names:
-                    up, down = reactions.get(found, (0, 0))
-                    reactions[found] = (up + int(item["up"]), down + int(item["down"]))
-        return reactions
+                if found is not None and _login(item["author"]) in names and item["id"] > latest.get(found, (0,))[0]:
+                    latest[found] = (item["id"], int(item["up"]), int(item["down"]))
+        return {found: (up, down) for found, (_, up, down) in latest.items()}
 
     def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
         require_finding_marker(body)

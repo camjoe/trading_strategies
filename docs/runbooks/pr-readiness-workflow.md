@@ -53,9 +53,11 @@ Drafts, fork pull requests, and Dependabot pull requests are skipped.
 
 `python -m scripts.forge review-scorecard --merged 10` (or `--pr <n>`, repeatable; `--json` for the counts) reads the
 final readiness comment of each pull request and prints, per lens, how many findings it reported and how each ended:
-**fixed**, **decided** (the owner recorded a Decision), or **left open** (still an open note or test item at merge).
+**fixed**, **decided** (the owner recorded a Decision), or **left open** (still open at merge, in any tier), or **other** (closed without saying fixed or decided).
 It also adds the thumbs up and thumbs down on each finding's inline comment, so a click on a finding is a rating.
-It is read-only and needs `gh` signed in.
+It is read-only and needs `gh` signed in. It reads comments written by `github-actions[bot]`; pass `--author <login>`
+for comments posted under another account. When a finding has more than one inline comment, the latest one's
+reactions count.
 
 How to read it:
 - A lens whose findings are mostly left open, or mostly thumbs down, is the one to tighten. A lens whose findings

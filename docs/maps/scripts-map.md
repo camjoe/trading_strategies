@@ -39,8 +39,8 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 ## Forge Interface (`scripts/forge/`)
 
 Platform-neutral pull-request operations for the readiness workflow. Run via
-`python -m scripts.forge <operation>`; every operation prints JSON, and the only comment it writes is the
-`<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
+`python -m scripts.forge <operation>`; every operation prints JSON except `review-scorecard`, which prints a table (`--json` for JSON), and the only
+comment it writes is the `<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
 
 | Operation | What it returns or does |
 |---|---|

@@ -170,6 +170,10 @@ class InlineForge(Protocol):
 class ScorecardForge(Protocol):
     """A forge that can list merged pull requests and the reactions on finding comments, for scoring."""
 
+    def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
+        """The readiness comment on *number* written by one of *authors*."""
+        ...
+
     def merged_pull_requests(self, limit: int) -> list[int]:
         """Numbers of the most recently merged pull requests, newest first."""
         ...

@@ -5,13 +5,16 @@ or left open. Reactions on a finding's inline comment (a thumbs up or down) are 
 """
 
 import re
+import sys
 from collections import Counter
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
+from scripts.forge.base import ForgeError, ScorecardForge
 from scripts.forge.findings import Finding, parse_findings
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
+_TITLE = re.compile(r"^\*\*\d+\..*?\*\*\s*")
 _LENS_SUFFIX = re.compile(r"\s*(?:\(.*?\)|x\d+)\s*$")
 UNTAGGED = "(untagged)"
 
@@ -33,21 +36,25 @@ def lenses_of(finding: Finding) -> tuple[str, ...]:
     names: list[str] = []
     for part in match.group(1).split(";")[0].split(","):
         name = _LENS_SUFFIX.sub("", part.strip())
-        if name and not name.startswith("rated "):
+        if name[:1].isupper():
             names.append(name)
     return tuple(dict.fromkeys(names)) or (UNTAGGED,)
 
 
 def outcome_of(finding: Finding) -> str:
-    """``left open``, ``decided``, ``fixed``, or ``closed`` for a closed finding that says neither."""
+    """``left open``, ``decided``, ``fixed``, or ``other`` (a finding that is neither open nor says it was fixed or decided).
+
+    The word is looked for after the ``**n. Title.**`` prefix, so a title containing "Decided" does not count.
+    """
     if finding.is_open:
         return "left open"
-    if not finding.checked:
-        return "other"
-    first = finding.text.splitlines()[0]
-    if "Decided" in first or finding.decided:
+    text = finding.text.splitlines()[0] if finding.text else ""
+    said = _TITLE.sub("", text)
+    if finding.checked and (said.startswith("Decided") or finding.decided):
         return "decided"
-    return "fixed" if "Fixed" in first else "closed"
+    if finding.checked and said.startswith("Fixed"):
+        return "fixed"
+    return "other"
 
 
 def score_comment(body: str, reactions: Mapping[int, tuple[int, int]] | None = None) -> list[ScoredFinding]:
@@ -79,11 +86,34 @@ def tally(scored: Collection[ScoredFinding]) -> dict[str, Counter[str]]:
 
 def render_table(rows: Mapping[str, Counter[str]]) -> str:
     """A fixed-width table, busiest lens first."""
-    header = f"{'lens':24} {'found':>6} {'fixed':>6} {'decided':>8} {'left open':>10} {'up':>4} {'down':>5}"
+    header = (
+        f"{'lens':24} {'found':>6} {'fixed':>6} {'decided':>8} {'left open':>10} {'other':>6} {'up':>4} {'down':>5}"
+    )
     lines = [header]
     for lens, row in sorted(rows.items(), key=lambda item: (-item[1]["findings"], item[0])):
         lines.append(
             f"{lens:24} {row['findings']:6} {row['fixed']:6} {row['decided']:8} {row['left open']:10} "
-            f"{row['up']:4} {row['down']:5}"
+            f"{row['other']:6} {row['up']:4} {row['down']:5}"
         )
     return "\n".join(lines)
+
+
+def collect_scores(
+    forge: ScorecardForge, numbers: Collection[int], authors: Collection[str]
+) -> tuple[list[ScoredFinding], list[int]]:
+    """Score each pull request's readiness comment; returns the findings and the numbers that could not be read.
+
+    A pull request with no readiness comment contributes nothing. One that fails is reported on stderr and skipped,
+    so a single failing request does not hide the others.
+    """
+    scored: list[ScoredFinding] = []
+    failed: list[int] = []
+    for number in numbers:
+        try:
+            comment = forge.find_comment(number, authors)
+            if comment is not None:
+                scored.extend(score_comment(comment.body, forge.finding_reactions(number, authors)))
+        except ForgeError as exc:
+            print(f"forge: skipped #{number}: {exc}", file=sys.stderr)
+            failed.append(number)
+    return scored, failed
