@@ -201,9 +201,17 @@ def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple
     return exit_code, combined_output
 
 
+class CommandFailedError(RuntimeError):
+    """A streamed command exited non-zero; ``output`` is what it printed."""
+
+    def __init__(self, label: str, exit_code: int, output: str) -> None:
+        super().__init__(f"Step failed: {label} (exit={exit_code})")
+        self.output = output
+
+
 def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> str:
     """Run a command, teeing its output to the log; returns that output and raises if it exits non-zero."""
     exit_code, output = run_command(log_path, label, args, cwd)
     if exit_code != 0:
-        raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+        raise CommandFailedError(label, exit_code, output)
     return output

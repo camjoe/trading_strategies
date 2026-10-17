@@ -32,7 +32,10 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
+    POST_TRADE_RECONCILE_STEP_ID,
+    PRE_TRADE_RECONCILE_STEP_ID,
     DagStepResult,
+    StepFailedError,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,
@@ -57,6 +60,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
     UNRESOLVED_ORDERS_LINE_PREFIX,
+    CommandFailedError,
     resolve_email_config_from_env,
     run_command,
     stream_command,
@@ -68,8 +72,6 @@ from trading.interfaces.runtime.notifications import notify_runtime_event
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
-PRE_TRADE_RECONCILE_STEP_ID = "01_mark_book_nav"
-POST_TRADE_RECONCILE_STEP_ID = "08_reconcile_fills_update_ledgers"
 
 # Snapshot attempts per account before the step fails. Snapshots reach market data
 # and the DB, which fail transiently far more often than permanently, and the
@@ -183,19 +185,22 @@ def reconcile_and_snapshot(
     Snapshots retry on transient failure; an account that still fails after
     ``SNAPSHOT_MAX_ATTEMPTS`` propagates, failing the step.
     """
-    output = stream_command(
-        log_path,
-        f"{label} reconcile fills",
-        ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
-        repo_root,
-    )
-    for account in accounts:
-        snapshot_account_with_retry(log_path, repo_root, account, label)
-    return {
-        "accounts": list(accounts),
-        "count": len(accounts),
-        UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, output),
-    }
+    try:
+        output = stream_command(
+            log_path,
+            f"{label} reconcile fills",
+            ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
+            repo_root,
+        )
+    except CommandFailedError as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, exc.output)}) from exc
+    unresolved = _unresolved_orders(log_path, output)
+    try:
+        for account in accounts:
+            snapshot_account_with_retry(log_path, repo_root, account, label)
+    except Exception as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: unresolved}) from exc
+    return {"accounts": list(accounts), "count": len(accounts), UNRESOLVED_ORDERS_KEY: unresolved}
 
 
 def _unresolved_orders(log_path: Path, output: str) -> dict[str, dict[str, list[str]]]:
@@ -415,7 +420,12 @@ def _finish_run(
         ):
             message += ". Orders may already have gone out; check the broker's open orders before any re-run"
         if unresolved_orders:
-            message += f". Orders reconcile could not resolve: {_describe_unresolved(unresolved_orders)}"
+            source = (
+                ""
+                if step_result(step_results, POST_TRADE_RECONCILE_STEP_ID).status == "ok"
+                else " (found before trading; the post-trade reconcile did not finish)"
+            )
+            message += f". Orders reconcile could not resolve{source}: {_describe_unresolved(unresolved_orders)}"
     elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts or unresolved_orders:
         notes: list[str] = []
         if kill_switch_accounts:

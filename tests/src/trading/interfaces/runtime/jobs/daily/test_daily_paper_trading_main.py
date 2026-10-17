@@ -22,6 +22,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     write_completed_runtime_log,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import BrokerSessionUnavailableError
+from trading.interfaces.runtime.jobs.job_helpers import CommandFailedError
 
 WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
 
@@ -83,7 +84,7 @@ def _runtime_harness(monkeypatch, conn):
             raise RuntimeError(f"Step failed: {label} (exit=1)")
         exit_code, output = state.command_outputs.get(label, (0, ""))
         if exit_code != 0:
-            raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+            raise CommandFailedError(label, exit_code, output)
         return output
 
     monkeypatch.setattr(
@@ -1392,3 +1393,43 @@ def test_other_malformed_unresolved_lines_are_skipped_too(
 
     assert code == 0
     assert _artifact(tmp_path)[UNRESOLVED_ORDERS_KEY] == {}
+
+
+def test_a_reconcile_that_exits_non_zero_after_printing_still_reports_what_it_printed(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (1, UNRESOLVED_LINE)
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ONE_ACCOUNT_ARGS)
+
+    assert code == 1
+    assert _artifact(tmp_path)[UNRESOLVED_ORDERS_KEY]["acct_a"]["pending"] == ["c-1"]
+    [notification] = _runtime_harness.notifications
+    assert "(found before trading; the post-trade reconcile did not finish)" in notification["message"]
+
+
+def test_a_snapshot_failure_after_reconcile_printed_keeps_the_report(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (0, UNRESOLVED_LINE)
+    _runtime_harness.fail_labels.add("Pre-trade snapshot acct_a")
+
+    code = run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ONE_ACCOUNT_ARGS)
+
+    assert code == 1
+    artifact = _artifact(tmp_path)
+    assert artifact["failed_step"] == "01_mark_book_nav"
+    assert artifact[UNRESOLVED_ORDERS_KEY]["acct_a"]["unreported"] == ["ib-7", "ib-9"]
+    assert _auto_trader_account_args(_runtime_harness) == []
+
+
+def test_a_failure_with_both_suffixes_reads_in_order(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (0, UNRESOLVED_LINE)
+    _runtime_harness.fail_labels.add("Post-trade reconcile fills")
+
+    run_runtime_job_main(monkeypatch, tmp_path, DAILY_PAPER_TRADING_MODULE, ONE_ACCOUNT_ARGS)
+
+    [notification] = _runtime_harness.notifications
+    message = notification["message"]
+    assert message.index("Orders may already have gone out") < message.index("Orders reconcile could not resolve")
+    assert "(found before trading" in message

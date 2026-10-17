@@ -78,7 +78,7 @@ def main() -> None:
                     "pending": list(outcome.unresolved_pending_client_order_ids),
                     "unreported": list(outcome.unreported_broker_order_ids),
                 }
-                print(f"{UNRESOLVED_ORDERS_LINE_PREFIX}{json.dumps(unresolved)}")
+                print(f"{UNRESOLVED_ORDERS_LINE_PREFIX}{json.dumps(unresolved)}", flush=True)
 
 
 if __name__ == "__main__":
