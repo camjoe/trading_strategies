@@ -18,6 +18,7 @@ from scripts.forge.base import (
     InlineComment,
     PullRequest,
     aggregate_ci_state,
+    finding_marker_number,
     require_finding_marker,
     require_marker,
 )
@@ -80,7 +81,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id isResolved isOutdated
-          comments(first: 1) { nodes { databaseId body path line author { login } } }
+          comments(first: 1) { totalCount nodes { databaseId body path line author { login } } }
         }
       }
     }
@@ -229,7 +230,7 @@ class GitHubForge:
                 f"number={number}",
                 "--jq",
                 ".data.repository.pullRequest.reviewThreads.nodes[] | {thread: .id, resolved: .isResolved, "
-                "outdated: .isOutdated, comment: .comments.nodes[0]}",
+                "outdated: .isOutdated, replies: (.comments.totalCount - 1), comment: .comments.nodes[0]}",
             ],
             None,
         )
@@ -250,10 +251,39 @@ class GitHubForge:
                     line=comment["line"],
                     resolved=item["resolved"],
                     outdated=item["outdated"],
+                    reply_count=int(item["replies"]),
                 )
                 if found.finding_number is not None:
                     comments.append(found)
         return comments
+
+    def merged_pull_requests(self, limit: int) -> list[int]:
+        output = self._run(
+            ["pr", "list", "--state", "merged", "--limit", str(limit), "--json", "number", "--jq", ".[].number"], None
+        )
+        with _expect_shape("merged pull requests"):
+            return [int(line) for line in output.split()]
+
+    def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+        output = self._run(
+            [
+                "api",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/comments",
+                "--paginate",
+                "--jq",
+                ".[] | select(.in_reply_to_id == null) | "
+                '{id: .id, author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
+            ],
+            None,
+        )
+        names = {_login(author) for author in authors}
+        latest: dict[int, tuple[int, int, int]] = {}
+        with _expect_shape("review comments"):
+            for item in _json_values(output):
+                found = finding_marker_number(item["body"])
+                if found is not None and _login(item["author"]) in names and item["id"] > latest.get(found, (0,))[0]:
+                    latest[found] = (item["id"], int(item["up"]), int(item["down"]))
+        return {found: (up, down) for found, (_, up, down) in latest.items()}
 
     def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
         require_finding_marker(body)
@@ -263,6 +293,20 @@ class GitHubForge:
         )
         with _expect_shape("review comment write"):
             return int(json.loads(output)["id"])
+
+    def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
+        require_finding_marker(body)
+        self._run(
+            [
+                "api",
+                "-X",
+                "POST",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/comments/{comment_id}/replies",
+                "--input",
+                "-",
+            ],
+            json.dumps({"body": body}),
+        )
 
     def edit_inline_comment(self, comment_id: int, body: str) -> None:
         require_finding_marker(body)

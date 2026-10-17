@@ -42,12 +42,40 @@ The `readiness` job, which starts only if the first succeeded:
    push landed meanwhile.
 7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. Then
    `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
-   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and resolves its
-   thread when the finding closes. A finding whose line is not in the diff stays in the summary only. A failure here
+   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and marks it
+   "✓ ... Fixed in `<sha>`" when the finding closes. It also tries to resolve the thread; the workflow token is refused
+   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it (a failure to resolve is counted as
+   `unresolved`, a refused reply as `reply_failed`, a refused edit as `edit_failed`).
+   Once, when a finding closes, the bot also replies in its thread ("✓ Fixed in `<sha>`." or "✓ Decided.") so the
+   owner is notified; a thread that already holds a reply gets no second one. A finding whose line is not in the diff stays in the summary only. A failure here
    is a warning, not a red check, because the summary is already posted. The `readiness` job is the
    only one with the GitHub token.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
+
+## Review scorecard
+
+`python -m scripts.forge review-scorecard --merged 10` (or `--pr <n>`, repeatable; `--json` for the counts) reads the
+final readiness comment of each pull request and prints, per lens, how many findings it reported and how each ended:
+**fixed**, **decided** (the owner recorded a Decision), or **left open** (still open at merge, in any tier), or **other** (closed without saying fixed or decided).
+It also adds the thumbs up and thumbs down on each finding's inline comment, so a click on a finding is a rating:
+react to the bot's comment on the finding's line with 👍 (worth fixing) or 👎 (noise). Reactions on the summary comment and on replies are not counted.
+With `--json`, `pull_requests` lists the pull requests that were read (one with no readiness comment counts as read),
+`skipped` maps each pull request that failed to its reason, and `lenses` holds the counts; the output is printed
+before the command exits 1 for a skipped pull request.
+It is read-only and needs `gh` signed in. It reads comments written by `github-actions[bot]`; pass `--author <login>`
+for comments posted under another account. When a finding has more than one inline comment, the latest one's
+reactions count.
+
+How to read it:
+- A lens whose findings are mostly left open, or mostly thumbs down, is the one to tighten. A lens whose findings
+  are nearly all fixed is earning its cost.
+- "Fixed" is a weak signal on its own, because a cheap note is often fixed to keep a pass moving. Left open,
+  Decisions that decline a finding, and thumbs down say more.
+- `(untagged)` counts findings with no reviewer tag. Closed findings only keep their tag from the format that
+  introduced `[<reviewers>]` on Closed lines, so older pull requests show mostly `(untagged)`.
+- Run it about every ten merged pull requests, or when a pass feels noisy, and change a lens's prompt only when
+  the numbers say to.
 
 ## One-time setup
 

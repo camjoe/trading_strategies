@@ -16,7 +16,7 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.forge import container
-from scripts.forge.base import Forge, ForgeError, InlineForge, printable
+from scripts.forge.base import Forge, ForgeError, InlineForge, ScorecardForge, printable
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
 from scripts.forge.inline import sync_inline_comments
@@ -24,6 +24,7 @@ from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
+from scripts.forge.scorecard import collect_scores, render_table, tally
 from scripts.forge.service import resolve_authors, review_context
 
 
@@ -70,6 +71,21 @@ def build_parser() -> argparse.ArgumentParser:
     _add_author_argument(inline)
     inline.add_argument("--body-file", required=True, help="File holding the readiness comment, or - for stdin.")
     inline.add_argument("--head-sha", help="Commit the comments attach to (default: the pull request head).")
+
+    scorecard = commands.add_parser(
+        "review-scorecard", help="Per lens: findings reported, how they ended, and reactions on them (read-only)."
+    )
+    scorecard.add_argument("--pr", type=int, action="append", default=[], help="Pull request to score; repeatable.")
+    scorecard.add_argument(
+        "--merged", type=int, default=0, help="Also score the last N merged pull requests (0 = none)."
+    )
+    scorecard.add_argument(
+        "--author",
+        action="append",
+        default=[],
+        help="Account that wrote the readiness comments; repeatable (default: github-actions[bot]).",
+    )
+    scorecard.add_argument("--json", action="store_true", help="Print the counts as JSON instead of a table.")
 
     context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
     _add_pr_argument(context)
@@ -169,6 +185,29 @@ def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
         forge, pull_request.number, head_sha, _read_body(args.body_file), resolve_authors(forge, args.author)
     )
     _print(outcome)
+    refused = outcome["reply_failed"] + outcome["edit_failed"]
+    if refused:
+        print(f"forge: warning: {refused} inline reply or edit request(s) were refused.", file=sys.stderr)
+
+
+def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
+    if not isinstance(forge, ScorecardForge):
+        raise ForgeError("This forge cannot score reviews.")
+    if args.merged < 0:
+        raise ForgeError("--merged must not be negative.")
+    authors = tuple(args.author) or ("github-actions[bot]",)
+    numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
+    if not numbers:
+        raise ForgeError("Name pull requests with --pr or --merged.")
+    scored, read, failed = collect_scores(forge, numbers, authors)
+    rows = tally(scored)
+    if args.json:
+        _print({"pull_requests": read, "skipped": failed, "lenses": {lens: dict(row) for lens, row in rows.items()}})
+    else:
+        print(f"Scored {len(scored)} findings from {len(read)} pull request(s).")
+        print(render_table(rows))
+    if failed:
+        raise ForgeError("Could not read " + "; ".join(f"#{number}: {why}" for number, why in failed.items()))
 
 
 def _review_context(args: argparse.Namespace, forge: Forge) -> None:
@@ -288,6 +327,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "comment-get": _comment_get,
     "comment-upsert": _comment_upsert,
     "inline-sync": _inline_sync,
+    "review-scorecard": _review_scorecard,
     "review-context": _review_context,
     "check-body": _check_body,
     "fix-loop": _fix_loop,

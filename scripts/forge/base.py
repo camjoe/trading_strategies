@@ -88,6 +88,7 @@ class InlineComment:
     line: int | None
     resolved: bool
     outdated: bool
+    reply_count: int = 0
 
     @property
     def finding_number(self) -> int | None:
@@ -161,8 +162,29 @@ class InlineForge(Protocol):
         """Replace the text of a review comment."""
         ...
 
+    def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
+        """Add a reply to the thread of review comment *comment_id*."""
+        ...
+
     def resolve_thread(self, thread_id: str) -> None:
         """Mark a review thread resolved."""
+        ...
+
+
+@runtime_checkable
+class ScorecardForge(Protocol):
+    """A forge that can list merged pull requests and the reactions on finding comments, for scoring."""
+
+    def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
+        """The readiness comment on *number* written by one of *authors*."""
+        ...
+
+    def merged_pull_requests(self, limit: int) -> list[int]:
+        """Numbers of the most recently merged pull requests, newest first."""
+        ...
+
+    def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+        """Per finding number, the thumbs up and thumbs down on its inline comment."""
         ...
 
 

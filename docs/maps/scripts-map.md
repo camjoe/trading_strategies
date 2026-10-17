@@ -39,14 +39,15 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 ## Forge Interface (`scripts/forge/`)
 
 Platform-neutral pull-request operations for the readiness workflow. Run via
-`python -m scripts.forge <operation>`; every operation prints JSON, and the only comment it writes is the
-`<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
+`python -m scripts.forge <operation>`; every operation prints JSON except `review-scorecard`, which prints a table (`--json` for JSON), and the only
+comment it writes is the `<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
 
 | Operation | What it returns or does |
 |---|---|
 | `pr-info [--pr N]` | Number, refs, head sha, draft flag, state, and `diff_base_ref` (`origin/<base>`) |
 | `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
+| `review-scorecard [--pr N]... [--merged N] [--author L] [--json]` | Read-only: per lens, the findings reported and how they ended (fixed, decided, left open), with thumbs up and down on their inline comments |
 | `inline-sync --body-file F [--pr N] [--head-sha S]` | Keeps one review comment per open blocker or concern on its changed line: creates, edits, and resolves; only comments with a finding marker |
 | `implement-plan --plan F [--base develop] [--model sonnet] [--depends-ok] [--no-ready] [--no-fix] [--no-container] [--agent-container] [--wait-minutes 45]` | Claims a plan from `plan/` with a draft pull request, has an agent implement it, runs the gate, and takes the pull request out of draft only when nothing needs the owner, then waits for the first review and runs the fixer loop unless `--no-fix` |
 | `fix-loop --pr N [--max-rounds 3] [--wait-minutes 45] [--model sonnet] [--agent-container]` | Runs fixer rounds on a pull request from the owner's machine until its comment says READY, only owner decisions are left, or the round cap is reached; at READY it first removes the plan file the branch claimed (and its index row), pushes, and waits for the confirming pass; emails the owner at the end |
@@ -60,6 +61,7 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
 | `readiness.py` | Pass-number parsing, the pre-post checks on a comment body, and the scan of an agent's commits and changed paths for the Claude token |
 | `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
+| `scorecard.py` | Tallies the findings of readiness comments per lens by outcome and reaction, and renders the table |
 | `inline.py` | Which findings get a review comment on their line, and the create, edit, and resolve steps that keep those comments matching the readiness comment |
 | `guarded_paths.py` | Paths an unattended fixer must never change |
 | `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |
