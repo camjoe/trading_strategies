@@ -12,9 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import TracebackType
 
-from scripts.forge.scorecard import PullRequestScore
+from scripts.forge.scorecard import PullRequestScore, area_of
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS pull_request (
@@ -23,7 +23,23 @@ CREATE TABLE IF NOT EXISTS pull_request (
     passes INTEGER,
     verdict TEXT,
     saved_at TEXT NOT NULL,
+    title TEXT,
+    author TEXT,
+    base_ref TEXT,
+    head_ref TEXT,
+    created_at TEXT,
+    merged_at TEXT,
+    additions INTEGER,
+    deletions INTEGER,
+    commit_count INTEGER,
     PRIMARY KEY (repo, number)
+);
+CREATE TABLE IF NOT EXISTS pull_request_file (
+    repo TEXT NOT NULL,
+    pull_request INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    area TEXT NOT NULL,
+    PRIMARY KEY (repo, pull_request, path)
 );
 CREATE TABLE IF NOT EXISTS finding (
     repo TEXT NOT NULL,
@@ -33,6 +49,13 @@ CREATE TABLE IF NOT EXISTS finding (
     outcome TEXT NOT NULL,
     up INTEGER NOT NULL DEFAULT 0,
     down INTEGER NOT NULL DEFAULT 0,
+    title TEXT NOT NULL DEFAULT '',
+    path TEXT,
+    line INTEGER,
+    area TEXT,
+    fixed_in TEXT,
+    lowered TEXT,
+    text TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (repo, pull_request, number)
 );
 CREATE TABLE IF NOT EXISTS finding_lens (
@@ -82,16 +105,55 @@ class ScoreStore:
         """Store one pull request, replacing whatever was saved for it before, in one transaction."""
         stamp = (saved_at or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
         with self._conn:
-            for table in ("finding_lens", "finding"):
+            for table in ("finding_lens", "finding", "pull_request_file"):
                 self._conn.execute(f"DELETE FROM {table} WHERE repo = ? AND pull_request = ?", (repo, number))
+            info = score.details
             self._conn.execute(
-                "INSERT OR REPLACE INTO pull_request (repo, number, passes, verdict, saved_at) VALUES (?, ?, ?, ?, ?)",
-                (repo, number, score.passes, score.verdict, stamp),
+                "INSERT OR REPLACE INTO pull_request (repo, number, passes, verdict, saved_at, title, author, base_ref, "
+                "head_ref, created_at, merged_at, additions, deletions, commit_count) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    repo,
+                    number,
+                    score.passes,
+                    score.verdict,
+                    stamp,
+                    info and info.title,
+                    info and info.author,
+                    info and info.base_ref,
+                    info and info.head_ref,
+                    info and info.created_at,
+                    info and info.merged_at,
+                    info and info.additions,
+                    info and info.deletions,
+                    info and info.commit_count,
+                ),
             )
+            if info:
+                self._conn.executemany(
+                    "INSERT INTO pull_request_file (repo, pull_request, path, area) VALUES (?, ?, ?, ?)",
+                    [(repo, number, path, area_of(path)) for path in info.files],
+                )
             for finding in score.findings:
                 self._conn.execute(
-                    "INSERT INTO finding (repo, pull_request, number, tier, outcome, up, down) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (repo, number, finding.number, finding.tier, finding.outcome, finding.up, finding.down),
+                    "INSERT INTO finding (repo, pull_request, number, tier, outcome, up, down, title, path, line, area, "
+                    "fixed_in, lowered, text) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        repo,
+                        number,
+                        finding.number,
+                        finding.tier,
+                        finding.outcome,
+                        finding.up,
+                        finding.down,
+                        finding.title,
+                        finding.path,
+                        finding.line,
+                        finding.area,
+                        finding.fixed_in,
+                        finding.lowered,
+                        finding.text,
+                    ),
                 )
                 self._conn.executemany(
                     "INSERT INTO finding_lens (repo, pull_request, number, lens) VALUES (?, ?, ?, ?)",

@@ -266,7 +266,7 @@ def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
     if not numbers:
         raise ForgeError("Name pull requests with --pr or --merged.")
-    scores, read, failed = collect_scores(forge, numbers, authors)
+    scores, read, failed = collect_scores(forge, numbers, authors, with_details=args.save)
     saved_to = None
     if args.save:
         saved_to = _scorecard_db(args)

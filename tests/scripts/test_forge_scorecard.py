@@ -4,7 +4,7 @@ from collections.abc import Collection, Sequence
 from pathlib import Path
 
 from scripts.forge import cli as cli_module
-from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError
+from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError, PullRequestDetails
 from scripts.forge.findings import parse_findings
 from scripts.forge.github import GitHubForge
 from scripts.forge.scorecard import LENSES, UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
@@ -128,6 +128,20 @@ class ScoreStub:
 
     def repository(self) -> str:
         return "owner/repo"
+
+    def pull_request_details(self, number: int) -> PullRequestDetails:
+        return PullRequestDetails(
+            title=f"PR {number}",
+            author="camjoe",
+            base_ref="develop",
+            head_ref="feature/x",
+            created_at="2026-10-17T10:00:00Z",
+            merged_at="2026-10-17T14:30:00Z",
+            additions=30,
+            deletions=4,
+            commit_count=2,
+            files=("src/a.py", "tests/test_a.py", "docs/a.md"),
+        )
 
     def merged_pull_requests(self, limit: int) -> list[int]:
         return [20, 10][:limit]
@@ -405,3 +419,64 @@ class TestSpellings:
     def test_titles_ending_in_a_period_question_mark_or_exclamation_mark(self) -> None:
         for title in ("A thing.", "Why is X?", "Never do this!"):
             assert outcome_of(self._closed(f"- [x] **1. {title}** Fixed in `a`: ok. [Operator]")) == "fixed", title
+
+
+class TestMetadata:
+    def test_area_of_a_path(self) -> None:
+        from scripts.forge.scorecard import area_of
+
+        cases = {
+            "src/a/b.py": "code",
+            "tests/scripts/test_x.py": "tests",
+            "pkg/test_x.py": "tests",
+            "pkg/x_test.py": "tests",
+            "docs/runbooks/a.md": "docs",
+            "README.md": "docs",
+            ".github/workflows/x.yml": "ci",
+            ".ai/skills/x/SKILL.md": "agent",
+            "AGENTS.md": "agent",
+            "config/app.toml": "config",
+        }
+        for path, area in cases.items():
+            assert area_of(path) == area, path
+
+    def test_a_finding_carries_its_title_path_line_area_fix_and_lowering(self) -> None:
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `a` · d · pass 2 · current\n\n"
+            "<details>\n<summary>🟡 Notes</summary>\n\n#### 🟡 Notes (1)\n"
+            "- [ ] **8. Why is it wrong?** `src/x.py:12`: text. → fix. "
+            "[Break it, rated CONCERN; lowered to NOTE because unconfirmed]\n\n</details>\n\n"
+            "<details>\n<summary>✓ Closed (1)</summary>\n\n#### Closed (1)\n"
+            "- [x] **1. A broker error.** Fixed in `abc1234`: ok. [Operator]\n</details>\n"
+        )
+
+        found = {f.number: f for f in score_comment(body)}
+
+        note = found[8]
+        assert (note.title, note.path, note.line, note.area) == ("Why is it wrong?", "src/x.py", 12, "code")
+        assert note.lowered == "unconfirmed" and note.fixed_in is None
+        assert note.text.startswith("**8. Why is it wrong?**")
+        closed = found[1]
+        assert closed.fixed_in == "abc1234" and closed.path is None and closed.area is None
+
+    def test_a_fix_named_without_backticks_gives_its_sha(self) -> None:
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] **1. T.** Fixed in abc1234: ok. [Operator]\n"
+
+        assert score_comment(body)[0].fixed_in == "abc1234"
+
+    def test_details_are_fetched_only_when_asked(self) -> None:
+        calls: list[int] = []
+
+        class Counting(ScoreStub):
+            def pull_request_details(self, number: int) -> PullRequestDetails:
+                calls.append(number)
+                return super().pull_request_details(number)
+
+        from scripts.forge.scorecard import collect_scores
+
+        stub = Counting({20: BODY})
+        scores, _, _ = collect_scores(stub, [20], ["github-actions[bot]"])
+        assert calls == [] and scores[20].details is None
+
+        scores, _, _ = collect_scores(stub, [20], ["github-actions[bot]"], with_details=True)
+        assert calls == [20] and scores[20].details is not None and scores[20].details.author == "camjoe"

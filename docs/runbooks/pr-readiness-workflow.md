@@ -90,8 +90,10 @@ python -m scripts.forge review-scorecard --from-db --repo owner/name --json
 The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
 (`local/` is gitignored). Saving a pull request again replaces its rows, so run it after each merge, or over
 `--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
-is the passes it took to reach its last verdict), its verdict, and one row per finding with its tier, outcome,
-lenses, and reactions. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
+is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head
+branch, created and merged times, lines added and removed, commit count, and every changed file with an area
+(`code`, `tests`, `docs`, `config`, `ci`, `agent`). Each finding is stored with its tier, outcome, lenses, reactions,
+title, path and line, area, the sha that fixed it, why it was lowered (if it was), and its full text. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
 file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
 pull requests merged before that save with `(untagged)` lenses.
 

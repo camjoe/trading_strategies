@@ -17,6 +17,7 @@ from scripts.forge.base import (
     ForgeError,
     InlineComment,
     PullRequest,
+    PullRequestDetails,
     aggregate_ci_state,
     finding_marker_number,
     require_finding_marker,
@@ -256,6 +257,24 @@ class GitHubForge:
                 if found.finding_number is not None:
                     comments.append(found)
         return comments
+
+    def pull_request_details(self, number: int) -> PullRequestDetails:
+        fields = "title,author,baseRefName,headRefName,createdAt,mergedAt,additions,deletions,commits,files"
+        output = self._run(["pr", "view", str(number), "--json", fields], None)
+        with _expect_shape("pr view details"):
+            data = json.loads(output)
+            return PullRequestDetails(
+                title=data["title"],
+                author=(data["author"] or {}).get("login", ""),
+                base_ref=data["baseRefName"],
+                head_ref=data["headRefName"],
+                created_at=data["createdAt"],
+                merged_at=data["mergedAt"],
+                additions=int(data["additions"]),
+                deletions=int(data["deletions"]),
+                commit_count=len(data["commits"]),
+                files=tuple(item["path"] for item in data["files"]),
+            )
 
     def repository(self) -> str:
         owner, repo = self._repository()

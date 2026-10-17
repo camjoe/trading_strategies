@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from scripts.forge import cli as cli_module
+from scripts.forge.base import PullRequestDetails
 from scripts.forge.scorecard import PullRequestScore, ScoredFinding, score_pull_request, tally
 from scripts.forge.scorecard_store import SCHEMA_VERSION, ScoreStore
 from tests.scripts.test_forge_scorecard import BODY, ScoreStub
@@ -171,3 +172,97 @@ class TestCli:
 
         with ScoreStore(db) as store:
             assert [pr.number for pr in store.pull_requests()] == [20]
+
+
+class TestMetadataRows:
+    DETAILS = PullRequestDetails(
+        title="A change",
+        author="camjoe",
+        base_ref="develop",
+        head_ref="feature/x",
+        created_at="2026-10-17T10:00:00Z",
+        merged_at="2026-10-17T14:30:00Z",
+        additions=30,
+        deletions=4,
+        commit_count=2,
+        files=("src/a.py", "tests/test_a.py", "docs/a.md"),
+    )
+
+    def test_pull_request_details_and_file_areas_are_stored(self, tmp_path) -> None:
+        scored = PullRequestScore([FIXED], 3, "READY", self.DETAILS)
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 7, scored)
+
+        conn = sqlite3.connect(tmp_path / "s.db")
+        row = conn.execute(
+            "SELECT title, author, base_ref, head_ref, created_at, merged_at, additions, deletions, commit_count "
+            "FROM pull_request"
+        ).fetchone()
+        files = dict(conn.execute("SELECT path, area FROM pull_request_file").fetchall())
+        assert row == (
+            "A change",
+            "camjoe",
+            "develop",
+            "feature/x",
+            "2026-10-17T10:00:00Z",
+            "2026-10-17T14:30:00Z",
+            30,
+            4,
+            2,
+        )
+        assert files == {"src/a.py": "code", "tests/test_a.py": "tests", "docs/a.md": "docs"}
+
+    def test_a_pull_request_saved_without_details_has_null_details_and_no_files(self, tmp_path) -> None:
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 7, score(FIXED))
+
+        conn = sqlite3.connect(tmp_path / "s.db")
+        assert conn.execute("SELECT title, author FROM pull_request").fetchone() == (None, None)
+        assert conn.execute("SELECT COUNT(*) FROM pull_request_file").fetchone() == (0,)
+
+    def test_saving_again_replaces_the_files_too(self, tmp_path) -> None:
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 7, PullRequestScore([FIXED], 3, "READY", self.DETAILS))
+            store.save("o/r", 7, PullRequestScore([FIXED], 4, "READY", None))
+
+        assert sqlite3.connect(tmp_path / "s.db").execute("SELECT COUNT(*) FROM pull_request_file").fetchone() == (0,)
+
+    def test_finding_metadata_is_stored(self, tmp_path) -> None:
+        finding = ScoredFinding(
+            1,
+            "fixed",
+            ("Break it",),
+            "concern",
+            1,
+            0,
+            "A title",
+            "src/x.py",
+            12,
+            "code",
+            "abc1234",
+            "unconfirmed",
+            "**1. A title.** body",
+        )
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 7, score(finding))
+
+        row = (
+            sqlite3.connect(tmp_path / "s.db")
+            .execute("SELECT title, path, line, area, fixed_in, lowered, text FROM finding")
+            .fetchone()
+        )
+        assert row == ("A title", "src/x.py", 12, "code", "abc1234", "unconfirmed", "**1. A title.** body")
+
+    def test_the_cli_save_stores_the_details_and_the_findings_metadata(self, tmp_path) -> None:
+        db = tmp_path / "s.db"
+
+        cli_module.main(["review-scorecard", "--pr", "20", "--save", "--db", str(db)], forge=ScoreStub({20: BODY}))  # type: ignore[arg-type]
+
+        conn = sqlite3.connect(db)
+        assert conn.execute("SELECT title, author, merged_at FROM pull_request").fetchone() == (
+            "PR 20",
+            "camjoe",
+            "2026-10-17T14:30:00Z",
+        )
+        assert conn.execute("SELECT COUNT(*) FROM pull_request_file").fetchone() == (3,)
+        assert conn.execute("SELECT fixed_in FROM finding WHERE number = 1").fetchone() == ("abc1234",)
