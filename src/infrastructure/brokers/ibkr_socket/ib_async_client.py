@@ -91,6 +91,53 @@ class IbAsyncClient:
     def trades(self) -> list[IbkrTrade]:
         return [_normalize_ib_async_trade(trade) for trade in self._ib.trades()]
 
+    def find_trade(self, order_id: int) -> IbkrTrade | None:
+        """Look up one order, including one that filled while no job was connected.
+
+        An execution from before this connection is held in ``fills()`` but attached to no
+        trade, so ``trades()`` omits that order. Its permId links the execution to the
+        completed order that carries the total quantity and final status. Without both, the
+        order cannot be reported and None is returned.
+
+        ``reqCompletedOrders`` also adds the completed trades to ``trades()``, with an
+        unreliable ``orderId``; do not call ``trades()`` again on this connection afterwards.
+        """
+        for trade in self._ib.trades():
+            if int(trade.order.orderId) == order_id:
+                return _normalize_ib_async_trade(trade)
+
+        client_id = int(self._ib.client.clientId)
+        fills = [
+            fill
+            for fill in self._ib.fills()
+            if int(fill.execution.orderId) == order_id and int(fill.execution.clientId) == client_id
+        ]
+        if not fills:
+            return None
+        perm_id = int(fills[0].execution.permId)
+        completed = next(
+            (trade for trade in self._ib.reqCompletedOrders(apiOnly=True) if int(trade.order.permId) == perm_id),
+            None,
+        )
+        if completed is None:
+            return None
+
+        filled = sum(float(fill.execution.shares) for fill in fills)
+        notional = sum(float(fill.execution.shares) * float(fill.execution.avgPrice) for fill in fills)
+        return IbkrTrade(
+            order_id=order_id,
+            symbol=str(completed.contract.symbol),
+            action=str(completed.order.action),
+            total_quantity=float(completed.order.totalQuantity),
+            limit_price=float(completed.order.lmtPrice or 0.0),
+            status=str(completed.orderStatus.status),
+            filled=filled,
+            avg_fill_price=notional / filled if filled else None,
+            fills=tuple(_normalize_ib_async_fill(fill) for fill in fills),
+            status_reason=_ib_async_status_reason(completed, str(completed.orderStatus.status)),
+            order_ref=str(getattr(completed.order, "orderRef", "") or ""),
+        )
+
     def positions(self) -> list[IbkrPosition]:
         return [
             IbkrPosition(symbol=str(position.contract.symbol), quantity=float(position.position))

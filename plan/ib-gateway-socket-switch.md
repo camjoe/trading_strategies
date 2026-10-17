@@ -48,11 +48,16 @@ UNVERIFIED, decided by the trial below:
 ## Work
 
 ### 1. Socket adapter gaps (code, tests)
-- `IbkrSocketAdapter.get_order(broker_order_id)`. The base class returns `None`, so
-  `open_order_reconciliation.py` cannot look up an order that `get_open_trades` omits, and a filled
-  order may drop out of the open list. The `ib_async` client connects with only open orders and
-  executions fetched, and `trades()` is served from that startup cache, so first confirm what a
-  fill from an earlier session looks like after reconnect, then implement the lookup from that.
+- DONE in code, UNVERIFIED on a Gateway: `IbkrSocketAdapter.get_order` and
+  `IbkrSocketClient.find_trade`. `get_open_trades` already returns every trade the connection knows,
+  so the gap was an order that filled while no job was connected: `ib_async` keeps its execution in
+  `fills()` attached to no trade, so `trades()` omits it. `find_trade` rebuilds it from the
+  executions (matched on order id and client id) plus the completed order (matched on permId, via
+  `reqCompletedOrders`). Covered by unit tests with a fake backend only. Confirm on the host:
+  place a market order, disconnect before the fill is read, reconnect, and check `get_order` returns
+  it with its fills. IBKR reports completed orders for the current day only, so an order from an
+  earlier day stays unreported. The native `ibapi` backend returns `None`.
+- DONE: the preflight failure message names IB Gateway as well as the Client Portal Gateway.
 - Reconnect. `IbAsyncClient.connect` is one attempt with a 20 s timeout. A connection held across
   market hours needs a bounded reconnect with backoff that re-syncs `trades()` before trusting it,
   and fails loudly if the sync does not complete (an empty `trades()` looks like "no open orders").

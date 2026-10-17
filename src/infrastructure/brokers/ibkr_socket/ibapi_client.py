@@ -514,6 +514,10 @@ class IbApiClient:
         self._callbacks.raise_if_background_error()
         return self._callbacks.trades()
 
+    def find_trade(self, order_id: int) -> IbkrTrade | None:
+        """Not supported: this backend requests no past executions or completed orders."""
+        return None
+
     def positions(self) -> list[IbkrPosition]:
         app = self._require_connected()
         with self._request_lock:

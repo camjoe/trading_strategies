@@ -444,6 +444,127 @@ class TestIbAsyncClient:
         )
 
 
+class TestGetOrder:
+    def test_maps_the_trade_the_client_finds(self):
+        adapter, client = _adapter_with_mock_client()
+        client.find_trade.return_value = _socket_trade(order_id=55, status="Filled", filled=10.0)
+
+        result = adapter.get_order("55")
+
+        client.find_trade.assert_called_once_with(55)
+        assert result is not None
+        assert result.broker_order_id == "55"
+        assert result.status == OrderStatus.FILLED
+
+    def test_returns_none_when_the_client_cannot_report_the_order(self):
+        adapter, client = _adapter_with_mock_client()
+        client.find_trade.return_value = None
+
+        assert adapter.get_order("55") is None
+
+    def test_requires_a_connection(self):
+        adapter, client = _adapter_with_mock_client()
+        client.is_connected.return_value = False
+
+        with pytest.raises(RuntimeError, match="not connected"):
+            adapter.get_order("55")
+
+    def test_native_backend_reports_nothing(self):
+        assert IbApiClient().find_trade(55) is None
+
+
+def _sdk_fill(*, order_id=42, client_id=7, perm_id=9001, shares=4.0, price=150.0, exec_id="e1"):
+    return SimpleNamespace(
+        execution=SimpleNamespace(
+            orderId=order_id,
+            clientId=client_id,
+            permId=perm_id,
+            shares=shares,
+            avgPrice=price,
+            execId=exec_id,
+            time="t",
+        ),
+        commissionReport=SimpleNamespace(commission=0.5),
+    )
+
+
+def _sdk_completed(*, perm_id=9001, status="Filled", total=10.0):
+    return SimpleNamespace(
+        order=SimpleNamespace(
+            permId=perm_id, orderId=0, action="BUY", totalQuantity=total, lmtPrice=0.0, orderRef="ref-1"
+        ),
+        orderStatus=SimpleNamespace(status=status, filled=0.0, avgFillPrice=0.0),
+        contract=SimpleNamespace(symbol="AAPL"),
+        fills=[],
+        advancedError="",
+        log=[],
+    )
+
+
+class TestIbAsyncFindTrade:
+    """An order that filled while no job was connected is in `fills()` but on no trade."""
+
+    @staticmethod
+    def _client(monkeypatch, *, trades=(), fills=(), completed=()):
+        backend = MagicMock()
+        backend.client.clientId = 7
+        backend.trades.return_value = list(trades)
+        backend.fills.return_value = list(fills)
+        backend.reqCompletedOrders.return_value = list(completed)
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+        return IbAsyncClient(), backend
+
+    def test_returns_a_trade_the_session_already_knows(self, monkeypatch):
+        known = SimpleNamespace(
+            order=SimpleNamespace(orderId=42, action="BUY", totalQuantity=10.0, lmtPrice=0.0, orderRef="ref-1"),
+            orderStatus=SimpleNamespace(status="Submitted", filled=0.0, avgFillPrice=0.0),
+            contract=SimpleNamespace(symbol="AAPL"),
+            fills=[],
+            advancedError="",
+            log=[],
+        )
+        client, backend = self._client(monkeypatch, trades=[known])
+
+        trade = client.find_trade(42)
+
+        assert trade is not None
+        assert trade.status == "Submitted"
+        backend.reqCompletedOrders.assert_not_called()
+
+    def test_rebuilds_a_prior_connection_fill_from_executions_and_the_completed_order(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch,
+            fills=[_sdk_fill(shares=4.0, price=150.0, exec_id="e1"), _sdk_fill(shares=6.0, price=151.0, exec_id="e2")],
+            completed=[_sdk_completed()],
+        )
+
+        trade = client.find_trade(42)
+
+        backend.reqCompletedOrders.assert_called_once_with(apiOnly=True)
+        assert trade is not None
+        assert (trade.order_id, trade.symbol, trade.action, trade.status) == (42, "AAPL", "BUY", "Filled")
+        assert trade.total_quantity == 10.0
+        assert trade.filled == 10.0
+        assert trade.avg_fill_price == pytest.approx((4 * 150.0 + 6 * 151.0) / 10)
+        assert [fill.exec_id for fill in trade.fills] == ["e1", "e2"]
+        assert trade.order_ref == "ref-1"
+
+    def test_ignores_executions_of_another_order_or_client(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch,
+            fills=[_sdk_fill(order_id=43), _sdk_fill(client_id=8)],
+            completed=[_sdk_completed()],
+        )
+
+        assert client.find_trade(42) is None
+        backend.reqCompletedOrders.assert_not_called()
+
+    def test_returns_none_without_a_matching_completed_order(self, monkeypatch):
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed(perm_id=1)])
+
+        assert client.find_trade(42) is None
+
+
 class TestIbAsyncConnect:
     """The startup sync fills the caches `trades()` and `positions()` read.
 

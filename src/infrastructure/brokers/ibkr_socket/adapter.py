@@ -35,7 +35,7 @@ Async fill note:
 from __future__ import annotations
 
 from common.time import normalize_utc_iso, utc_now_iso
-from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
+from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest, IbkrTrade
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
@@ -134,38 +134,17 @@ class IbkrSocketAdapter(BrokerConnection):
         Each returned order reflects the latest known fill state from IB.
         """
         self._require_connected()
-        result: list[BrokerOrder] = []
-        for trade in self._client.trades():
-            fills = [
-                OrderFill(
-                    filled_qty=fill.shares,
-                    fill_price=fill.price,
-                    # Each backend spells its execution time differently; the
-                    # stored form is canonical (see common.time.as_utc_iso).
-                    fill_time=normalize_utc_iso(fill.time),
-                    commission=fill.commission,
-                    exec_id=fill.exec_id,
-                )
-                for fill in trade.fills
-            ]
-            broker_order = BrokerOrder(
-                account_id=0,  # caller sets from their account context
-                ticker=trade.symbol,
-                side=trade.action.lower(),
-                qty=trade.total_quantity,
-                price=trade.limit_price,
-                # IB echoes orderRef; empty for an order placed outside this system.
-                client_order_id=trade.order_ref or None,
-                broker_order_id=str(trade.order_id),
-                status=_map_ib_status(trade.status),
-                filled_qty=trade.filled,
-                avg_fill_price=trade.avg_fill_price,
-                commission=sum(f.commission for f in fills),
-                fills=fills,
-                status_reason=trade.status_reason,
-            )
-            result.append(broker_order)
-        return result
+        return [_to_broker_order(trade) for trade in self._client.trades()]
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        """Return one order by its IB order id, or None when this backend cannot report it.
+
+        Covers an order that filled while no job was connected, which ``get_open_trades``
+        omits. The native ``ibapi`` backend always returns None.
+        """
+        self._require_connected()
+        trade = self._client.find_trade(int(broker_order_id))
+        return None if trade is None else _to_broker_order(trade)
 
     # ------------------------------------------------------------------
     # Account and market data
@@ -202,6 +181,37 @@ class IbkrSocketAdapter(BrokerConnection):
     def _require_connected(self) -> None:
         if not self._client.is_connected():
             raise RuntimeError("IbkrSocketAdapter is not connected. Call connect() first.")
+
+
+def _to_broker_order(trade: IbkrTrade) -> BrokerOrder:
+    fills = [
+        OrderFill(
+            filled_qty=fill.shares,
+            fill_price=fill.price,
+            # Each backend spells its execution time differently; the
+            # stored form is canonical (see common.time.as_utc_iso).
+            fill_time=normalize_utc_iso(fill.time),
+            commission=fill.commission,
+            exec_id=fill.exec_id,
+        )
+        for fill in trade.fills
+    ]
+    return BrokerOrder(
+        account_id=0,  # caller sets from their account context
+        ticker=trade.symbol,
+        side=trade.action.lower(),
+        qty=trade.total_quantity,
+        price=trade.limit_price,
+        # IB echoes orderRef; empty for an order placed outside this system.
+        client_order_id=trade.order_ref or None,
+        broker_order_id=str(trade.order_id),
+        status=_map_ib_status(trade.status),
+        filled_qty=trade.filled,
+        avg_fill_price=trade.avg_fill_price,
+        commission=sum(f.commission for f in fills),
+        fills=fills,
+        status_reason=trade.status_reason,
+    )
 
 
 # IB order status strings → our OrderStatus enum.

@@ -34,7 +34,7 @@ class BrokerSessionUnavailableError(RuntimeError):
         super().__init__(
             "Broker session unavailable for every run account, no step ran. "
             + "; ".join(f"{name} ({reason})" for name, reason in unavailable.items())
-            + ". Start the IBKR Client Portal gateway and log in, then re-run (a plain re-run works only if no run "
+            + ". Start the IBKR gateway (Client Portal Gateway or IB Gateway) and log in, then re-run (a plain re-run works only if no run "
             "completed today). See docs/runbooks/ibkr-paper-trading.md (Gateway session)."
         )
 
