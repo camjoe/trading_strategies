@@ -33,7 +33,7 @@ that fails, a bug no current test would catch). Fix it in this PR, or the owner 
 open CONCERN with neither keeps the PR from READY.
 A CONCERN must be confirmed: the orchestrator read the code or text and followed the scenario to a wrong
 result, or ran it. A scenario that only a reviewer reasoned through, and the orchestrator could not confirm,
-is a NOTE tagged `(unconfirmed)`.
+is a NOTE with `lowered to NOTE because unconfirmed` in its reviewer tag.
 
 **NOTE**: optional or follow-up (simplification, placement, a missing safeguard with no bug today). A finding
 about the tests alone (a missing case, a redundant or brittle test) is a Tests item and a NOTE at most.
@@ -137,13 +137,14 @@ Used by `pr ready` and by a review of a PR by number.
    description, commit messages, a list of known issues, or the author's report. For a longer prompt
    write it to a file and point the agent at it.
 3. **Verify every finding.** Open the file and line and run or reason through the scenario. Drop
-   NOT REAL findings. Merge duplicates by root cause. Mark each survivor confirmed or unconfirmed; an
-   unconfirmed finding is at most a NOTE.
+   NOT REAL findings. Merge duplicates by root cause. Mark each survivor confirmed or unconfirmed. An
+   unconfirmed CONCERN is a NOTE. An unconfirmed BLOCKER stays a BLOCKER and says so in its tag; the owner decides.
 4. **Assign severity.** The highest any reviewer gave, unless verification lowers it. Record a lowered
    severity in the finding's reviewer tag with the original and the reason (the format is in
    `check-pr-readiness/SKILL.md`). One defect can be rated differently by different reviewers. A finding about the
    tests alone is a Tests item (`Gap:` or `Extra:`) and is never above NOTE. On a later pass, a CONCERN about
-   code or text that the increment did not change is a NOTE tagged `(found late)`; a BLOCKER stays a BLOCKER.
+   code or text outside the diff since the previous reviewed SHA is a NOTE with `lowered to NOTE because found
+   late` in its reviewer tag; a BLOCKER stays a BLOCKER.
 5. **Name the test to add in each defect's fix hint**, from the Test skeptic's output and your own reading;
    say so when the current tests already catch it.
 6. **Cost.** A reviewer costs about 60-90k tokens whatever the model. Run only the selected ones. On a

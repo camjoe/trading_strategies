@@ -100,7 +100,8 @@ findings are routed to `/security-review` and never posted. Each reviewer is a s
 subagent; reading the diff yourself does not stand in for one, and an unattended session spawns them
 the same way.
 
-**Later passes.** First re-verify every open finding by hand against the new HEAD; that alone can
+**Later passes.** First re-verify every open BLOCKER and CONCERN by hand against the new HEAD, and every open
+note whose code or text changed; that alone can
 clear a finding, and READY does not require a fresh reviewer run. Then run the same command on the
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
@@ -109,7 +110,7 @@ Review details. This shortcut applies only after a pass in which the reviewers r
 against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
-A note that stays open and unchanged is not re-verified or reworded: list it again by number and title only.
+A note that stays open and unchanged is carried forward as written: same number, title, line, and fix hint.
 
 **Fixer lines.** A finding with `*Fix attempted: <sha>, awaiting verification*` is re-verified at the new
 HEAD: if the fix holds, tick the box and write `Fixed in <sha>`; if not, leave it open with "still open at
@@ -128,7 +129,7 @@ does that). Never blocks.
 One comment per PR, created by the first pass and edited in place by every later one, found by its
 hidden marker line `<!-- pr-readiness -->`. Authorization to create and edit it is in `AGENTS.md`
 ("Standing authorizations"); it covers nothing else. With no PR yet, print the same text to the
-terminal and do not save a file. Open the PR as a draft early so the comment has a home.
+terminal and do not save a file. Open the PR as a draft after a local pass, so the comment has a home.
 
 Write the body to a file outside the repo's tracked paths, then:
 
@@ -201,9 +202,10 @@ the lowered tier, with the original and the reason in the tag: `[Break it, rated
 CI is the backstop]`.
 
 **Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
-sentences, one idea in each. Say what is wrong, where, and what to do. Leave out hedges ("may", "could
-potentially"), stacked clauses, and anything the title or `path:line` already says. If a scenario has steps, list
-them as short bullets under the finding, not in one long sentence. If the owner would have to reread it, cut it
+sentences, one idea in each. Say what is wrong, where, and what to do. Leave out stacked clauses, anything the
+title or `path:line` already says, and hedges ("may", "could potentially") except to mark a finding unconfirmed. If a
+blocker or concern has a scenario with steps, list them as short bullets directly under the finding, above any fixer or Decision lines, not
+in one long sentence. If the owner would have to reread it, cut it
 down.
 
 Before: `A failed same-day catch-up can still change the burn-in result. burn_in_status.py:129-131: the day's
