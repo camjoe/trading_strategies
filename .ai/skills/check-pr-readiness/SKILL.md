@@ -31,6 +31,10 @@ Run it on committed work. The reviewers and the gate's suite targeting read `<ba
 check `git status --short` first: if tracked files are modified, say so and stop, because the
 reviewers would be reviewing code that differs from the working tree.
 
+Run it locally before the first push of a branch, so the unattended pass confirms a branch that is already
+clean and the author does not discover findings one pushed pass at a time. A local pass needs no pull request;
+it prints the comment text.
+
 When a pull request exists, fetch its context once:
 
 ```
@@ -186,7 +190,9 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 </details>
 ```
 
-A note or a test item is one line, and a blocker or concern up to three; the fixer's `*Fix attempted*`,
+A note or a test item is one line, and a blocker or concern at most two lines and 50 words: the defect and its
+`→` fix hint. State a scenario only when the title does not make it obvious, and never repeat what `path:line`
+shows; the fixer's `*Fix attempted*`,
 `*Not fixed*`, and `*Left*` lines and the owner's `*Decision*` line each go on their own indented line
 directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
