@@ -83,8 +83,10 @@ anything locally.
    cat local/logs/daily_paper_trading_$(date +%Y%m%d)_*.log | grep -A 5 "ERROR\|FAIL"
    ```
 3. Fix the underlying issue (connectivity, data freshness, configuration).
-4. Re-run. The duplicate-run guard keys on the complete sentinel, which a failed run never wrote, so
-   a retry is not blocked:
+4. Re-run only if `failed_step` is before `05_build_position_targets_by_book` (the step that sends orders).
+   The duplicate-run guard keys on the complete sentinel, which a failed run never wrote, so a retry is not
+   blocked, and after step 05 a plain retry trades accounts a second time. See
+   [ibkr-operations.md](ibkr-operations.md) for what to do after step 05. Before step 05:
    ```bash
    python -m trading.interfaces.runtime.jobs.daily.paper_trading
    ```

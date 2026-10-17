@@ -18,9 +18,11 @@ from pathlib import Path
 
 from common.logging_setup import log_counts
 from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
     BrokerSessionUnavailableError,
@@ -46,12 +48,14 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext, exclude_accounts
 from trading.interfaces.runtime.jobs.job_helpers import (
+    BROKER_ANOMALY_LINE_PREFIX,
     CLI_MAIN_MODULE,
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
     DAILY_PAPER_TRADING_MODULE,
     RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
     resolve_email_config_from_env,
+    run_command,
     stream_command,
     tee_line,
     ts,
@@ -70,6 +74,14 @@ SNAPSHOT_MAX_ATTEMPTS = 3
 SNAPSHOT_BACKOFF_SECONDS = 2.0
 
 
+class BrokerAnomalyError(RuntimeError):
+    """The trading step failed after a broker API anomaly; ``accounts`` are the anomalous accounts so far."""
+
+    def __init__(self, message: str, accounts: list[str]) -> None:
+        super().__init__(message)
+        self.accounts = accounts
+
+
 def run_auto_trader_group(
     log_path: Path,
     repo_root: Path,
@@ -78,9 +90,15 @@ def run_auto_trader_group(
     max_trades: int,
     fee: float,
     seed: int | None,
-) -> None:
+) -> list[str]:
+    """Run one cap group and return the accounts that hit a broker API anomaly.
+
+    An anomaly is the one failure the group reports by name (exit 1 plus the
+    ``BROKER_ANOMALY_LINE_PREFIX`` line), so the other groups can still trade.
+    Any other non-zero exit raises, as does exit 1 without that line.
+    """
     if not group_accounts:
-        return
+        return []
     auto_trader_args = [
         "-m",
         RUN_AUTO_TRADES_MODULE,
@@ -93,7 +111,21 @@ def run_auto_trader_group(
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])
-    stream_command(log_path, label, auto_trader_args, repo_root)
+    exit_code, output = run_command(log_path, label, auto_trader_args, repo_root)
+    if exit_code == 0:
+        return []
+    anomalies = _broker_anomaly_accounts(output)
+    if exit_code == 1 and anomalies:
+        return anomalies
+    raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+
+
+def _broker_anomaly_accounts(output: str) -> list[str]:
+    for line in reversed(output.splitlines()):
+        if line.startswith(BROKER_ANOMALY_LINE_PREFIX):
+            names = line[len(BROKER_ANOMALY_LINE_PREFIX) :].split(",")
+            return [name.strip() for name in names if name.strip()]
+    return []
 
 
 def snapshot_account_with_retry(
@@ -167,6 +199,17 @@ def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str
     """
     details = step_result(step_results, "06_pretrade_risk_gate").details
     accounts = details.get("kill_switch_accounts")
+    return [str(account) for account in accounts] if isinstance(accounts, list) else []
+
+
+def broker_anomaly_accounts_from_dag(step_results: list[DagStepResult]) -> list[str]:
+    """Accounts whose broker misbehaved mid-submission, read back out of step 05's result.
+
+    Their orders may be in an unknown state: the next run's pre-trade reconcile
+    applies any fills before it trades.
+    """
+    details = step_result(step_results, FIRST_ORDER_STEP_ID).details
+    accounts = details.get(BROKER_ANOMALY_ACCOUNTS_KEY)
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
 
 
@@ -267,14 +310,19 @@ def _finish_run(
     A run that completed every step but tripped a kill switch is still a success
     by ``status`` — steps ran, nothing threw — but it did not trade what it
     intended. ``kill_switch_accounts`` carries that so the artifact and the alert
-    say so instead of reading as a clean run.
+    say so instead of reading as a clean run. Skipped accounts and
+    ``broker_anomaly_accounts`` are reported the same way.
     """
     failed = error is not None
     kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
+    broker_anomaly_accounts = broker_anomaly_accounts_from_dag(step_results) or (
+        error.accounts if isinstance(error, BrokerAnomalyError) else []
+    )
     payload: dict[str, object] = {
         **context.run_meta,
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
         "kill_switch_accounts": kill_switch_accounts,
+        BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
         "summary": build_run_summary(
             step_results, accounts=context.accounts, kill_switch_accounts=kill_switch_accounts
         ),
@@ -295,7 +343,18 @@ def _finish_run(
 
     if failed:
         message = f"Daily paper trading run failed: {error}"
-    elif kill_switch_accounts or skipped_accounts:
+        if broker_anomaly_accounts and not isinstance(error, BrokerAnomalyError):
+            message += (
+                f". Broker API anomaly earlier on: {', '.join(broker_anomaly_accounts)}; orders may be in an "
+                "unknown state, so check the broker's open orders before any re-run"
+            )
+        elif not isinstance(error, BrokerAnomalyError) and step_result(step_results, FIRST_ORDER_STEP_ID).status in (
+            "running",
+            "ok",
+            "failed",
+        ):
+            message += ". Orders may already have gone out; check the broker's open orders before any re-run"
+    elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts:
         notes: list[str] = []
         if kill_switch_accounts:
             notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
@@ -303,6 +362,12 @@ def _finish_run(
             notes.append(
                 f"completed without accounts whose IBKR session was unavailable: {', '.join(skipped_accounts)}. "
                 f"Run them with: {context.catch_up_command}"
+            )
+        if broker_anomaly_accounts:
+            notes.append(
+                f"completed with broker API anomalies on: {', '.join(broker_anomaly_accounts)}. Their orders may be "
+                "in an unknown state and they were left out of the post-trade reconcile; the next run's pre-trade "
+                "reconcile applies any fills first. Check the broker's open orders before you re-run them"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:
@@ -314,15 +379,18 @@ def _finish_run(
         webhook_url=args.notify_webhook_url,
         email_config=resolve_email_config_from_env(),
         notify_on_success=args.notify_on_success,
-        # A kill switch or a skipped account is not a step failure, but it is not a
-        # quiet success either — alert on it even when notify_on_success is off.
-        status="fail" if failed else ("warn" if kill_switch_accounts or skipped_accounts else "ok"),
+        # A kill switch, a skipped account, or a broker anomaly is not a step failure, but it is
+        # not a quiet success either — alert on it even when notify_on_success is off.
+        status="fail"
+        if failed
+        else ("warn" if kill_switch_accounts or skipped_accounts or broker_anomaly_accounts else "ok"),
         message=message,
         details={
             "accounts": context.accounts,
             "account_count": len(context.accounts),
             "kill_switch_accounts": kill_switch_accounts,
             "skipped_accounts": skipped_accounts,
+            BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
@@ -452,34 +520,51 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         auto_trader_groups: list[dict[str, object]] = []
 
         def _run_all_auto_trader_groups() -> dict[str, object]:
+            broker_anomaly_accounts: list[str] = []
             for limits, group_accounts in sorted(
                 grouped_accounts.items(),
                 key=lambda item: (item[0], item[1]),
             ):
-                run_auto_trader_group(
-                    log_path,
-                    repo_root,
-                    f"Auto Trader (up to {limits} trades)",
-                    group_accounts,
-                    limits,
-                    args.fee,
-                    args.seed,
-                )
+                try:
+                    broker_anomaly_accounts += run_auto_trader_group(
+                        log_path,
+                        repo_root,
+                        f"Auto Trader (up to {limits} trades)",
+                        group_accounts,
+                        limits,
+                        args.fee,
+                        args.seed,
+                    )
+                except Exception as exc:
+                    if broker_anomaly_accounts:
+                        raise BrokerAnomalyError(
+                            f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; orders "
+                            "may be in an unknown state, so check the broker's open orders before any re-run",
+                            list(broker_anomaly_accounts),
+                        ) from exc
+                    raise
                 auto_trader_groups.append(
                     {
                         "accounts": group_accounts,
                         "max_trades": limits,
                     }
                 )
+            if set(broker_anomaly_accounts) >= set(accounts):
+                raise BrokerAnomalyError(
+                    f"Broker API anomaly on every account: {', '.join(broker_anomaly_accounts)}. Orders may have gone "
+                    "out and may be in an unknown state; check the broker's open orders before any re-run",
+                    list(broker_anomaly_accounts),
+                )
             return {
                 "groups": auto_trader_groups,
                 "group_count": len(auto_trader_groups),
+                BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
                 "shadow_eval_summary": shadow_eval_summary,
             }
 
         run_dag_step(
             step_results,
-            step_id="05_build_position_targets_by_book",
+            step_id=FIRST_ORDER_STEP_ID,
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )
@@ -500,10 +585,12 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
 
+        anomalous = broker_anomaly_accounts_from_dag(step_results)
+        post_trade_accounts = [name for name in accounts if name not in anomalous]
         run_dag_step(
             step_results,
             step_id="08_reconcile_fills_update_ledgers",
-            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Post-trade"),
+            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, post_trade_accounts, "Post-trade"),
             now_iso=ts,
         )
 

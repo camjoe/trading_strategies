@@ -48,7 +48,8 @@ Evaluate the output artifact at `local/artifacts/check_burn_in_status_*.json`.
 
 `ready_for_live: true` in the artifact means both thresholds are met. The checker counts the
 latest `daily_paper_trading_*.json` artifact per date and treats top-level `status == "success"` as
-a successful day; it does not independently validate market calendars or broker trading sessions.
+a successful day unless a broker API anomaly was recorded: the day then shows `status: broker_anomaly` (or `failed`, if a run that day failed at the trading step or later) and counts against the streak and the failure rate. Anomalies, kill switches, and traded accounts are combined across every artifact of a date, so a same-day catch-up run cannot erase them. A date with a run that failed at the trading step or later counts as failed whatever a catch-up run did after it. The log line shows `anomaly_days=N`, counted over whole runs even with `--accounts`; it does not independently validate
+market calendars or broker trading sessions.
 
 **Per account.** Without `--accounts` the checker judges whole runs, which proves nothing about any one
 broker account: a run that skipped the IBKR account is still a success. For go-live, name the accounts
@@ -57,7 +58,7 @@ being signed off:
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --accounts <name>,<name> --force-run
 ```
 A day then counts for an account only if the run succeeded, traded that account (a skipped account is
-not in the artifact's `accounts`), and tripped no kill switch on it. The artifact's `accounts` key
+not in the artifact's `accounts`), and tripped no kill switch or broker API anomaly on it. The artifact's `accounts` key
 holds each account's metrics. `ready_for_live` is true only if every named account is ready, and the
 top-level `consecutive_successes` is the weakest account's.
 

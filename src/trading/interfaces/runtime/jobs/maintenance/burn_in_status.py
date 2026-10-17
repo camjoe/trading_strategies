@@ -10,9 +10,11 @@ import re
 from pathlib import Path
 
 from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
     BURN_IN_STATUS_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
 )
 from trading.interfaces.runtime.jobs.job_helpers import write_artifact
 from trading.interfaces.runtime.jobs.job_runner import JobContext, maintenance_job
@@ -21,6 +23,9 @@ JOB_NAME = "check_burn_in_status"
 COMPLETE_SENTINEL = BURN_IN_STATUS_COMPLETE_SENTINEL
 
 ACCOUNT_STATUS_KILL_SWITCH = "kill_switch"
+# A run that succeeded but recorded a broker API anomaly: not a clean day.
+RUN_STATUS_BROKER_ANOMALY = "broker_anomaly"
+KILL_SWITCH_ACCOUNTS_KEY = "kill_switch_accounts"
 ACCOUNT_STATUS_NOT_TRADED = "not_traded"
 
 # Pattern: daily_paper_trading_YYYYMMDD_HHMMSS.json
@@ -51,7 +56,8 @@ def _add_arguments(parser: argparse.ArgumentParser) -> None:
         default="",
         help=(
             "Comma-separated accounts to evaluate individually: a day counts for an account only if the run "
-            "succeeded, traded that account, and tripped no kill switch on it. Default: judge whole runs."
+            "succeeded, traded that account, and tripped no kill switch or broker API anomaly on it. "
+            "Default: judge whole runs."
         ),
     )
 
@@ -60,20 +66,49 @@ def _name_list(value: object) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+def _load_artifact(artifact_path: Path) -> dict[str, object]:
+    """The artifact's JSON object, or ``{}`` when it is unreadable, corrupt, or not an object."""
+    try:
+        data = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _failed_after_orders_may_have_gone_out(artifact: dict[str, object]) -> bool:
+    """A failed run that reached the trading step, so a later catch-up cannot make the day clean.
+
+    Read from the artifact's step results; an artifact without them falls back to its ``failed_step``.
+    """
+    if artifact.get("status") != DAILY_RUN_STATUS_FAILED:
+        return False
+    steps = artifact.get("step_results")
+    if isinstance(steps, list):
+        for step in steps:
+            if isinstance(step, dict) and step.get("step") == FIRST_ORDER_STEP_ID:
+                return step.get("status") in ("running", "ok", "failed")
+    failed_step = artifact.get("failed_step")
+    return isinstance(failed_step, str) and failed_step >= FIRST_ORDER_STEP_ID
+
+
 def account_entries(entries: list[dict[str, object]], account: str) -> list[dict[str, object]]:
     """*entries* with each day's status judged for one *account*.
 
     A successful run counts only if it traded the account (skipped accounts are left out of the
-    artifact's ``accounts``) and tripped no kill switch on it.
+    artifact's ``accounts``) and tripped no kill switch or broker API anomaly on it.
     """
     judged: list[dict[str, object]] = []
     for entry in entries:
         status = entry.get("status")
-        if status == DAILY_RUN_STATUS_SUCCESS:
-            if account in _name_list(entry.get("kill_switch_accounts")):
+        if status in (DAILY_RUN_STATUS_SUCCESS, RUN_STATUS_BROKER_ANOMALY):
+            if account in _name_list(entry.get(BROKER_ANOMALY_ACCOUNTS_KEY)):
+                status = RUN_STATUS_BROKER_ANOMALY
+            elif account in _name_list(entry.get(KILL_SWITCH_ACCOUNTS_KEY)):
                 status = ACCOUNT_STATUS_KILL_SWITCH
             elif account not in _name_list(entry.get("accounts")):
                 status = ACCOUNT_STATUS_NOT_TRADED
+            else:
+                status = DAILY_RUN_STATUS_SUCCESS
         judged.append({**entry, "status": status})
     return judged
 
@@ -82,7 +117,10 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
     """Scan daily_paper_trading export artifacts within *window_days* of *today*.
 
     Returns a list of entry dicts sorted chronologically by date, one per
-    calendar date (the most-recent artifact for that date is selected).
+    calendar date. The most-recent artifact for a date sets its status; the accounts that
+    traded (from successful artifacts), the kill switches, and the broker API anomalies are
+    combined across every artifact of that date, so a catch-up run cannot erase them. A date with
+    a run that failed at the trading step or later counts as failed, whatever a catch-up run did after.
     """
     cutoff = today - dt.timedelta(days=window_days - 1)
 
@@ -105,14 +143,30 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
     entries: list[dict[str, object]] = []
     for date_str, filenames in sorted(by_date.items()):
         # Use lexicographically latest filename (highest HHMMSS = most recent).
-        chosen = sorted(filenames)[-1]
-        artifact_path = export_dir / chosen
-        try:
-            data = json.loads(artifact_path.read_text(encoding="utf-8"))
-        except OSError, json.JSONDecodeError:
-            data = {}
+        ordered = sorted(filenames)
+        chosen = ordered[-1]
+        artifacts = [_load_artifact(export_dir / filename) for filename in ordered]
+        data = artifacts[-1]
 
         status = data.get("status", DAILY_RUN_STATUS_FAILED)
+        anomaly_accounts = sorted(
+            {name for item in artifacts for name in _name_list(item.get(BROKER_ANOMALY_ACCOUNTS_KEY))}
+        )
+        kill_switch_accounts = sorted(
+            {name for item in artifacts for name in _name_list(item.get(KILL_SWITCH_ACCOUNTS_KEY))}
+        )
+        traded_accounts = sorted(
+            {
+                name
+                for item in artifacts
+                if item.get("status") == DAILY_RUN_STATUS_SUCCESS
+                for name in _name_list(item.get("accounts"))
+            }
+        )
+        if any(_failed_after_orders_may_have_gone_out(item) for item in artifacts):
+            status = DAILY_RUN_STATUS_FAILED
+        elif status == DAILY_RUN_STATUS_SUCCESS and anomaly_accounts:
+            status = RUN_STATUS_BROKER_ANOMALY
         entry: dict[str, object] = {
             "date": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}",
             "status": status,
@@ -120,8 +174,9 @@ def scan_artifacts(export_dir: Path, window_days: int, today: dt.date) -> list[d
         }
         if "failed_step" in data:
             entry["failed_step"] = data["failed_step"]
-        entry["accounts"] = _name_list(data.get("accounts"))
-        entry["kill_switch_accounts"] = _name_list(data.get("kill_switch_accounts"))
+        entry["accounts"] = traded_accounts
+        entry[KILL_SWITCH_ACCOUNTS_KEY] = kill_switch_accounts
+        entry[BROKER_ANOMALY_ACCOUNTS_KEY] = anomaly_accounts
         entries.append(entry)
 
     return entries
@@ -202,6 +257,7 @@ def main(ctx: JobContext) -> int:
         f"/{ctx.args.min_consecutive_days} required, "
         f"failure_rate={metrics['failure_rate_pct']}% "
         f"(limit {ctx.args.max_failure_rate_pct}%), "
+        f"anomaly_days={sum(1 for entry in entries if entry.get(BROKER_ANOMALY_ACCOUNTS_KEY))}, "
         f"ready_for_live={metrics['ready_for_live']}"
     )
     ctx.log(summary)

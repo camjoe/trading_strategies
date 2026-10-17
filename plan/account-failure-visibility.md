@@ -1,8 +1,8 @@
 # Plan: make one account's failure contained and visible
 
-Status: partly done, revised 2026-10-15. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
+Status: partly done, revised 2026-10-16. PR #296 (`fix/skip-unavailable-ibkr-accounts`) is merged, so read
 **DURING #296** below as "a follow-up PR". The guard fix is done. Item B is done (service in
-PR #313, health-check wiring after it). Items A, C, and D remain; A needs the owner's A1 or A2 choice.
+PR #313, health-check wiring after it). Item A is done for broker anomalies (A1). Items E and F remain. The streak and heartbeat checks (C) and the per-account guard (D) were dropped on 2026-10-16: the warning emails cover the first, and the second adds risk to the guard for little gain.
 
 ## Goal
 One account failing must not stop the others from trading, and a failure that repeats must get
@@ -44,37 +44,43 @@ Decision: the date counts as done if **any** of that date's logs carries `COMPLE
   run after that still skips. Plus an any-log helper test and the state tests in
   `test_daily_paper_trading_state.py`.
 
-This is what makes item A1's premise hold ("a plain re-run cannot trade anyone twice"). Item D is
-the follow-up.
+This is what makes item A1's premise hold ("a plain re-run cannot trade anyone twice").
 
 ## Items
 
-### A. Contain a trading-step failure — DURING #296
-Run every cap group even if one fails, and name the accounts that failed. Same family and same file as
-#296 (`workflow.py`); reuses its mechanics (drop or flag the account, `warn`, the duplicate-run guard).
+### A. Contain a trading-step failure: DONE for broker anomalies (A1)
+Done: the group loop in `workflow.py` runs every cap group when an account hits a broker API anomaly.
+`run_auto_trades` prints `BROKER_API_ANOMALY_ACCOUNTS: <names>` (constant in `job_helpers.py`) before exiting 1;
+`run_auto_trader_group` reads it from the command output and returns the names. The run writes `COMPLETE` and
+sends a `warn` naming the accounts and telling the operator to check the broker's open orders before a re-run (no
+re-run command is given: a re-run can send an order twice); the artifact carries `broker_anomaly_accounts`. An
+anomaly on every account, a crash, or an exit 1 without the line still fails the run.
 
-**Decision pending (owner):** how does the run end when a group failed but the others completed?
-- **A1 (recommended).** Write `COMPLETE` and send a `warn` that names the failed accounts and the re-run
-  command (`--accounts <names> --run-source manual --force-run`), as #296 does for skipped accounts.
-  A plain re-run cannot trade anyone twice (true once the guard fix above is in). Cost: the run looks complete to the health check, so the
-  `warn` carries the signal. Item B is the escalation.
-- **A2.** Exit 1 and write no `COMPLETE`, but still run the other groups and the snapshots. Louder. Cost:
-  a plain re-run would trade the accounts that already traded.
+Left, not built:
+- **Per-account containment of unexpected exceptions.** `run_accounts`
+  (`src/trading/services/auto_trading/inputs.py`) has no per-account catch, so an exception in one account (market
+  data, database) aborts the accounts after it in its group and fails the step. It likely wants a per-account
+  result in the same shape as the anomaly.
+- **A repeated anomaly never escalates.** A daily anomaly stays a daily `warn`, and the anomalous account is left out
+  of step 08, so it gets no post-trade snapshot that day (the pre-trade snapshot still runs, so item B never sees it
+  stale). That is accepted: a repeated warning is read from the emails.
+- **Step 08 can still fail the whole run.** One reconcile subprocess covers the other accounts, so a broker error on
+  one of them stops it.
 
-Work:
-1. The auto-trade worker must report which accounts hit an anomaly in a form the workflow can read,
-   not only in a printed sentence. Options: a machine-readable line the workflow parses, or the
-   worker writing a small result file. UNVERIFIED which is simpler; read `run_auto_trader_group` and
-   `stream_command` first.
-2. In the group loop, catch a group failure, record the failed accounts, and continue with the next
-   group and the later steps.
-3. Carry the failed accounts into the artifact and the alert, next to `skipped_accounts`.
-4. A group failure can leave an account partially submitted. The re-run command must say that the next
-   run's reconcile applies any fills first. Check the order of steps before writing that sentence.
+### E. Surface unresolved orders found by the pre-trade reconcile
+Step `01_mark_book_nav` already reconciles every account's open orders before any run trades, so a
+partly submitted order has its state applied with no extra broker call. When reconcile leaves orders unresolved
+(sent but never confirmed, or open but unreported by the broker), `reconcile_orders.py` only prints a WARNING to
+stderr and trading goes on; the artifact and alert never mention it. Report the unresolved counts from that
+output in step 01's result and in the run's `warn`, using the same line-parsing approach as item A.
 
-Tests: a group fails and the later group still trades; the failed accounts appear in the artifact and
-alert; all groups failing still ends the run as a failure; the guard errors still stop everything.
-Docs: the failure table and the "When something fails" section in `ibkr-operations.md`.
+Decided 2026-10-16 (owner): surface only. An unresolved order does not block that account's trading; revisit
+blocking if a real warn shows one. Branch `feature/surface-unresolved-orders`, off `develop` once the item A PR is
+merged (both change `workflow.py`). Work: `reconcile_orders.py` prints one stable line per account with its
+unresolved pending and unreported ids (a constant in `job_helpers.py`, like item A's); step 01's result carries
+them; `_finish_run` adds an `unresolved_orders` artifact key and a `warn` note naming the accounts. Tests: a
+reconcile with unresolved ids prints the line; the run still completes and warns; a clean reconcile adds nothing.
+Docs: the failure table in `ibkr-operations.md`.
 
 ### B. Account freshness check: DONE
 `evaluate_account_freshness` (PR #313) and its wiring into `trader_health.py` are in. The health check reports one
@@ -104,33 +110,20 @@ accounts and their last-seen dates.
 Tests: fresh, 2-weekday stale, 5-weekday stale, weekend gap not counted, account with no snapshot ever,
 digest names several accounts. Docs: `ibkr-operations.md` (alert table), `runtime-operations.md`.
 
-### C. Not covered by B — separate, later
-- **Kill-switch streaks.** A kill-switched account still snapshots, so B misses it. A streak of
-  consecutive runs with a kill switch could be read from the per-run risk snapshots. Decide whether it
-  is worth a check once A and B are in.
-- **Heartbeat / dead-man's switch** to something outside the host, for "the host stopped sending
-  anything". No check on the host can see that. A separate project.
-
-### D. Per-account guard — AFTER #296
-Replace "a day is done or not" with "which accounts are done today". A plain run trades only the
-accounts that have not completed that date, read from the day's success artifacts (`accounts` and
-`status`, per `report_date`); `--force-run` ignores it; with nothing left the run skips.
-- Why: a timer retry or a plain re-run then catches up a skipped account by itself, which makes the
-  repair command in the `warn` alert unnecessary and removes its dropped-options defect (it omits
-  `--account-trade-caps`, `--primary-accounts`, `--fee`, `--seed`, `--as-of-date`). It also makes item
-  A's failed-group re-run safe without relying on one sentinel.
-- Cost: new artifact reading in the guard, new tests; a failed run that traded some accounts before
-  failing is not counted as done, so those accounts retry (reconcile applies their fills first).
-- UNVERIFIED: how artifacts are named and retained per `report_date`, and whether a failed run's
-  artifact lists accounts that were already submitted. Read `write_artifact` callers and
-  `build_run_context` first.
+### F. Judge per-account burn-in failures per account
+`maintenance/burn_in_status.py` fails a whole date when any artifact of that date failed at the trading step or
+later (`_failed_after_orders_may_have_gone_out`). In per-account mode (`--accounts sim,ibkr`) that resets every
+account's streak when one account's catch-up run fails, even for an account that traded cleanly that day. Record
+which accounts each failed artifact covered (its `accounts` key) and fail the date only for those accounts, then
+judge the rest from the successful artifacts. Tests: `sim` traded cleanly, an `ibkr` catch-up fails at step 05, and
+`sim` keeps its streak while `ibkr` resets; a failed artifact with no `accounts` key fails every account.
+Kept conservative for now by an owner Decision on PR #316 (finding 36).
 
 ## Order
 1. Guard fix (above) into #296. Then decide A1 or A2 and add item A to #296 (or leave it for a
    follow-up PR if #296 is merged first).
 2. Item B on its own branch, off `develop`, once #296 is merged.
-3. Item D after B, or before it if catching up skipped accounts by hand proves painful.
-4. Revisit C.
+3. Item E, once the owner has decided whether an unresolved order blocks that account's trading.
 
 ## Constraints
 - Layering per `docs/architecture/architecture-conventions.md`. The freshness query belongs in a
