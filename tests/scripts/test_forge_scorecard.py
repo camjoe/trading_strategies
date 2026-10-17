@@ -10,7 +10,7 @@ from scripts.forge.github import GitHubForge
 from scripts.forge.scorecard import LENSES, UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
 
 BODY = (
-    f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 3\n\n"
+    f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 3 · current\n\n"
     "#### 🟠 Concerns\n"
     "- [ ] **7. Still open.** `src/a.py:1`: x. → y. [Break it (Opus), Operator]\n\n"
     "<details>\n<summary>🟡 Notes (1 open)</summary>\n\n#### 🟡 Notes (1)\n"
@@ -125,6 +125,9 @@ class ScoreStub:
         assert "github-actions[bot]" in authors
         body = self.bodies.get(number)
         return None if body is None else Comment(1, body, "github-actions[bot]")
+
+    def repository(self) -> str:
+        return "owner/repo"
 
     def merged_pull_requests(self, limit: int) -> list[int]:
         return [20, 10][:limit]

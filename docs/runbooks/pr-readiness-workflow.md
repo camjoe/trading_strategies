@@ -77,6 +77,39 @@ How to read it:
 - Run it about every ten merged pull requests, or when a pass feels noisy, and change a lens's prompt only when
   the numbers say to.
 
+### Keeping the results
+
+The scorecard computes everything from GitHub on each run. To keep the results, add `--save`:
+
+```bash
+python -m scripts.forge review-scorecard --merged 10 --save      # score, print, and store each pull request
+python -m scripts.forge review-scorecard --from-db               # report from the stored data, no GitHub calls
+python -m scripts.forge review-scorecard --from-db --repo owner/name --json
+```
+
+The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
+(`local/` is gitignored). Saving a pull request again replaces its rows, so run it after each merge, or over
+`--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
+is the passes it took to reach its last verdict), its verdict, and one row per finding with its tier, outcome,
+lenses, and reactions. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
+file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
+pull requests merged before that save with `(untagged)` lenses.
+
+### Using these tools in another project
+
+The core modules in `scripts/forge` import only the standard library and each other (a test enforces it):
+`base.py` (types and the forge interface), `findings.py` (reading a readiness comment), `readiness.py`,
+`service.py`, `scorecard.py` (scoring), `scorecard_store.py` (the SQLite store), and `inline.py` (inline comments).
+To reuse them, copy `scripts/forge`, then bring or replace the project-specific parts:
+
+| Part | Where | What to do in another project |
+|---|---|---|
+| Forge adapter | `github.py` (needs `gh`; imports `common.git.get_repo_root`) | Keep it, or write another adapter against the `Forge`, `InlineForge`, and `ScorecardForge` interfaces. |
+| Comment layout and rules | `.ai/skills/check-pr-readiness/SKILL.md`, `.ai/skills/code-review/lenses.md` | Copy them; the parsers read their layout and the lens names in `scorecard.LENSES`. |
+| Workflow | `.github/workflows/pr-readiness.yml` | Copy it and set `CLAUDE_CODE_OAUTH_TOKEN`; it runs the forge tool from the base branch. |
+| Authorization text | `AGENTS.md` ("Standing authorizations") | State the same limits for that repository. |
+| Agent runners | `local.py`, `container.py`, `sandbox.py` | Only needed for the plan pickup and the fixer loop. |
+
 ## One-time setup
 
 ```bash

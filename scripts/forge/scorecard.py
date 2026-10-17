@@ -10,7 +10,8 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from scripts.forge.base import ForgeError, ScorecardForge
-from scripts.forge.findings import Finding, after_title, parse_findings
+from scripts.forge.findings import Finding, after_title, parse_findings, verdict
+from scripts.forge.readiness import pass_number
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
 _LENS_SUFFIX = re.compile(r"(?:\s*x\d+)+$")
@@ -24,8 +25,18 @@ class ScoredFinding:
     number: int
     outcome: str
     lenses: tuple[str, ...]
+    tier: str = "note"
     up: int = 0
     down: int = 0
+
+
+@dataclass(frozen=True)
+class PullRequestScore:
+    """The scored findings of one pull request's readiness comment, with its pass count and verdict."""
+
+    findings: list[ScoredFinding]
+    passes: int | None
+    verdict: str | None
 
 
 def lenses_of(finding: Finding) -> tuple[str, ...]:
@@ -61,10 +72,16 @@ def score_comment(body: str, reactions: Mapping[int, tuple[int, int]] | None = N
             finding.number,
             outcome_of(finding),
             lenses_of(finding),
+            finding.tier,
             *reactions.get(finding.number, (0, 0)),
         )
         for finding in parse_findings(body)
     ]
+
+
+def score_pull_request(body: str, reactions: Mapping[int, tuple[int, int]] | None = None) -> PullRequestScore:
+    """The findings of one readiness comment with its pass number and verdict."""
+    return PullRequestScore(score_comment(body, reactions), pass_number(body), verdict(body))
 
 
 def tally(scored: Collection[ScoredFinding]) -> dict[str, Counter[str]]:
@@ -96,21 +113,21 @@ def render_table(rows: Mapping[str, Counter[str]]) -> str:
 
 def collect_scores(
     forge: ScorecardForge, numbers: Collection[int], authors: Collection[str]
-) -> tuple[list[ScoredFinding], list[int], dict[int, str]]:
-    """The findings of every readable pull request, the numbers scored, and why each unreadable one failed.
+) -> tuple[dict[int, PullRequestScore], list[int], dict[int, str]]:
+    """The score of every pull request that has a readiness comment, the numbers read, and why each unreadable one failed.
 
-    A pull request with no readiness comment is counted as scored and contributes no findings.
+    A pull request with no readiness comment counts as read and has no score.
     """
-    scored: list[ScoredFinding] = []
+    scores: dict[int, PullRequestScore] = {}
     read: list[int] = []
     failed: dict[int, str] = {}
     for number in numbers:
         try:
             comment = forge.find_comment(number, authors)
             if comment is not None:
-                scored.extend(score_comment(comment.body, forge.finding_reactions(number, authors)))
+                scores[number] = score_pull_request(comment.body, forge.finding_reactions(number, authors))
         except ForgeError as exc:
             failed[number] = str(exc)
         else:
             read.append(number)
-    return scored, read, failed
+    return scores, read, failed

@@ -179,6 +179,10 @@ class ScorecardForge(Protocol):
         """The readiness comment on *number* written by one of *authors*."""
         ...
 
+    def repository(self) -> str:
+        """A label for the repository, ``owner/name`` on GitHub, used to key stored scores."""
+        ...
+
     def merged_pull_requests(self, limit: int) -> list[int]:
         """Numbers of the most recently merged pull requests, newest first."""
         ...

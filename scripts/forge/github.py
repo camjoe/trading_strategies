@@ -257,6 +257,10 @@ class GitHubForge:
                     comments.append(found)
         return comments
 
+    def repository(self) -> str:
+        owner, repo = self._repository()
+        return f"{owner}/{repo}"
+
     def merged_pull_requests(self, limit: int) -> list[int]:
         output = self._run(
             ["pr", "list", "--state", "merged", "--limit", str(limit), "--json", "number", "--jq", ".[].number"], None
