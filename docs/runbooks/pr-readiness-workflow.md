@@ -40,8 +40,12 @@ The `readiness` job, which starts only if the first succeeded:
    user name; any other name, bracketed or not, is refused.
 6. Confirms the pull request head is still the commit that was reviewed, and fails without posting if a
    push landed meanwhile.
-7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This
-   is the only job with the GitHub token.
+7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. Then
+   `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
+   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and resolves its
+   thread when the finding closes. A finding whose line is not in the diff stays in the summary only. A failure here
+   is a warning, not a red check, because the summary is already posted. The `readiness` job is the
+   only one with the GitHub token.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
 

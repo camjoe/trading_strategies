@@ -16,9 +16,10 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.forge import container
-from scripts.forge.base import Forge, ForgeError, printable
+from scripts.forge.base import Forge, ForgeError, InlineForge, printable
 from scripts.forge.fix_loop import result_as_json, run_fix_loop
 from scripts.forge.github import GitHubForge
+from scripts.forge.inline import sync_inline_comments
 from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_gate
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
@@ -61,6 +62,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_pr_argument(upsert)
     _add_author_argument(upsert)
     upsert.add_argument("--body-file", required=True, help="File holding the comment body, or - for stdin.")
+
+    inline = commands.add_parser(
+        "inline-sync", help="Keep one review comment per open blocker or concern on its changed line."
+    )
+    _add_pr_argument(inline)
+    _add_author_argument(inline)
+    inline.add_argument("--body-file", required=True, help="File holding the readiness comment, or - for stdin.")
+    inline.add_argument("--head-sha", help="Commit the comments attach to (default: the pull request head).")
 
     context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
     _add_pr_argument(context)
@@ -149,6 +158,17 @@ def _comment_upsert(args: argparse.Namespace, forge: Forge) -> None:
     number = _pr_number(forge, args.pr)
     comment, created = forge.upsert_comment(number, _read_body(args.body_file), resolve_authors(forge, args.author))
     _print({"id": comment.id, "action": "created" if created else "updated"})
+
+
+def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
+    if not isinstance(forge, InlineForge):
+        raise ForgeError("This forge cannot post inline review comments.")
+    pull_request = forge.pull_request(args.pr)
+    head_sha = args.head_sha or pull_request.head_sha
+    outcome = sync_inline_comments(
+        forge, pull_request.number, head_sha, _read_body(args.body_file), resolve_authors(forge, args.author)
+    )
+    _print(outcome)
 
 
 def _review_context(args: argparse.Namespace, forge: Forge) -> None:
@@ -267,6 +287,7 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Forge], None]] = {
     "pr-info": _pr_info,
     "comment-get": _comment_get,
     "comment-upsert": _comment_upsert,
+    "inline-sync": _inline_sync,
     "review-context": _review_context,
     "check-body": _check_body,
     "fix-loop": _fix_loop,

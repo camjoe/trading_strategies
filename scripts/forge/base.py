@@ -4,12 +4,15 @@ A forge is the platform that hosts the repository and its pull requests (GitHub,
 Callers depend on :class:`Forge`; only an adapter module knows which platform it talks to.
 """
 
+import re
 from collections.abc import Collection
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, runtime_checkable
 
 READINESS_MARKER = "<!-- pr-readiness -->"
+FINDING_MARKER = "<!-- pr-readiness:finding:{number} -->"
+_FINDING_MARKER = re.compile(r"^<!-- pr-readiness:finding:(\d+) -->")
 
 CiState = Literal["pass", "fail", "pending", "none"]
 
@@ -74,6 +77,24 @@ class Comment:
 
 
 @dataclass(frozen=True)
+class InlineComment:
+    """A review comment on a line of the diff, with the state of its thread."""
+
+    id: int
+    thread_id: str
+    body: str
+    author: str
+    path: str
+    line: int | None
+    resolved: bool
+    outdated: bool
+
+    @property
+    def finding_number(self) -> int | None:
+        return finding_marker_number(self.body)
+
+
+@dataclass(frozen=True)
 class CheckRun:
     name: str
     state: CiState
@@ -120,6 +141,31 @@ class Forge(Protocol):
         ...
 
 
+@runtime_checkable
+class InlineForge(Protocol):
+    """A forge that can also keep one review comment per finding on the diff."""
+
+    def diff_lines(self, number: int) -> dict[str, frozenset[int]]:
+        """Per changed file, the new-side line numbers a review comment can sit on."""
+        ...
+
+    def inline_comments(self, number: int, authors: Collection[str]) -> list[InlineComment]:
+        """The finding comments (those with a finding marker) written by one of *authors*."""
+        ...
+
+    def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
+        """Post a review comment on *path*:*line* of commit *head_sha*; returns its id."""
+        ...
+
+    def edit_inline_comment(self, comment_id: int, body: str) -> None:
+        """Replace the text of a review comment."""
+        ...
+
+    def resolve_thread(self, thread_id: str) -> None:
+        """Mark a review thread resolved."""
+        ...
+
+
 def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     """One state for a set of checks: any failure wins, then any pending, else pass; ``none`` when empty."""
     if not states:
@@ -129,6 +175,28 @@ def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     if "pending" in states:
         return "pending"
     return "pass"
+
+
+def finding_marker(number: int) -> str:
+    """The hidden marker a finding comment starts with."""
+    return FINDING_MARKER.format(number=number)
+
+
+def finding_marker_number(body: str) -> int | None:
+    """The finding number in the marker a finding comment starts with, or ``None``."""
+    match = _FINDING_MARKER.match(body)
+    return int(match.group(1)) if match else None
+
+
+def require_finding_marker(body: str) -> int:
+    """The finding number of *body*, refusing a comment that does not start with a finding marker.
+
+    Every inline write goes through this, so the tool can post only finding comments.
+    """
+    number = finding_marker_number(body)
+    if number is None:
+        raise ForgeError(f"Inline comment body must start with a {FINDING_MARKER.format(number='<n>')!r} marker.")
+    return number
 
 
 def require_marker(body: str) -> None:

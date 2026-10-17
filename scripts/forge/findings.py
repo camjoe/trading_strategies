@@ -19,6 +19,7 @@ class Finding:
     checked: bool
     has_status_line: bool
     decided: bool
+    text: str
 
     @property
     def is_open(self) -> bool:
@@ -50,10 +51,11 @@ def parse_findings(body: str) -> list[Finding]:
     tier = "other"
     number: int | None = None
     checked = has_status = decided = False
+    lines: list[str] = []
 
     def close() -> None:
         if number is not None:
-            findings.append(Finding(number, tier, checked, has_status, decided))
+            findings.append(Finding(number, tier, checked, has_status, decided, "\n".join(lines).rstrip()))
 
     for line in body.splitlines():
         heading = _TIER_HEADING.match(line)
@@ -67,9 +69,12 @@ def parse_findings(body: str) -> list[Finding]:
             close()
             number, checked = int(item.group(2)), item.group(1) == "x"
             has_status = decided = False
+            lines = [line[len("- [ ] ") :]]
         elif number is not None:
             has_status = has_status or bool(_STATUS.match(line))
             decided = decided or bool(_DECISION.match(line))
+            if line.startswith("  "):
+                lines.append(line[2:])
     close()
     return findings
 
