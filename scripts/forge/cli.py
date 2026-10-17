@@ -185,6 +185,9 @@ def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
         forge, pull_request.number, head_sha, _read_body(args.body_file), resolve_authors(forge, args.author)
     )
     _print(outcome)
+    refused = outcome["reply_failed"] + outcome["edit_failed"]
+    if refused:
+        print(f"forge: warning: {refused} inline reply or edit request(s) were refused.", file=sys.stderr)
 
 
 def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:

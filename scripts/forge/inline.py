@@ -13,7 +13,7 @@ from scripts.forge.findings import Finding, after_title, parse_findings
 
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
 _INLINE_TIERS = ("blocker", "concern")
-_CLOSING = re.compile(r"(Fixed in [^:]+|Decided)")
+_CLOSING = re.compile(r"(Fixed in (?:`[^`]+`|[^\s`:.,]+)|Decided\b)")
 
 
 def anchor_of(finding: Finding) -> tuple[str, int] | None:
@@ -34,7 +34,8 @@ def _closing(number: int, known: Finding | None) -> tuple[str, str | None]:
         return f"{marker}\nNo longer in the readiness comment.", None
     if known.checked:
         said = _CLOSING.match(after_title(known.text))
-        return f"{marker}\n✓ {known.text}", f"{marker}\n✓ {said.group(1) if said else 'Closed'}."
+        phrase = said.group(1).rstrip(".") if said else "Closed"
+        return f"{marker}\n✓ {known.text}", f"{marker}\n✓ {phrase}."
     if known.is_open and known.tier in _INLINE_TIERS:
         return f"{marker}\nThe finding is no longer on a changed line: see the readiness comment.", None
     if known.is_open:
@@ -47,8 +48,8 @@ def sync_inline_comments(
 ) -> dict[str, int]:
     """Create, edit, reply to, and resolve finding comments so they match *body*; returns what it did.
 
-    A closing comment is edited only after its reply went out, so a refused reply is tried again on the next pass.
-    A thread that cannot be resolved stays open and is counted under ``unresolved``.
+    A closing thread gets one reply, to its newest comment and only when it has no reply yet; a refused reply, a
+    refused edit, and a thread that cannot be resolved are counted and the sync goes on.
     """
     findings = {finding.number: finding for finding in parse_findings(body)}
     wanted: dict[int, tuple[Finding, tuple[str, int]]] = {}
@@ -68,17 +69,27 @@ def sync_inline_comments(
         else:
             open_threads.setdefault(owner, []).append(comment)
 
-    counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
+    counts = {
+        "created": 0,
+        "edited": 0,
+        "resolved": 0,
+        "skipped": 0,
+        "unresolved": 0,
+        "reply_failed": 0,
+        "edit_failed": 0,
+    }
 
     def close(comment: InlineComment, text: str, reply: str | None = None) -> None:
+        if reply is not None and comment.reply_count == 0:
+            try:
+                forge.reply_to_inline_comment(number, comment.id, reply)
+            except ForgeError:
+                counts["reply_failed"] += 1
         if comment.body != text:
-            if reply is not None:
-                try:
-                    forge.reply_to_inline_comment(number, comment.id, reply)
-                except ForgeError:
-                    counts["reply_failed"] += 1
-                    return
-            forge.edit_inline_comment(comment.id, text)
+            try:
+                forge.edit_inline_comment(comment.id, text)
+            except ForgeError:
+                counts["edit_failed"] += 1
         try:
             forge.resolve_thread(comment.thread_id)
         except ForgeError:
@@ -113,6 +124,6 @@ def sync_inline_comments(
 
     for n, comments in open_threads.items():
         text, reply = _closing(n, findings.get(n))
-        for comment in comments:
-            close(comment, text, reply)
+        for position, comment in enumerate(sorted(comments, key=lambda c: c.id, reverse=True)):
+            close(comment, text, reply if position == 0 else None)
     return counts

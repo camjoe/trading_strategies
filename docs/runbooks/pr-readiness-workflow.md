@@ -44,10 +44,10 @@ The `readiness` job, which starts only if the first succeeded:
    `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
    review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and marks it
    "✓ ... Fixed in `<sha>`" when the finding closes. It also tries to resolve the thread; the workflow token is refused
-   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it (any failure to resolve is counted as
-   `unresolved`, and a refused reply as `reply_failed`; the next pass tries the reply again).
+   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it (a failure to resolve is counted as
+   `unresolved`, a refused reply as `reply_failed`, a refused edit as `edit_failed`).
    Once, when a finding closes, the bot also replies in its thread ("✓ Fixed in `<sha>`." or "✓ Decided.") so the
-   owner is notified; a comment already marked closed gets no second reply. A finding whose line is not in the diff stays in the summary only. A failure here
+   owner is notified; a thread that already holds a reply gets no second one. A finding whose line is not in the diff stays in the summary only. A failure here
    is a warning, not a red check, because the summary is already posted. The `readiness` job is the
    only one with the GitHub token.
 
@@ -59,8 +59,7 @@ Drafts, fork pull requests, and Dependabot pull requests are skipped.
 final readiness comment of each pull request and prints, per lens, how many findings it reported and how each ended:
 **fixed**, **decided** (the owner recorded a Decision), or **left open** (still open at merge, in any tier), or **other** (closed without saying fixed or decided).
 It also adds the thumbs up and thumbs down on each finding's inline comment, so a click on a finding is a rating:
-open the pull request's Files changed tab, click the smiley icon at the top right of the bot's comment on the finding's
-line, and pick 👍 (worth fixing) or 👎 (noise). Reactions on the summary comment and on replies are not counted.
+react to the bot's comment on the finding's line with 👍 (worth fixing) or 👎 (noise). Reactions on the summary comment and on replies are not counted.
 With `--json`, `pull_requests` lists the pull requests that were read (one with no readiness comment counts as read),
 `skipped` maps each pull request that failed to its reason, and `lenses` holds the counts; the output is printed
 before the command exits 1 for a skipped pull request.

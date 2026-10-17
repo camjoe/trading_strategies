@@ -381,3 +381,24 @@ class TestNames:
         for lens in LENSES:
             if lens != "Orchestrator":
                 assert lens in guide, lens
+
+
+class TestSpellings:
+    def _closed(self, line: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n{line}\n"
+        return parse_findings(body)[0]
+
+    def test_accepted_lens_spellings(self) -> None:
+        for tag, expected in (
+            ("Break it(2)", ("Break it",)),
+            ("Break it X2", ("Break it",)),
+            ("Operator x2 x3", ("Operator",)),
+            ("architecture", ("Architecture and conventions",)),
+            ("Break it (Opus) x2", ("Break it",)),
+            ("Test Skeptic", ("Test skeptic",)),
+        ):
+            assert lenses_of(self._closed(f"- [x] **1. T.** Fixed in `a`: ok. [{tag}]")) == expected, tag
+
+    def test_titles_ending_in_a_period_question_mark_or_exclamation_mark(self) -> None:
+        for title in ("A thing.", "Why is X?", "Never do this!"):
+            assert outcome_of(self._closed(f"- [x] **1. {title}** Fixed in `a`: ok. [Operator]")) == "fixed", title

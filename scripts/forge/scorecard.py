@@ -13,11 +13,10 @@ from scripts.forge.base import ForgeError, ScorecardForge
 from scripts.forge.findings import Finding, after_title, parse_findings
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
-_LENS_SUFFIX = re.compile(r"\s+x\d+$")
+_LENS_SUFFIX = re.compile(r"(?:\s*x\d+)+$")
 UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
-_LENS_ALIASES = {"architecture": "architecture and conventions"}
-_CANONICAL = {name.lower(): name for name in LENSES}
+_CANONICAL = {name.lower(): name for name in LENSES} | {"architecture": "Architecture and conventions"}
 
 
 @dataclass(frozen=True)
@@ -36,8 +35,7 @@ def lenses_of(finding: Finding) -> tuple[str, ...]:
         return (UNTAGGED,)
     names: list[str] = []
     for part in match.group(1).split(";")[0].split(","):
-        name = _LENS_SUFFIX.sub("", re.split(r"\s+\(", part.strip())[0]).lower()
-        name = _LENS_ALIASES.get(name, name)
+        name = _LENS_SUFFIX.sub("", re.split(r"\s*\(", part.strip().lower())[0]).strip()
         if name in _CANONICAL:
             names.append(_CANONICAL[name])
     return tuple(dict.fromkeys(names)) or (UNTAGGED,)

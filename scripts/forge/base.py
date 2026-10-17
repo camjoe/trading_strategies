@@ -88,6 +88,7 @@ class InlineComment:
     line: int | None
     resolved: bool
     outdated: bool
+    reply_count: int = 0
 
     @property
     def finding_number(self) -> int | None:

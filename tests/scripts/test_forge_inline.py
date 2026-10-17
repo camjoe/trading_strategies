@@ -1,5 +1,6 @@
 import json
 from collections.abc import Collection, Sequence
+from dataclasses import replace
 
 import pytest
 
@@ -41,6 +42,8 @@ class InlineStub:
         self.created: list[tuple[str, int, str]] = []
         self.cannot_resolve = False
         self.cannot_reply = False
+        self.cannot_edit = False
+        self.reply_counts: dict[int, int] = {}
         self.replies: list[tuple[int, str]] = []
         self.edited: dict[int, str] = {}
         self.resolved: list[str] = []
@@ -49,7 +52,11 @@ class InlineStub:
         return self.diff
 
     def inline_comments(self, number: int, authors: Collection[str]) -> list[InlineComment]:
-        return [c for c in self.comments if c.author in authors]
+        return [
+            replace(c, body=self.edited.get(c.id, c.body), reply_count=c.reply_count + self.reply_counts.get(c.id, 0))
+            for c in self.comments
+            if c.author in authors
+        ]
 
     def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
         require_finding_marker(body)
@@ -57,6 +64,8 @@ class InlineStub:
         return 100 + len(self.created)
 
     def edit_inline_comment(self, comment_id: int, body: str) -> None:
+        if self.cannot_edit:
+            raise ForgeError("edit refused")
         self.edited[comment_id] = body
 
     def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
@@ -64,6 +73,7 @@ class InlineStub:
         if self.cannot_reply:
             raise ForgeError("reply refused")
         self.replies.append((comment_id, body))
+        self.reply_counts[comment_id] = self.reply_counts.get(comment_id, 0) + 1
 
     def resolve_thread(self, thread_id: str) -> None:
         if self.cannot_resolve:
@@ -141,7 +151,15 @@ class TestSync:
 
         counts = run_sync(stub, readiness(CONCERN, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
+        assert counts == {
+            "created": 0,
+            "edited": 0,
+            "resolved": 0,
+            "skipped": 0,
+            "unresolved": 0,
+            "reply_failed": 0,
+            "edit_failed": 0,
+        }
         assert stub.created == [] and stub.edited == {} and stub.resolved == []
 
     def test_changed_text_edits_the_comment_in_place(self) -> None:
@@ -193,7 +211,15 @@ class TestSync:
             stub, readiness("- [ ] **1. A design problem.** The layering is wrong. → Move it. [Architecture]\n")
         )
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
+        assert counts == {
+            "created": 0,
+            "edited": 0,
+            "resolved": 0,
+            "skipped": 0,
+            "unresolved": 0,
+            "reply_failed": 0,
+            "edit_failed": 0,
+        }
 
     def test_a_moved_finding_resolves_the_old_comment_and_posts_a_new_one(self) -> None:
         stub = InlineStub(comments=[existing()])
@@ -269,7 +295,7 @@ class TestGitHubInline:
     def test_inline_comments_keeps_only_finding_comments_by_the_named_authors(self) -> None:
         def node(thread: str, login: str, body: str, resolved: bool = False) -> dict[str, object]:
             comment = {"databaseId": 5, "body": body, "path": "src/x.py", "line": 10, "author": {"login": login}}
-            return {"thread": thread, "resolved": resolved, "outdated": False, "comment": comment}
+            return {"thread": thread, "resolved": resolved, "outdated": False, "replies": 0, "comment": comment}
 
         output = "\n".join(
             json.dumps(item)
@@ -373,7 +399,15 @@ class TestSyncMore:
 
         counts = run_sync(stub, readiness(off_diff, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1, "unresolved": 0, "reply_failed": 0}
+        assert counts == {
+            "created": 0,
+            "edited": 0,
+            "resolved": 1,
+            "skipped": 1,
+            "unresolved": 0,
+            "reply_failed": 0,
+            "edit_failed": 0,
+        }
         assert "no longer on a changed line" in stub.edited[7]
         assert stub.resolved == ["T7"]
 
@@ -438,7 +472,13 @@ class TestGitHubInlineArguments:
             author = None if login is None else {"login": login}
             comment = {"databaseId": 5, "body": f"{FINDING_MARKER.format(number=1)}\nx", "path": "a", "line": 1}
             return json.dumps(
-                {"thread": "T", "resolved": False, "outdated": False, "comment": {**comment, "author": author}}
+                {
+                    "thread": "T",
+                    "resolved": False,
+                    "outdated": False,
+                    "replies": 0,
+                    "comment": {**comment, "author": author},
+                }
             )
 
         runner = FakeRunner({"repo view": "o/r\n", "graphql": thread("github-actions") + "\n" + thread(None)})
@@ -480,14 +520,23 @@ class TestReplyOnClose:
 
         assert stub.replies[0][1].endswith("✓ Decided.")
 
-    def test_a_comment_already_marked_closed_gets_no_second_reply(self) -> None:
+    def test_a_thread_that_already_holds_a_reply_gets_no_second_one(self) -> None:
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: it re-raises. [Break it]\n"
+        already = existing(body=f"{FINDING_MARKER.format(number=1)}\n✓ " + closed[6:].rstrip(), reply_count=1)
+        stub = InlineStub(comments=[already])
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=3))
+
+        assert stub.replies == []
+
+    def test_a_closed_comment_whose_reply_never_went_out_gets_it_now(self) -> None:
         closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: it re-raises. [Break it]\n"
         already = existing(body=f"{FINDING_MARKER.format(number=1)}\n✓ " + closed[6:].rstrip())
         stub = InlineStub(comments=[already])
 
         run_sync(stub, readiness("None.", closed=closed, pass_no=3))
 
-        assert stub.replies == []
+        assert len(stub.replies) == 1
 
     def test_a_moved_or_removed_or_lowered_finding_gets_no_reply(self) -> None:
         moved = InlineStub(comments=[existing()])
@@ -497,22 +546,59 @@ class TestReplyOnClose:
 
         assert moved.replies == [] and removed.replies == []
 
-    def test_a_refused_reply_leaves_the_comment_untouched_so_the_next_pass_retries_it(self) -> None:
+    def test_a_refused_reply_is_counted_and_the_comment_is_still_closed_out(self) -> None:
         stub = InlineStub(comments=[existing()])
         stub.cannot_reply = True
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+
+        counts = run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert counts["reply_failed"] == 1 and counts["resolved"] == 1
+        assert 7 in stub.edited and stub.resolved == ["T7"]
+
+    def test_a_refused_edit_after_the_reply_does_not_post_the_reply_again(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        stub.cannot_edit = True
         closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
         body = readiness("None.", closed=closed, pass_no=2)
 
         first = run_sync(stub, body)
-
-        assert first["reply_failed"] == 1 and first["resolved"] == 0
-        assert stub.edited == {} and stub.resolved == []
-
-        stub.cannot_reply = False
         second = run_sync(stub, body)
 
-        assert second["reply_failed"] == 0 and second["resolved"] == 1
-        assert len(stub.replies) == 1 and 7 in stub.edited
+        assert first["edit_failed"] == 1 and second["edit_failed"] == 1
+        assert len(stub.replies) == 1
+
+    def test_a_third_pass_sends_no_second_reply(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+        body = readiness("None.", closed=closed, pass_no=2)
+
+        run_sync(stub, body)
+        run_sync(stub, body)
+        run_sync(stub, body)
+
+        assert len(stub.replies) == 1
+
+    def test_duplicate_comments_for_one_finding_get_one_reply_on_the_newest(self) -> None:
+        stub = InlineStub(comments=[existing(), existing(id=9, thread_id="T9")])
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert [comment_id for comment_id, _ in stub.replies] == [9]
+        assert sorted(stub.resolved) == ["T7", "T9"]
+
+    def test_a_reply_names_only_the_fix_without_a_colon_or_a_double_period(self) -> None:
+        for line, expected in (
+            ("Fixed in abc1234. Also reworked the loop [Break it]", "✓ Fixed in abc1234."),
+            ("Fixed in `abc1234`. [Break it]", "✓ Fixed in `abc1234`."),
+            ("Fixed in `a:b`: ok. [Break it]", "✓ Fixed in `a:b`."),
+        ):
+            stub = InlineStub(comments=[existing()])
+
+            run_sync(stub, readiness("None.", closed=f"- [x] **1. A broker error is swallowed.** {line}\n", pass_no=2))
+
+            assert stub.replies[0][1].endswith(expected), line
 
     def test_a_finding_lowered_to_a_note_gets_no_reply(self) -> None:
         stub = InlineStub(comments=[existing()])

@@ -81,7 +81,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id isResolved isOutdated
-          comments(first: 1) { nodes { databaseId body path line author { login } } }
+          comments(first: 1) { totalCount nodes { databaseId body path line author { login } } }
         }
       }
     }
@@ -230,7 +230,7 @@ class GitHubForge:
                 f"number={number}",
                 "--jq",
                 ".data.repository.pullRequest.reviewThreads.nodes[] | {thread: .id, resolved: .isResolved, "
-                "outdated: .isOutdated, comment: .comments.nodes[0]}",
+                "outdated: .isOutdated, replies: (.comments.totalCount - 1), comment: .comments.nodes[0]}",
             ],
             None,
         )
@@ -251,6 +251,7 @@ class GitHubForge:
                     line=comment["line"],
                     resolved=item["resolved"],
                     outdated=item["outdated"],
+                    reply_count=int(item["replies"]),
                 )
                 if found.finding_number is not None:
                     comments.append(found)
