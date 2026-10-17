@@ -7,7 +7,7 @@ or left open. Reactions on a finding's inline comment (a thumbs up or down) are 
 import re
 from collections import Counter
 from collections.abc import Collection, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from scripts.forge.base import ForgeError, PullRequestDetails, ScorecardForge
 from scripts.forge.findings import Finding, after_title, parse_findings, verdict
@@ -19,10 +19,10 @@ UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
 _CANONICAL = {name.lower(): name for name in LENSES} | {"architecture": "Architecture and conventions"}
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
-_FIXED_IN = re.compile(r"Fixed in (?:`([^`]+)`|([^\s`:.,]+))")
+_FIXED_IN = re.compile(r"Fixed in (?:`([^`]+)`|([0-9a-fA-F]{7,40})\b)")
 _LOWERED = re.compile(r"lowered to NOTE because ([^\]]+)")
 _TITLE_TEXT = re.compile(r"^\*\*\d+\.\s*(.*?)\.?\*\*")
-_DOC_SUFFIXES = (".md", ".rst", ".txt")
+_DOC_SUFFIXES = (".md", ".rst")
 _CONFIG_SUFFIXES = (".json", ".yml", ".yaml", ".toml", ".ini", ".cfg")
 _AGENT_FILES = ("agents.md", "claude.md")
 
@@ -69,6 +69,7 @@ class PullRequestScore:
     passes: int | None
     verdict: str | None
     details: PullRequestDetails | None = None
+    file_areas: dict[str, str] = field(default_factory=dict)
 
 
 def lenses_of(finding: Finding) -> tuple[str, ...]:
@@ -130,7 +131,8 @@ def score_pull_request(
     body: str, reactions: Mapping[int, tuple[int, int]] | None = None, details: PullRequestDetails | None = None
 ) -> PullRequestScore:
     """The findings of one readiness comment with its pass number, verdict, and, when given, pull request details."""
-    return PullRequestScore(score_comment(body, reactions), pass_number(body), verdict(body), details)
+    file_areas = {path: area_of(path) for path in details.files} if details else {}
+    return PullRequestScore(score_comment(body, reactions), pass_number(body), verdict(body), details, file_areas)
 
 
 def tally(scored: Collection[ScoredFinding]) -> dict[str, Counter[str]]:

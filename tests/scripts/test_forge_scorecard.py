@@ -480,3 +480,23 @@ class TestMetadata:
 
         scores, _, _ = collect_scores(stub, [20], ["github-actions[bot]"], with_details=True)
         assert calls == [20] and scores[20].details is not None and scores[20].details.author == "camjoe"
+
+
+class TestMetadataEdges:
+    def test_a_range_anchor_gives_its_first_line(self) -> None:
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n"
+            "- [ ] **2. A range.** `src/a.py:3-9`: x. → y. [Operator]\n"
+        )
+
+        assert (score_comment(body)[0].path, score_comment(body)[0].line) == ("src/a.py", 3)
+
+    def test_a_fix_described_in_prose_has_no_sha(self) -> None:
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] **1. T.** Fixed in the next commit: ok. [Operator]\n"
+
+        assert score_comment(body)[0].fixed_in is None
+
+    def test_a_finding_with_no_title_match_has_an_empty_title(self) -> None:
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] no title here. [Operator]\n"
+
+        assert score_comment(body) == []

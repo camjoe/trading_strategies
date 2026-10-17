@@ -88,7 +88,9 @@ python -m scripts.forge review-scorecard --from-db --repo owner/name --json
 ```
 
 The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
-(`local/` is gitignored). Saving a pull request again replaces its rows, so run it after each merge, or over
+(`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
+the forge tool imports no project code that a pull request could change. `--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
+very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
 `--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
 is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head
 branch, created and merged times, lines added and removed, commit count, and every changed file with an area

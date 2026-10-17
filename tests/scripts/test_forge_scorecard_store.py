@@ -1,13 +1,12 @@
 import json
 import sqlite3
-from datetime import datetime, timezone
 
 import pytest
 
 from scripts.forge import cli as cli_module
 from scripts.forge.base import PullRequestDetails
 from scripts.forge.scorecard import PullRequestScore, ScoredFinding, score_pull_request, tally
-from scripts.forge.scorecard_store import SCHEMA_VERSION, ScoreStore
+from scripts.forge.scorecard_store import SCHEMA_VERSION, ScoreStore, ScoreStoreError
 from tests.scripts.test_forge_scorecard import BODY, ScoreStub
 
 
@@ -22,7 +21,7 @@ OPEN = ScoredFinding(2, "left open", ("Break it",), "note", up=0, down=1)
 class TestStore:
     def test_a_saved_pull_request_comes_back_with_its_passes_verdict_and_finding_count(self, tmp_path) -> None:
         with ScoreStore(tmp_path / "s.db") as store:
-            store.save("o/r", 7, score(FIXED, OPEN), datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc))
+            store.save("o/r", 7, score(FIXED, OPEN), "2026-10-17T12:00:00Z")
 
             [saved] = store.pull_requests()
 
@@ -81,7 +80,7 @@ class TestStore:
         conn.commit()
         conn.close()
 
-        with pytest.raises(ValueError, match="schema version 99"):
+        with pytest.raises(ScoreStoreError, match="schema version 99"):
             ScoreStore(path)
 
     def test_a_pull_request_with_no_findings_is_still_recorded(self, tmp_path) -> None:
@@ -189,7 +188,13 @@ class TestMetadataRows:
     )
 
     def test_pull_request_details_and_file_areas_are_stored(self, tmp_path) -> None:
-        scored = PullRequestScore([FIXED], 3, "READY", self.DETAILS)
+        scored = PullRequestScore(
+            [FIXED],
+            3,
+            "READY",
+            self.DETAILS,
+            {"src/a.py": "code", "tests/test_a.py": "tests", "docs/a.md": "docs"},
+        )
         with ScoreStore(tmp_path / "s.db") as store:
             store.save("o/r", 7, scored)
 
@@ -222,7 +227,7 @@ class TestMetadataRows:
 
     def test_saving_again_replaces_the_files_too(self, tmp_path) -> None:
         with ScoreStore(tmp_path / "s.db") as store:
-            store.save("o/r", 7, PullRequestScore([FIXED], 3, "READY", self.DETAILS))
+            store.save("o/r", 7, PullRequestScore([FIXED], 3, "READY", self.DETAILS, {"src/a.py": "code"}))
             store.save("o/r", 7, PullRequestScore([FIXED], 4, "READY", None))
 
         assert sqlite3.connect(tmp_path / "s.db").execute("SELECT COUNT(*) FROM pull_request_file").fetchone() == (0,)
@@ -266,3 +271,89 @@ class TestMetadataRows:
         )
         assert conn.execute("SELECT COUNT(*) FROM pull_request_file").fetchone() == (3,)
         assert conn.execute("SELECT fixed_in FROM finding WHERE number = 1").fetchone() == ("abc1234",)
+
+
+class TestErrors:
+    def run(self, argv: list[str], stub=None):
+        return cli_module.main(["review-scorecard", *argv], forge=stub or ScoreStub({20: BODY}))  # type: ignore[arg-type]
+
+    def test_a_database_of_another_version_is_a_forge_error_that_names_the_fix(self, tmp_path, capsys) -> None:
+        db = tmp_path / "s.db"
+        with ScoreStore(db):
+            pass
+        conn = sqlite3.connect(db)
+        conn.execute("UPDATE schema_version SET version = 1")
+        conn.commit()
+        conn.close()
+
+        code = self.run(["--pr", "20", "--save", "--db", str(db)])
+
+        err = capsys.readouterr().err
+        assert code == 1
+        assert err.startswith("forge: ") and "schema version 1" in err and "Move or delete the file" in err
+
+    def test_a_bad_database_is_found_before_any_pull_request_is_scored(self, tmp_path) -> None:
+        db = tmp_path / "s.db"
+        db.write_text("this is not a database", encoding="utf-8")
+
+        class Counting(ScoreStub):
+            calls = 0
+
+            def find_comment(self, number, authors):
+                Counting.calls += 1
+                return super().find_comment(number, authors)
+
+        code = self.run(["--pr", "20", "--save", "--db", str(db)], Counting({20: BODY}))
+
+        assert code == 1 and Counting.calls == 0
+
+    def test_a_corrupt_file_is_also_a_forge_error(self, tmp_path, capsys) -> None:
+        db = tmp_path / "s.db"
+        db.write_text("this is not a database", encoding="utf-8")
+
+        code = self.run(["--from-db", "--db", str(db)])
+
+        assert code == 1 and capsys.readouterr().err.startswith("forge: ")
+
+    def test_from_db_on_a_missing_file_says_so_and_creates_nothing(self, tmp_path, capsys) -> None:
+        db = tmp_path / "missing" / "s.db"
+
+        code = self.run(["--from-db", "--db", str(db)])
+
+        assert code == 1
+        assert "No scorecard database" in capsys.readouterr().err
+        assert not db.exists() and not db.parent.exists()
+
+    def test_save_refuses_more_than_one_repo_label(self, tmp_path, capsys) -> None:
+        code = self.run(["--pr", "20", "--save", "--db", str(tmp_path / "s.db"), "--repo", "a/b", "--repo", "c/d"])
+
+        assert code == 1 and "at most once" in capsys.readouterr().err
+
+    def test_save_with_json_reports_where_it_saved(self, tmp_path, capsys) -> None:
+        db = tmp_path / "s.db"
+
+        self.run(["--pr", "20", "--save", "--json", "--db", str(db)])
+
+        assert json.loads(capsys.readouterr().out)["saved_to"] == str(db)
+
+    def test_a_comment_that_repeats_a_finding_number_still_saves(self, tmp_path) -> None:
+        repeated = ScoredFinding(1, "left open", ("Operator",), "note")
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 7, score(FIXED, repeated))
+
+            assert [pr.findings for pr in store.pull_requests()] == [1]
+            assert store.lens_totals() == tally([repeated])
+
+
+class TestScoring:
+    def test_file_areas_come_from_the_score_not_from_the_store(self) -> None:
+        details = TestMetadataRows.DETAILS
+
+        scored = score_pull_request(BODY, None, details)
+
+        assert scored.file_areas == {"src/a.py": "code", "tests/test_a.py": "tests", "docs/a.md": "docs"}
+
+    def test_a_txt_file_is_not_a_doc(self) -> None:
+        from scripts.forge.scorecard import area_of
+
+        assert area_of("requirements.txt") == "code"

@@ -10,7 +10,8 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager, nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
@@ -25,7 +26,7 @@ from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
 from scripts.forge.scorecard import ScoredFinding, collect_scores, render_table, tally
-from scripts.forge.scorecard_store import ScoreStore
+from scripts.forge.scorecard_store import ScoreStore, ScoreStoreError
 from scripts.forge.service import resolve_authors, review_context
 
 SCORECARD_DB_ENV = "REVIEW_SCORECARD_DB"
@@ -236,10 +237,22 @@ def _print_scorecard(
         print(f"Saved to {saved_to}.")
 
 
+@contextmanager
+def _open_scorecard_db(path: Path) -> Iterator[ScoreStore]:
+    try:
+        with ScoreStore(path) as store:
+            yield store
+    except ScoreStoreError as exc:
+        raise ForgeError(str(exc)) from exc
+
+
 def _scorecard_from_db(args: argparse.Namespace) -> None:
     if args.pr or args.merged or args.save:
         raise ForgeError("--from-db reads the database only: drop --pr, --merged and --save.")
-    with ScoreStore(_scorecard_db(args)) as store:
+    path = _scorecard_db(args)
+    if not path.exists():
+        raise ForgeError(f"No scorecard database at {path}: run review-scorecard with --save first.")
+    with _open_scorecard_db(path) as store:
         rows = store.lens_totals(args.repo)
         saved = store.pull_requests(args.repo)
     if args.json:
@@ -266,12 +279,13 @@ def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
     if not numbers:
         raise ForgeError("Name pull requests with --pr or --merged.")
-    scores, read, failed = collect_scores(forge, numbers, authors, with_details=args.save)
-    saved_to = None
-    if args.save:
-        saved_to = _scorecard_db(args)
-        label = args.repo[0] if args.repo else forge.repository()
-        with ScoreStore(saved_to) as store:
+    if args.save and len(args.repo) > 1:
+        raise ForgeError("--save stores under one label: pass --repo at most once.")
+    saved_to = _scorecard_db(args) if args.save else None
+    with _open_scorecard_db(saved_to) if saved_to else nullcontext() as store:
+        scores, read, failed = collect_scores(forge, numbers, authors, with_details=args.save)
+        if store is not None:
+            label = args.repo[0] if args.repo else forge.repository()
             for number, score in scores.items():
                 store.save(label, number, score)
     _print_scorecard(
