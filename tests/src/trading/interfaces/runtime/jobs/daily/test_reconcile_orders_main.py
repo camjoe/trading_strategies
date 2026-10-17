@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -108,3 +109,65 @@ def test_main_closes_connection_when_reconciliation_fails(monkeypatch) -> None:
         module.main()
 
     assert conn.closed is True
+
+
+def test_main_prints_one_machine_readable_line_for_unresolved_orders(monkeypatch, capsys) -> None:
+    conn = FakeConn()
+    install_args(monkeypatch, "acct1,acct2")
+    monkeypatch.setattr(init_module, "ensure_db", lambda: conn)
+    monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
+    monkeypatch.setattr(
+        module,
+        "reconcile_open_orders",
+        Mock(
+            side_effect=[
+                ReconciliationOutcome(
+                    unresolved_pending_client_order_ids=["c-1"], unreported_broker_order_ids=["ib-7", "ib-9"]
+                ),
+                ReconciliationOutcome(),
+            ]
+        ),
+    )
+
+    module.main()
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("UNRESOLVED_ORDERS: ")]
+    assert [json.loads(line.removeprefix("UNRESOLVED_ORDERS: ")) for line in lines] == [
+        {"account": "acct1", "pending": ["c-1"], "unreported": ["ib-7", "ib-9"]}
+    ]
+
+
+def test_main_prints_no_unresolved_line_when_every_order_is_accounted_for(monkeypatch, capsys) -> None:
+    install_args(monkeypatch, "acct1")
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
+    monkeypatch.setattr(module, "reconcile_open_orders", Mock(return_value=ReconciliationOutcome(newly_filled=1)))
+
+    module.main()
+
+    assert "UNRESOLVED_ORDERS" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        (
+            ReconciliationOutcome(unresolved_pending_client_order_ids=["c-1"]),
+            {"account": "acct1", "pending": ["c-1"], "unreported": []},
+        ),
+        (
+            ReconciliationOutcome(unreported_broker_order_ids=["ib-7"]),
+            {"account": "acct1", "pending": [], "unreported": ["ib-7"]},
+        ),
+    ],
+)
+def test_main_prints_the_unresolved_line_for_either_kind_alone(monkeypatch, capsys, outcome, expected) -> None:
+    install_args(monkeypatch, "acct1")
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
+    monkeypatch.setattr(module, "reconcile_open_orders", Mock(return_value=outcome))
+
+    module.main()
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("UNRESOLVED_ORDERS: ")]
+    assert [json.loads(line.removeprefix("UNRESOLVED_ORDERS: ")) for line in lines] == [expected]

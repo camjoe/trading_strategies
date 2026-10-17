@@ -10,6 +10,7 @@ returns the process exit code.
 from __future__ import annotations
 
 import argparse
+import json
 import shlex
 import sys
 import time
@@ -23,6 +24,7 @@ from common.runtime_job_status import (
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
     FIRST_ORDER_STEP_ID,
+    UNRESOLVED_ORDERS_KEY,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
     BrokerSessionUnavailableError,
@@ -30,7 +32,10 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
+    POST_TRADE_RECONCILE_STEP_ID,
+    PRE_TRADE_RECONCILE_STEP_ID,
     DagStepResult,
+    StepFailedError,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,
@@ -54,6 +59,8 @@ from trading.interfaces.runtime.jobs.job_helpers import (
     DAILY_PAPER_TRADING_MODULE,
     RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
+    UNRESOLVED_ORDERS_LINE_PREFIX,
+    CommandFailedError,
     resolve_email_config_from_env,
     run_command,
     stream_command,
@@ -64,6 +71,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+
 
 # Snapshot attempts per account before the step fails. Snapshots reach market data
 # and the DB, which fail transiently far more often than permanently, and the
@@ -177,15 +185,39 @@ def reconcile_and_snapshot(
     Snapshots retry on transient failure; an account that still fails after
     ``SNAPSHOT_MAX_ATTEMPTS`` propagates, failing the step.
     """
-    stream_command(
-        log_path,
-        f"{label} reconcile fills",
-        ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
-        repo_root,
-    )
-    for account in accounts:
-        snapshot_account_with_retry(log_path, repo_root, account, label)
-    return {"accounts": list(accounts), "count": len(accounts)}
+    try:
+        output = stream_command(
+            log_path,
+            f"{label} reconcile fills",
+            ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
+            repo_root,
+        )
+    except CommandFailedError as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, exc.output)}) from exc
+    unresolved = _unresolved_orders(log_path, output)
+    try:
+        for account in accounts:
+            snapshot_account_with_retry(log_path, repo_root, account, label)
+    except Exception as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: unresolved}) from exc
+    return {"accounts": list(accounts), "count": len(accounts), UNRESOLVED_ORDERS_KEY: unresolved}
+
+
+def _unresolved_orders(log_path: Path, output: str) -> dict[str, dict[str, list[str]]]:
+    """Accounts whose orders reconcile could not resolve, from its ``UNRESOLVED_ORDERS_LINE_PREFIX`` lines."""
+    unresolved: dict[str, dict[str, list[str]]] = {}
+    for line in output.splitlines():
+        if not line.startswith(UNRESOLVED_ORDERS_LINE_PREFIX):
+            continue
+        try:
+            entry = json.loads(line[len(UNRESOLVED_ORDERS_LINE_PREFIX) :])
+            unresolved[str(entry["account"])] = {
+                "pending": [str(order_id) for order_id in entry["pending"]],
+                "unreported": [str(order_id) for order_id in entry["unreported"]],
+            }
+        except ValueError, KeyError, TypeError:
+            tee_line(log_path, f"[{ts()}] WARN: could not read a reconcile line: {line}")
+    return unresolved
 
 
 def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str]:
@@ -211,6 +243,37 @@ def broker_anomaly_accounts_from_dag(step_results: list[DagStepResult]) -> list[
     details = step_result(step_results, FIRST_ORDER_STEP_ID).details
     accounts = details.get(BROKER_ANOMALY_ACCOUNTS_KEY)
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
+
+
+def unresolved_orders_from_dag(step_results: list[DagStepResult]) -> dict[str, dict[str, list[str]]]:
+    """Accounts with orders reconcile could not resolve, read from the pre- and post-trade reconcile steps.
+
+    The post-trade pass has the last word for the accounts it reconciled; the pre-trade report stands for the
+    rest (an account left out of step 08, or a run that failed before it). Reported, not acted on: an unresolved
+    order does not stop that account from trading.
+    """
+    pre_trade = step_result(step_results, PRE_TRADE_RECONCILE_STEP_ID).details
+    post_trade = step_result(step_results, POST_TRADE_RECONCILE_STEP_ID).details
+    reconciled_after_trading = post_trade.get("accounts")
+    still_open: dict[str, dict[str, list[str]]] = {}
+    for account, ids in _unresolved_in(pre_trade).items():
+        if not isinstance(reconciled_after_trading, list) or account not in reconciled_after_trading:
+            still_open[account] = ids
+    still_open.update(_unresolved_in(post_trade))
+    return still_open
+
+
+def _unresolved_in(details: dict[str, object]) -> dict[str, dict[str, list[str]]]:
+    found = details.get(UNRESOLVED_ORDERS_KEY)
+    return found if isinstance(found, dict) else {}
+
+
+def _describe_unresolved(unresolved: dict[str, dict[str, list[str]]]) -> str:
+    parts = [
+        f"{account} ({len(ids['pending'])} sent but never confirmed, {len(ids['unreported'])} not reported by the broker)"
+        for account, ids in unresolved.items()
+    ]
+    return "; ".join(parts)
 
 
 def _int_field(details: dict[str, object], key: str) -> int:
@@ -315,6 +378,7 @@ def _finish_run(
     """
     failed = error is not None
     kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
+    unresolved_orders = unresolved_orders_from_dag(step_results)
     broker_anomaly_accounts = broker_anomaly_accounts_from_dag(step_results) or (
         error.accounts if isinstance(error, BrokerAnomalyError) else []
     )
@@ -323,6 +387,7 @@ def _finish_run(
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
         "kill_switch_accounts": kill_switch_accounts,
         BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
+        UNRESOLVED_ORDERS_KEY: unresolved_orders,
         "summary": build_run_summary(
             step_results, accounts=context.accounts, kill_switch_accounts=kill_switch_accounts
         ),
@@ -354,7 +419,14 @@ def _finish_run(
             "failed",
         ):
             message += ". Orders may already have gone out; check the broker's open orders before any re-run"
-    elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts:
+        if unresolved_orders:
+            source = (
+                ""
+                if step_result(step_results, POST_TRADE_RECONCILE_STEP_ID).status == "ok"
+                else " (found before trading; the post-trade reconcile did not finish)"
+            )
+            message += f". Orders reconcile could not resolve{source}: {_describe_unresolved(unresolved_orders)}"
+    elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts or unresolved_orders:
         notes: list[str] = []
         if kill_switch_accounts:
             notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
@@ -368,6 +440,11 @@ def _finish_run(
                 f"completed with broker API anomalies on: {', '.join(broker_anomaly_accounts)}. Their orders may be "
                 "in an unknown state and they were left out of the post-trade reconcile; the next run's pre-trade "
                 "reconcile applies any fills first. Check the broker's open orders before you re-run them"
+            )
+        if unresolved_orders:
+            notes.append(
+                f"completed with orders reconcile could not resolve: {_describe_unresolved(unresolved_orders)}. "
+                "Trading went on; check the broker's orders for these accounts"
             )
         message = "Daily paper trading run " + " | ".join(notes)
     else:
@@ -383,7 +460,11 @@ def _finish_run(
         # not a quiet success either — alert on it even when notify_on_success is off.
         status="fail"
         if failed
-        else ("warn" if kill_switch_accounts or skipped_accounts or broker_anomaly_accounts else "ok"),
+        else (
+            "warn"
+            if kill_switch_accounts or skipped_accounts or broker_anomaly_accounts or unresolved_orders
+            else "ok"
+        ),
         message=message,
         details={
             "accounts": context.accounts,
@@ -391,6 +472,7 @@ def _finish_run(
             "kill_switch_accounts": kill_switch_accounts,
             "skipped_accounts": skipped_accounts,
             BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
+            UNRESOLVED_ORDERS_KEY: unresolved_orders,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
@@ -443,7 +525,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         # is open; the post-trade pass at step 08 still records end-state equity.
         run_dag_step(
             step_results,
-            step_id="01_mark_book_nav",
+            step_id=PRE_TRADE_RECONCILE_STEP_ID,
             run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade"),
             now_iso=ts,
         )
@@ -589,7 +671,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         post_trade_accounts = [name for name in accounts if name not in anomalous]
         run_dag_step(
             step_results,
-            step_id="08_reconcile_fills_update_ledgers",
+            step_id=POST_TRADE_RECONCILE_STEP_ID,
             run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, post_trade_accounts, "Post-trade"),
             now_iso=ts,
         )
