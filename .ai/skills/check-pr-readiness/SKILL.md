@@ -109,6 +109,7 @@ Review details. This shortcut applies only after a pass in which the reviewers r
 against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
+A note that stays open and unchanged is not re-verified or reworded: list it again by number and title only.
 
 **Fixer lines.** A finding with `*Fix attempted: <sha>, awaiting verification*` is re-verified at the new
 HEAD: if the fix holds, tick the box and write `Fixed in <sha>`; if not, leave it open with "still open at
