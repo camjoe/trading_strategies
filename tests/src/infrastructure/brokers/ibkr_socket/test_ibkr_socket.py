@@ -515,6 +515,22 @@ def _sdk_known_trade(*, client_id=7):
     )
 
 
+class TestIbAsyncFillPrice:
+    def test_each_fill_carries_its_own_execution_price_not_the_running_average(self, monkeypatch):
+        backend = MagicMock()
+        trade = _sdk_known_trade()
+        trade.fills = [
+            _sdk_fill(shares=4.0, price=150.0, exec_id="e1"),
+            _sdk_fill(shares=6.0, price=151.0, avg_price=150.6, exec_id="e2"),
+        ]
+        backend.trades.return_value = [trade]
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+
+        fills = IbAsyncClient().trades()[0].fills
+
+        assert [fill.price for fill in fills] == [150.0, 151.0]
+
+
 class TestIbAsyncFindTrade:
     """An order that filled while no job was connected is in `fills()` but on no trade."""
 

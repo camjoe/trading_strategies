@@ -212,7 +212,7 @@ def _normalize_ib_async_fill(fill: Any) -> IbkrFill:
     fill_time = execution.time
     return IbkrFill(
         shares=float(execution.shares),
-        price=float(execution.avgPrice),
+        price=float(execution.price),
         time=fill_time.isoformat() if hasattr(fill_time, "isoformat") else str(fill_time),
         commission=(float(fill.commissionReport.commission) if fill.commissionReport is not None else 0.0),
         exec_id=str(execution.execId) if getattr(execution, "execId", None) else None,
