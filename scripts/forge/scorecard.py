@@ -10,10 +10,9 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
 from scripts.forge.base import ForgeError, ScorecardForge
-from scripts.forge.findings import Finding, parse_findings
+from scripts.forge.findings import Finding, after_title, parse_findings
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
-_TITLE = re.compile(r"^\*\*\d+\..*?\.\*\*\s*")
 _LENS_SUFFIX = re.compile(r"\s*(?:\([^()]*\)|x\d+)\s*$")
 UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
@@ -49,8 +48,7 @@ def outcome_of(finding: Finding) -> str:
     """``left open``, ``decided``, ``fixed``, or ``other``; the word is read after the ``**n. Title.**`` prefix."""
     if finding.is_open:
         return "left open"
-    text = finding.text.splitlines()[0] if finding.text else ""
-    said = _TITLE.sub("", text)
+    said = after_title(finding.text)
     if finding.checked and (said.startswith("Decided") or finding.decided):
         return "decided"
     if finding.checked and said.startswith("Fixed"):

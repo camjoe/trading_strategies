@@ -9,6 +9,7 @@ _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
 _TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Tests|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
+_FINDING_TITLE = re.compile(r"^\*\*\d+\..*?\.\*\*\s*")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Tests": "note", "Closed": "closed"}
 
 
@@ -29,6 +30,11 @@ class Finding:
     def is_handled(self) -> bool:
         """Whether a fixer or the owner has already recorded something on it."""
         return self.has_status_line or self.decided
+
+
+def after_title(text: str) -> str:
+    """The first line of a finding's *text* without its ``**n. Title.**`` prefix."""
+    return _FINDING_TITLE.sub("", text.splitlines()[0]) if text else ""
 
 
 def verdict(body: str) -> str | None:

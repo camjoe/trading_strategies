@@ -349,3 +349,12 @@ class TestMoreEdges:
         runner = FakeRunner({"pulls/3/comments": item(20, 1) + "\n" + item(10, 5)})
 
         assert GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"]) == {1: (1, 0)}
+
+
+class TestRepliesAreNotFindings:
+    def test_the_reactions_query_skips_replies(self) -> None:
+        runner = FakeRunner({"pulls/3/comments": ""})
+
+        GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"])
+
+        assert "select(.in_reply_to_id == null)" in runner.calls[0][-1]

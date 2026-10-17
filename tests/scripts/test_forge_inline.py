@@ -40,6 +40,8 @@ class InlineStub:
         self.comments = comments or []
         self.created: list[tuple[str, int, str]] = []
         self.cannot_resolve = False
+        self.cannot_reply = False
+        self.replies: list[tuple[int, str]] = []
         self.edited: dict[int, str] = {}
         self.resolved: list[str] = []
 
@@ -56,6 +58,12 @@ class InlineStub:
 
     def edit_inline_comment(self, comment_id: int, body: str) -> None:
         self.edited[comment_id] = body
+
+    def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
+        require_finding_marker(body)
+        if self.cannot_reply:
+            raise ForgeError("reply refused")
+        self.replies.append((comment_id, body))
 
     def resolve_thread(self, thread_id: str) -> None:
         if self.cannot_resolve:
@@ -453,3 +461,59 @@ class TestResolveRefused:
         assert counts["created"] == 1
         assert "✓ **1. A broker error is swallowed.** Fixed in `abc1234`" in stub.edited[7]
         assert stub.resolved == []
+
+
+class TestReplyOnClose:
+    def test_a_fixed_finding_gets_one_reply_naming_the_fix(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: it re-raises. [Break it]\n"
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert stub.replies == [(7, f"{FINDING_MARKER.format(number=1)}\n✓ Fixed in `abc1234`.")]
+
+    def test_a_decided_finding_gets_a_decided_reply(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        closed = "- [x] **1. A broker error is swallowed.** Decided: keep it. [Break it]\n"
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert stub.replies[0][1].endswith("✓ Decided.")
+
+    def test_a_comment_already_marked_closed_gets_no_second_reply(self) -> None:
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: it re-raises. [Break it]\n"
+        already = existing(body=f"{FINDING_MARKER.format(number=1)}\n✓ " + closed[6:].rstrip())
+        stub = InlineStub(comments=[already])
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=3))
+
+        assert stub.replies == []
+
+    def test_a_moved_or_removed_or_lowered_finding_gets_no_reply(self) -> None:
+        moved = InlineStub(comments=[existing()])
+        run_sync(moved, readiness(CONCERN.replace("src/x.py:10", "src/x.py:11"), pass_no=2))
+        removed = InlineStub(comments=[existing()])
+        run_sync(removed, readiness("None.", pass_no=2))
+
+        assert moved.replies == [] and removed.replies == []
+
+    def test_a_refused_reply_does_not_stop_the_sync(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        stub.cannot_reply = True
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+
+        counts = run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert counts["resolved"] == 1 and stub.resolved == ["T7"]
+
+    def test_the_adapter_posts_a_reply_to_the_thread_and_refuses_an_unmarked_one(self) -> None:
+        runner = FakeRunner({"/replies": "{}"})
+        forge = GitHubForge(runner)
+
+        forge.reply_to_inline_comment(3, 55, f"{FINDING_MARKER.format(number=1)}\n✓ Fixed in `abc`.")
+
+        args, stdin = runner.calls[-1]
+        assert args[:4] == ["api", "-X", "POST", "repos/{owner}/{repo}/pulls/3/comments/55/replies"]
+        assert json.loads(stdin or "")["body"].startswith(FINDING_MARKER.format(number=1))
+        with pytest.raises(ForgeError, match="must start with"):
+            forge.reply_to_inline_comment(3, 55, "an ordinary reply")

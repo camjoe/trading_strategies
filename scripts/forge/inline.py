@@ -8,10 +8,11 @@ import re
 from collections.abc import Collection
 
 from scripts.forge.base import ForgeError, InlineComment, InlineForge, finding_marker
-from scripts.forge.findings import Finding, parse_findings
+from scripts.forge.findings import Finding, after_title, parse_findings
 
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
 _INLINE_TIERS = ("blocker", "concern")
+_CLOSING = re.compile(r"(Fixed in `[^`]+`|Decided)")
 
 
 def anchor_of(finding: Finding) -> tuple[str, int] | None:
@@ -39,6 +40,14 @@ def _closing_text(number: int, known: Finding | None) -> str:
     return f"{marker}\nSee the readiness comment."
 
 
+def _closing_reply(number: int, known: Finding | None) -> str | None:
+    """The one-line reply that announces a finding closed, or ``None`` when it did not close."""
+    if known is None or not known.checked:
+        return None
+    said = _CLOSING.match(after_title(known.text))
+    return f"{finding_marker(number)}\n✓ {said.group(1) if said else 'Closed'}."
+
+
 def sync_inline_comments(
     forge: InlineForge, number: int, head_sha: str, body: str, authors: Collection[str]
 ) -> dict[str, int]:
@@ -63,9 +72,14 @@ def sync_inline_comments(
 
     counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
 
-    def resolve(comment: InlineComment, text: str) -> None:
+    def resolve(comment: InlineComment, text: str, reply: str | None = None) -> None:
         if comment.body != text:
             forge.edit_inline_comment(comment.id, text)
+            if reply is not None:
+                try:
+                    forge.reply_to_inline_comment(number, comment.id, reply)
+                except ForgeError:
+                    pass
         try:
             forge.resolve_thread(comment.thread_id)
         except ForgeError:
@@ -99,6 +113,7 @@ def sync_inline_comments(
             counts["created"] += 1
 
     for n, comments in open_threads.items():
+        known = findings.get(n)
         for comment in comments:
-            resolve(comment, _closing_text(n, findings.get(n)))
+            resolve(comment, _closing_text(n, known), _closing_reply(n, known))
     return counts

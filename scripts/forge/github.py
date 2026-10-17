@@ -270,7 +270,8 @@ class GitHubForge:
                 f"repos/{{owner}}/{{repo}}/pulls/{number}/comments",
                 "--paginate",
                 "--jq",
-                '.[] | {id: .id, author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
+                ".[] | select(.in_reply_to_id == null) | "
+                '{id: .id, author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
             ],
             None,
         )
@@ -291,6 +292,20 @@ class GitHubForge:
         )
         with _expect_shape("review comment write"):
             return int(json.loads(output)["id"])
+
+    def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
+        require_finding_marker(body)
+        self._run(
+            [
+                "api",
+                "-X",
+                "POST",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/comments/{comment_id}/replies",
+                "--input",
+                "-",
+            ],
+            json.dumps({"body": body}),
+        )
 
     def edit_inline_comment(self, comment_id: int, body: str) -> None:
         require_finding_marker(body)

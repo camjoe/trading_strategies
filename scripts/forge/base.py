@@ -161,6 +161,10 @@ class InlineForge(Protocol):
         """Replace the text of a review comment."""
         ...
 
+    def reply_to_inline_comment(self, number: int, comment_id: int, body: str) -> None:
+        """Add a reply to the thread of review comment *comment_id*."""
+        ...
+
     def resolve_thread(self, thread_id: str) -> None:
         """Mark a review thread resolved."""
         ...

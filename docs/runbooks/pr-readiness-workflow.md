@@ -44,7 +44,9 @@ The `readiness` job, which starts only if the first succeeded:
    `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
    review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and marks it
    "✓ ... Fixed in `<sha>`" when the finding closes. It also tries to resolve the thread; the workflow token is refused
-   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it. A finding whose line is not in the diff stays in the summary only. A failure here
+   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it.
+   Once, when a finding closes, the bot also replies in its thread ("✓ Fixed in `<sha>`." or "✓ Decided.") so the
+   owner is notified; a comment already marked closed gets no second reply. A finding whose line is not in the diff stays in the summary only. A failure here
    is a warning, not a red check, because the summary is already posted. The `readiness` job is the
    only one with the GitHub token.
 
