@@ -38,9 +38,13 @@ BROKER_ANOMALY_ACCOUNTS_KEY = "broker_anomaly_accounts"
 # First daily-run step that sends orders: a run that reached it may have traded.
 FIRST_ORDER_STEP_ID = "05_build_position_targets_by_book"
 
+# Key of the daily run artifact that names accounts whose orders reconcile could not resolve.
+UNRESOLVED_ORDERS_KEY = "unresolved_orders"
+
 __all__ = [
     "BROKER_ANOMALY_ACCOUNTS_KEY",
     "FIRST_ORDER_STEP_ID",
+    "UNRESOLVED_ORDERS_KEY",
     "DAILY_RUN_STATUS_SUCCESS",
     "DAILY_RUN_STATUS_FAILED",
     "TERMINAL_STEP_STATUSES",

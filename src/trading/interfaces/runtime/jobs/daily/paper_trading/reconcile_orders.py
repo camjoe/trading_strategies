@@ -12,10 +12,12 @@ The daily workflow runs this before each of its snapshot passes.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from infrastructure.brokers.factory import get_broker_for_account
 from infrastructure.database.connection import db_session
+from trading.interfaces.runtime.jobs.job_helpers import UNRESOLVED_ORDERS_LINE_PREFIX
 from trading.services.accounts.mutations import get_account
 from trading.services.execution.open_order_reconciliation import reconcile_open_orders
 
@@ -70,6 +72,13 @@ def main() -> None:
                     f"not reported by the broker and left unresolved: {ids}",
                     file=sys.stderr,
                 )
+            if outcome.has_unresolved_pending or outcome.has_unreported:
+                unresolved = {
+                    "account": account_name,
+                    "pending": list(outcome.unresolved_pending_client_order_ids),
+                    "unreported": list(outcome.unreported_broker_order_ids),
+                }
+                print(f"{UNRESOLVED_ORDERS_LINE_PREFIX}{json.dumps(unresolved)}")
 
 
 if __name__ == "__main__":

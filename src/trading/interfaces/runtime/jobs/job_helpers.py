@@ -34,6 +34,8 @@ RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.ru
 RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
 # Line ``run_auto_trades`` prints, before exiting 1, naming the accounts whose broker misbehaved mid-submission.
 BROKER_ANOMALY_LINE_PREFIX = "BROKER_API_ANOMALY_ACCOUNTS: "
+# Line ``reconcile_orders`` prints per account whose orders it could not resolve; the rest is a JSON object.
+UNRESOLVED_ORDERS_LINE_PREFIX = "UNRESOLVED_ORDERS: "
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"

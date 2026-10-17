@@ -11,7 +11,7 @@ import pytest
 import trading.interfaces.runtime.jobs.daily.paper_trading.dag as dag_module
 import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow_module
 import trading.services.autonomy_monitor.artifacts as monitor_artifacts
-from common.runtime_job_status import BROKER_ANOMALY_ACCOUNTS_KEY
+from common.runtime_job_status import BROKER_ANOMALY_ACCOUNTS_KEY, UNRESOLVED_ORDERS_KEY
 from tests.src.trading.interfaces.helpers import run_module_as_main
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     DAILY_PAPER_TRADING_MODULE,
@@ -69,6 +69,7 @@ def _runtime_harness(monkeypatch, conn):
         stream_error: Exception | None = None
         fail_labels: set[str] = field(default_factory=set)
         trade_results: dict[str, tuple[int, str] | Exception] = field(default_factory=dict)
+        command_outputs: dict[str, tuple[int, str]] = field(default_factory=dict)
         notifications: list[dict[str, object]] = field(default_factory=list)
 
     state = RuntimeHarnessState()
@@ -91,6 +92,10 @@ def _runtime_harness(monkeypatch, conn):
         error = state.stream_error
         if error is not None:
             raise error
+        if label in state.fail_labels:
+            raise RuntimeError(f"Step failed: {label} (exit=1)")
+        if not label.startswith("Auto Trader"):
+            return state.command_outputs.get(label, (0, ""))
         result = state.trade_results.get(args[args.index("--accounts") + 1], (0, ""))
         if isinstance(result, Exception):
             raise result
@@ -1211,3 +1216,77 @@ def test_the_orders_warning_is_not_repeated_when_an_anomaly_already_gives_the_gu
     [notification] = _runtime_harness.notifications
     assert "Orders may already have gone out" not in notification["message"]
     assert "Broker API anomaly earlier on: acct_a" in notification["message"]
+
+
+UNRESOLVED_LINE = 'UNRESOLVED_ORDERS: {"account": "acct_a", "pending": ["c-1"], "unreported": ["ib-7", "ib-9"]}\n'
+
+
+def test_unresolved_orders_from_the_pre_trade_reconcile_warn_and_trading_goes_on(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (0, UNRESOLVED_LINE)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    assert _auto_trader_account_args(_runtime_harness) == ["acct_a"]
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    assert "acct_a (1 sent but never confirmed, 2 not reported by the broker)" in notification["message"]
+    assert "Trading went on; check the broker's orders for these accounts" in notification["message"]
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload[UNRESOLVED_ORDERS_KEY] == {"acct_a": {"pending": ["c-1"], "unreported": ["ib-7", "ib-9"]}}
+    assert notification["details"][UNRESOLVED_ORDERS_KEY] == payload[UNRESOLVED_ORDERS_KEY]
+
+
+def test_a_post_trade_reconcile_report_is_read_too(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.command_outputs["Post-trade reconcile fills"] = (0, UNRESOLVED_LINE)
+
+    run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    [notification] = _runtime_harness.notifications
+    assert "acct_a (1 sent but never confirmed" in notification["message"]
+
+
+def test_a_malformed_unresolved_line_is_logged_and_does_not_fail_the_run(
+    monkeypatch, tmp_path: Path, _runtime_harness, capsys
+) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (0, "UNRESOLVED_ORDERS: {not json}\n")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    assert "WARN: could not read a reconcile line: UNRESOLVED_ORDERS: {not json}" in capsys.readouterr().out
+    assert _runtime_harness.notifications == []
+
+
+def test_a_failing_reconcile_still_fails_the_run(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.command_outputs["Pre-trade reconcile fills"] = (1, "")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    assert _auto_trader_account_args(_runtime_harness) == []
