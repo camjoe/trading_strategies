@@ -106,6 +106,10 @@ class IbkrSocketAdapter(BrokerConnection):
         if self._client.is_connected():
             self._client.disconnect()
 
+    def is_connected(self) -> bool:
+        """Whether the underlying client still holds its connection to TWS/IB Gateway."""
+        return self._client.is_connected()
+
     def managed_accounts(self) -> list[str]:
         """Account ids this session can trade.
 

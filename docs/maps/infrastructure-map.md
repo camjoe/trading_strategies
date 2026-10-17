@@ -42,6 +42,7 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 |---|---|
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
+| `session.py` | `BrokerSession`: leases one held socket connection per account in place of `broker_factory`, reconnecting through the factory when it drops |
 | `ibkr_web/adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
 | `ibkr_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
 | `ibkr_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |
@@ -58,7 +59,7 @@ TWS/IB Gateway socket support with interchangeable `ib_async` and native `ibapi`
 | `protocol.py` | Backend-neutral socket client protocol |
 | `ib_async_client.py` | Working `ib_async` socket client |
 | `ibapi_client.py` | Native `ibapi` connection, order, position, account-summary, and snapshot-quote callbacks |
-| `factory.py` | Socket backend selection and broker construction |
+| `factory.py` | Socket backend selection, unconnected client construction, and connected broker construction |
 
 ### `src/infrastructure/feature_providers/`
 

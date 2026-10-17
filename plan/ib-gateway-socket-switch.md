@@ -71,12 +71,14 @@ UNVERIFIED, decided by the trial below:
   check below, any manual script).
 
 ### 2. Replace the keepalive worker with a connection health check
-`ibkr_session_keepalive` calls the Web API's `/tickle`; it has no purpose on the socket path. Replace
-it with a worker that every few minutes connects, reads `managed_accounts()`, disconnects, and alerts
-on a change of state, reusing the `SessionState` pattern and `notify_runtime_event`. Treat "refused"
-as `unreachable` and "connected but no managed account" as `rejected`. Quiet outside the Monday
-login window and after Friday close so a planned suspend sends no alert. Retire the Web API keepalive
-unit and its tests in the same PR once the switch is done; keep the Web API adapter itself.
+DONE in code, UNVERIFIED on a Gateway: `maintenance/ibkr_gateway_health.py`. Every
+`--interval-seconds` (default 300) it connects to the API port with `--client-id` (default 901),
+reads `managed_accounts()` and disconnects, and alerts on a change of state. Refused or timed out is
+`unreachable`; connected with no account, or a `RuntimeError`, is `rejected`; a start with the Gateway
+down alerts, which is the Sunday-night login reminder. It has no schedule of its own: the host starts it
+with the Sunday timer and stops it after Friday's close, so a planned suspend sends no alert.
+Remaining: the systemd unit and runbook text (item 3), and retiring `ibkr_session_keepalive` and its
+tests in the PR that switches the account; keep the Web API adapter itself.
 
 ### 3. Host setup (runbook, no repo code)
 - Install IB Gateway from IBKR's installer. Run it in the user's desktop session, autostarted.
@@ -125,6 +127,8 @@ Owner decision 2026-10-17: a connection held open through market hours is intend
   that is decided.
 
 ### Proposed shape
+DONE in code (`infrastructure/brokers/session.py`, tested with fakes only): the session and lease. The
+job that uses them is not built.
 - `BrokerSession` in `infrastructure/brokers/ibkr_socket/`: owns one adapter, connects through the same
   retry, and on each `lease()` checks `is_connected()` and reconnects if the connection dropped.
   Every (re)connect re-runs the paper assertion (`managed_accounts()`), never only the first.

@@ -19,6 +19,7 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrQuote,
     IbkrTrade,
 )
+from infrastructure.brokers.ibkr_socket.factory import build_ibkr_socket_client
 from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
 from infrastructure.brokers.ibkr_socket.ibapi_client import (
     IbApiClient,
@@ -490,6 +491,28 @@ class TestConnectRetry:
 
         client.connect.assert_called_once_with("127.0.0.1", 4002, client_id=7)
         assert sleeps == []
+
+
+class TestConnectionState:
+    def test_the_adapter_reports_whether_its_client_is_connected(self):
+        adapter, client = _adapter_with_mock_client()
+
+        assert adapter.is_connected() is True
+        client.is_connected.return_value = False
+        assert adapter.is_connected() is False
+
+
+class TestBuildSocketClient:
+    def test_defaults_to_ib_async(self, monkeypatch):
+        monkeypatch.delenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", raising=False)
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock()))
+
+        assert isinstance(build_ibkr_socket_client(), IbAsyncClient)
+
+    def test_selects_the_native_backend_from_the_environment(self, monkeypatch):
+        monkeypatch.setenv("TRADING_IBKR_SOCKET_CLIENT_BACKEND", "ibapi")
+
+        assert isinstance(build_ibkr_socket_client(), IbApiClient)
 
 
 class TestGetOrder:
