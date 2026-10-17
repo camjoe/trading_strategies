@@ -84,20 +84,13 @@ Remaining: the systemd unit and runbook text (item 3), and retiring `ibkr_sessio
 tests in the PR that switches the account; keep the Web API adapter itself.
 
 ### 3. Host setup (runbook, no repo code)
-- Install IB Gateway from IBKR's installer. Run it in the user's desktop session, autostarted.
-- Settings: socket API enabled; trusted IP `127.0.0.1` only; read-only API off; paper port `4002`;
-  Auto restart on, with the restart time outside IBKR's own maintenance window; never lock.
-- Keep the host awake from Sunday night to Friday close: a user service holding
-  `systemd-inhibit --what=sleep:idle`, started by a Sunday-evening timer with `WakeSystem=yes` and
-  stopped by a Friday timer after 13:00 PT. Timers use the host's Pacific time. Laptop: also
-  `HandleLidSwitch=ignore`. Fall back to masking the sleep targets for those days if the inhibitor
-  does not hold.
-- Weekly login: the owner logs in to IB Gateway on Sunday night, once the host is awake. The health
-  check alerts if Gateway is still logged out at a set time before Monday's first run. Whether a
-  Sunday-night login satisfies IBKR's weekly requirement through Friday close is UNVERIFIED; the
-  trial week confirms it.
-- Update `docs/runbooks/production-runtime-host.md` (Parts 5 and 6), `ibkr-operations.md`, and the
-  transport guidance in `ibkr-paper-trading.md` to match.
+DONE as text, UNTESTED on the host: Part 7 of `docs/runbooks/production-runtime-host.md` (IB Gateway
+settings, the Sunday-to-Friday awake window as system units with a sleep inhibitor, the health unit,
+reserved client ids, switching from the Client Portal Gateway, and the first-week checks that settle the
+UNVERIFIED items) and a socket section in `docs/runbooks/ibkr-operations.md`. The transport guidance in
+`ibkr-paper-trading.md` was not touched: that file is not valid UTF-8 and the edit tools refuse it.
+Remaining: run the units on the host, record the answers in the private checklist, and retire the Part 6
+text and `ibkr_session_keepalive` when the account moves.
 
 ### 4. Trial, then switch
 1. Smoke test on the host against IB Gateway paper, including one fractional-size order.
