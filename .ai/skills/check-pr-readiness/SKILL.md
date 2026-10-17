@@ -31,6 +31,10 @@ Run it on committed work. The reviewers and the gate's suite targeting read `<ba
 check `git status --short` first: if tracked files are modified, say so and stop, because the
 reviewers would be reviewing code that differs from the working tree.
 
+Run it locally before the first push of a branch, so the unattended pass confirms a branch that is already
+clean and the author does not discover findings one pushed pass at a time. A local pass needs no pull request;
+it prints the comment text.
+
 When a pull request exists, fetch its context once:
 
 ```
@@ -96,7 +100,8 @@ findings are routed to `/security-review` and never posted. Each reviewer is a s
 subagent; reading the diff yourself does not stand in for one, and an unattended session spawns them
 the same way.
 
-**Later passes.** First re-verify every open finding by hand against the new HEAD; that alone can
+**Later passes.** First re-verify every open BLOCKER and CONCERN by hand against the new HEAD, and every open
+note whose code or text changed; that alone can
 clear a finding, and READY does not require a fresh reviewer run. Then run the same command on the
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
@@ -105,6 +110,7 @@ Review details. This shortcut applies only after a pass in which the reviewers r
 against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
+A note that stays open and unchanged is carried forward as written: same number, title, line, and fix hint.
 
 **Fixer lines.** A finding with `*Fix attempted: <sha>, awaiting verification*` is re-verified at the new
 HEAD: if the fix holds, tick the box and write `Fixed in <sha>`; if not, leave it open with "still open at
@@ -123,7 +129,7 @@ does that). Never blocks.
 One comment per PR, created by the first pass and edited in place by every later one, found by its
 hidden marker line `<!-- pr-readiness -->`. Authorization to create and edit it is in `AGENTS.md`
 ("Standing authorizations"); it covers nothing else. With no PR yet, print the same text to the
-terminal and do not save a file. Open the PR as a draft early so the comment has a home.
+terminal and do not save a file. Open the PR as a draft after a local pass, so the comment has a home.
 
 Write the body to a file outside the repo's tracked paths, then:
 
@@ -146,7 +152,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
 #### 🔴 Blockers
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem and the scenario that breaks it, in up to three lines>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in plain words, and the steps of the scenario only when the title does not show them>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
 
 #### 🟠 Concerns
 (the same form; "None." when there are none)
@@ -186,13 +192,31 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 </details>
 ```
 
-A note or a test item is one line, and a blocker or concern up to three; the fixer's `*Fix attempted*`,
+A note or a test item is one line, and a blocker or concern as long as it takes to understand it once: the defect
+and its `→` fix hint, in the plain voice below; the fixer's `*Fix attempted*`,
 `*Not fixed*`, and `*Left*` lines and the owner's `*Decision*` line each go on their own indented line
 directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
 diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
 the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
 CI is the backstop]`.
+
+**Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
+sentences, one idea in each. Say what is wrong, where, and what to do. Leave out stacked clauses, anything the
+title or `path:line` already says, and hedges ("may", "could potentially") except to mark a finding unconfirmed. If a
+blocker or concern has a scenario with steps, list them as short bullets directly under the finding, above any fixer or Decision lines, not
+in one long sentence. If the owner would have to reread it, cut it
+down.
+
+Before: `A failed same-day catch-up can still change the burn-in result. burn_in_status.py:129-131: the day's
+status comes only from the latest artifact, while anomalies, kill switches and traded accounts are combined
+across the day. (a) The scheduled run fails at step 08 after orders went out, then --accounts x --force-run
+succeeds: the day counts as success. (b) Per-account sim,ibkr: sim traded cleanly, then the ibkr catch-up
+fails (status: failed); sim is judged failed and its streak resets. The new test covers only a catch-up that
+succeeds.`
+
+After: `A failed catch-up for ibkr also fails sim for the day, though sim traded fine. burn_in_status.py:129: the
+day takes its status from the newest artifact only. → Judge failure per account.`
 
 A finding about the tests alone goes under Tests, titled `Gap:` (a missing case, a mutation that would survive,
 a weak assertion) or `Extra:` (two tests that repeat each other, a redundant or brittle test). It is a NOTE at
