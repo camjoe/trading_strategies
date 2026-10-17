@@ -201,7 +201,9 @@ def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple
     return exit_code, combined_output
 
 
-def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> None:
-    exit_code, _ = run_command(log_path, label, args, cwd)
+def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> str:
+    """Run a command, teeing its output to the log; returns that output and raises if it exits non-zero."""
+    exit_code, output = run_command(log_path, label, args, cwd)
     if exit_code != 0:
         raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+    return output

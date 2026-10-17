@@ -276,6 +276,9 @@ silently corrupt the book. That call needs a human, so:
 - `reconcile_orders` prints a `WARNING … not reported by the broker and left unresolved` line to
   stderr, naming each broker order id. The daily run captures stderr into its run log. Read the
   warnings just above it for why the order could not be resolved before treating it as expired.
+- `reconcile_orders` also prints one `UNRESOLVED_ORDERS: {...}` line per affected account, and the daily run records them
+  under `unresolved_orders` in its artifact and ends with a `warn`. The `warn` repeats on every run until the order is
+  closed (see below).
 - The daily run artifact's step `07_submit_ibkr_orders` carries `stale_open_count` and a
   `stale_open` list — open orders carried over from an earlier session, per account.
 

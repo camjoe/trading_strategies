@@ -146,3 +146,28 @@ def test_main_prints_no_unresolved_line_when_every_order_is_accounted_for(monkey
     module.main()
 
     assert "UNRESOLVED_ORDERS" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        (
+            ReconciliationOutcome(unresolved_pending_client_order_ids=["c-1"]),
+            {"account": "acct1", "pending": ["c-1"], "unreported": []},
+        ),
+        (
+            ReconciliationOutcome(unreported_broker_order_ids=["ib-7"]),
+            {"account": "acct1", "pending": [], "unreported": ["ib-7"]},
+        ),
+    ],
+)
+def test_main_prints_the_unresolved_line_for_either_kind_alone(monkeypatch, capsys, outcome, expected) -> None:
+    install_args(monkeypatch, "acct1")
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    monkeypatch.setattr(module, "get_account", lambda _conn, name: f"account:{name}")
+    monkeypatch.setattr(module, "reconcile_open_orders", Mock(return_value=outcome))
+
+    module.main()
+
+    lines = [line for line in capsys.readouterr().out.splitlines() if line.startswith("UNRESOLVED_ORDERS: ")]
+    assert [json.loads(line.removeprefix("UNRESOLVED_ORDERS: ")) for line in lines] == [expected]

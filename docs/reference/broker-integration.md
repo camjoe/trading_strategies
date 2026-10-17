@@ -229,7 +229,8 @@ The daily paper-trading job drives it via
 `trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders`, once before the pre-trade
 snapshot and again before the post-trade snapshot, so recorded equity always reflects the fills the
 broker has reported so far. It is a no-op for `paper` accounts (synchronous fills, no open trades)
-and load-bearing for the socket path.
+and load-bearing for the socket path. It also prints an `UNRESOLVED_ORDERS` line per account with orders it could not
+resolve, which the daily run records in its artifact and alerts on.
 
 A broker's open-order list can omit an order that has filled. The IBKR Web API's list returned
 nothing for three fractional market orders that its per-order status reported as `Filled`. So after
