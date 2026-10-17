@@ -102,6 +102,55 @@ unit and its tests in the same PR once the switch is done; keep the Web API adap
 4. Move the real book by changing `accounts.broker_type`, only with no open orders (in-flight orders
    do not carry across transports; see `ibkr-paper-trading.md`).
 
+## Held connection (design only, nothing built)
+
+Owner decision 2026-10-17: a connection held open through market hours is intended.
+
+### What the code does today, and what constrains the design
+- Every phase connects, works and disconnects, through the `broker_factory(account)` seam
+  (`get_broker_for_account`): the preflight in the orchestrator process, then the pre-trade reconcile,
+  each auto-trader group and the post-trade reconcile, each in its own subprocess
+  (`workflow.py`, `stream_command`). A connection cannot be shared across those processes.
+- The daily run is one pass per day. The duplicate-run guard blocks a second pass on purpose, because
+  no intraday data exists yet and a repeat pass would trade on identical evidence
+  (`docs/reference/ibkr-paper-execution-plan.md`, Phase 4). Holding a connection does not change that.
+- Consequence: a held connection needs one long-running process that owns the connection and runs the
+  passes in-process. It is a new job, not a change to the daily batch's subprocess steps.
+
+### What holding buys
+- `trades()` and `fills()` stay live, so reconciliation reads current state with no startup sync and no
+  `find_trade` lookup for same-day fills.
+- No reconnect churn, and no window in which a restarting Gateway refuses the connect.
+- It buys nothing for decisions until Phase 4 (intraday data) exists. Do not build the loop job before
+  that is decided.
+
+### Proposed shape
+- `BrokerSession` in `infrastructure/brokers/ibkr_socket/`: owns one adapter, connects through the same
+  retry, and on each `lease()` checks `is_connected()` and reconnects if the connection dropped.
+  Every (re)connect re-runs the paper assertion (`managed_accounts()`), never only the first.
+- The lease is an adapter-shaped object whose `disconnect()` does nothing, so existing code that calls
+  `broker_factory(account)` and `broker.disconnect()` in a `finally` works unchanged. The owner calls
+  `session.close()` at shutdown. The session's `lease` is passed as `broker_factory` at the job's
+  composition seam; no service changes.
+- A drop mid-call surfaces as the existing "not connected" error and, for submission, the
+  `broker_api_anomaly` kill switch. An order sent just before a drop is recovered by the existing
+  pending-row adoption on `orderRef` at the next reconcile.
+- The Gateway's own daily restart drops the connection outside market hours. The session reconnects on
+  the next `lease()`; the job ends at the close, so no held connection spans a restart.
+- The connection-health worker (Work item 2) is a separate process with its own client id.
+
+### Open questions (decide before building)
+- Client ids. IB allows one connection per client id, so while the held session owns the account row's
+  `broker_client_id`, the operator CLIs (`reconcile_orders`, the smoke test) and the health worker
+  would be refused or would kick the session. UNVERIFIED which happens. Proposal: operator tools and
+  the health worker take a distinct id from an environment override, documented in the runbook.
+- Process model: a long-running service started Sunday night and stopped at Friday's close, or a
+  scheduler-run job that loops only inside the submission window. The first matches the weekly login
+  rhythm; the second reuses the job runner, its sentinel and its alerts.
+- Whether to build the session and lease first, with the health worker, and defer the loop job until
+  Phase 4 lands. Recommended: the primitive is small and testable with the fake client; the loop is
+  not worth building without intraday data.
+
 ## Out of scope
 Live trading, OAuth for the new Web API, third-party login automation, and removing the Web API
 adapter.
