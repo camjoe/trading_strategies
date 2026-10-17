@@ -95,6 +95,11 @@ mutation($threadId: ID!) {
 """
 
 
+def _login(name: str) -> str:
+    """A login without the ``[bot]`` suffix: REST spells a bot ``github-actions[bot]``, GraphQL ``github-actions``."""
+    return name.removesuffix("[bot]")
+
+
 def new_side_lines(patch: str) -> frozenset[int]:
     """The new-side line numbers a unified-diff *patch* shows: added lines and unchanged context lines."""
     lines: set[int] = set()
@@ -229,16 +234,18 @@ class GitHubForge:
             None,
         )
         comments: list[InlineComment] = []
+        names = {_login(author) for author in authors}
         with _expect_shape("review threads"):
             for item in _json_values(output):
                 comment = item["comment"]
-                if comment is None or comment["author"]["login"] not in authors:
+                author = comment["author"] if comment else None
+                if author is None or _login(author["login"]) not in names:
                     continue
                 found = InlineComment(
                     id=comment["databaseId"],
                     thread_id=item["thread"],
                     body=comment["body"],
-                    author=comment["author"]["login"],
+                    author=author["login"],
                     path=comment["path"],
                     line=comment["line"],
                     resolved=item["resolved"],

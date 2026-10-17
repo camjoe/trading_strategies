@@ -19,7 +19,7 @@ class Finding:
     checked: bool
     has_status_line: bool
     decided: bool
-    text: str = ""
+    text: str
 
     @property
     def is_open(self) -> bool:

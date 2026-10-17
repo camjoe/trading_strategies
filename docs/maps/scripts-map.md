@@ -55,8 +55,8 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 
 | Module | Responsibility |
 |---|---|
-| `base.py` | Forge-neutral types, the `Forge` interface, CI aggregation, and the marker rule |
-| `github.py` | GitHub adapter over the `gh` CLI |
+| `base.py` | Forge-neutral types, the `Forge` and `InlineForge` interfaces, CI aggregation, and the readiness and finding marker rules |
+| `github.py` | GitHub adapter over the `gh` CLI: the readiness comment, CI state, and the review threads and comments behind `inline-sync` |
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
 | `readiness.py` | Pass-number parsing, the pre-post checks on a comment body, and the scan of an agent's commits and changed paths for the Claude token |
 | `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |

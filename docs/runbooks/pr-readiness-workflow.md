@@ -44,8 +44,8 @@ The `readiness` job, which starts only if the first succeeded:
    `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
    review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and resolves its
    thread when the finding closes. A finding whose line is not in the diff stays in the summary only. A failure here
-   is a warning, not a red check, because the summary is already posted. This
-   is the only job with the GitHub token.
+   is a warning, not a red check, because the summary is already posted. The `readiness` job is the
+   only one with the GitHub token.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
 

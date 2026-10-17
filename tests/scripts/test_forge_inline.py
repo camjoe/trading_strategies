@@ -228,13 +228,6 @@ class TestSync:
 
         assert counts["created"] == 1 and stub.resolved == []
 
-    def test_resolved_threads_are_not_touched_again(self) -> None:
-        stub = InlineStub(comments=[existing(resolved=True)])
-
-        counts = run_sync(stub, readiness(CONCERN, pass_no=2))
-
-        assert counts["created"] == 1 and stub.resolved == []
-
     def test_render_starts_with_the_marker(self) -> None:
         finding = next(f for f in parse_findings(readiness(CONCERN)) if f.number == 1)
 
@@ -360,3 +353,85 @@ class TestCli:
 
         assert code == 1
         assert "cannot post inline review comments" in capsys.readouterr().err
+
+
+class TestSyncMore:
+    def test_a_finding_that_moves_off_the_diff_has_its_comment_edited_and_resolved(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        off_diff = CONCERN.replace("src/x.py:10", "src/x.py:500")
+
+        counts = run_sync(stub, readiness(off_diff, pass_no=2))
+
+        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1}
+        assert "no longer on a changed line" in stub.edited[7]
+        assert stub.resolved == ["T7"]
+
+    def test_two_open_comments_for_one_finding_keep_exactly_one(self) -> None:
+        stub = InlineStub(comments=[existing(), existing(id=8, thread_id="T8")])
+
+        counts = run_sync(stub, readiness(CONCERN, pass_no=2))
+
+        assert counts["resolved"] == 1 and counts["created"] == 0
+        assert stub.resolved == ["T8"]
+        assert "Duplicate of another comment" in stub.edited[8]
+
+    def test_a_thread_a_person_resolved_is_not_reposted(self) -> None:
+        stub = InlineStub(comments=[existing(resolved=True)])
+
+        counts = run_sync(stub, readiness(CONCERN, pass_no=2))
+
+        assert counts["created"] == 0 and stub.created == []
+
+    def test_an_outdated_comment_is_called_replaced_not_moved(self) -> None:
+        stub = InlineStub(comments=[existing(outdated=True)])
+
+        run_sync(stub, readiness(CONCERN, pass_no=2))
+
+        assert "Replaced: the code under this comment changed" in stub.edited[7]
+
+    def test_an_open_finding_under_an_unknown_heading_is_not_ticked(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 2\n\n"
+            "#### Something else\n- [ ] **1. A broker error is swallowed.** `src/x.py:10`: x. → y. [Break it]\n"
+        )
+
+        run_sync(stub, body)
+
+        assert stub.edited[7].endswith("See the readiness comment.")
+        assert "✓" not in stub.edited[7]
+
+
+class TestGitHubInlineArguments:
+    def test_the_threads_query_is_paginated_and_asks_for_the_fields_the_code_reads(self) -> None:
+        runner = FakeRunner({"repo view": "o/r\n", "graphql": ""})
+
+        GitHubForge(runner).inline_comments(3, ["github-actions[bot]"])
+
+        args, _ = runner.calls[-1]
+        assert args[:3] == ["api", "graphql", "--paginate"]
+        query = next(arg for arg in args if arg.startswith("query="))
+        for field in ("reviewThreads", "isResolved", "isOutdated", "databaseId", "endCursor", "author { login }"):
+            assert field in query
+        assert "owner=o" in args and "name=r" in args and "number=3" in args
+
+    def test_the_files_call_is_paginated(self) -> None:
+        runner = FakeRunner({"pulls/3/files": ""})
+
+        GitHubForge(runner).diff_lines(3)
+
+        assert "--paginate" in runner.calls[-1][0]
+
+    def test_a_graphql_bot_login_matches_the_rest_spelling_of_the_author(self) -> None:
+        def thread(login: str | None) -> str:
+            author = None if login is None else {"login": login}
+            comment = {"databaseId": 5, "body": f"{FINDING_MARKER.format(number=1)}\nx", "path": "a", "line": 1}
+            return json.dumps(
+                {"thread": "T", "resolved": False, "outdated": False, "comment": {**comment, "author": author}}
+            )
+
+        runner = FakeRunner({"repo view": "o/r\n", "graphql": thread("github-actions") + "\n" + thread(None)})
+
+        comments = GitHubForge(runner).inline_comments(3, ["github-actions[bot]"])
+
+        assert [c.author for c in comments] == ["github-actions"]

@@ -177,6 +177,11 @@ def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     return "pass"
 
 
+def finding_marker(number: int) -> str:
+    """The hidden marker a finding comment starts with."""
+    return FINDING_MARKER.format(number=number)
+
+
 def finding_marker_number(body: str) -> int | None:
     """The finding number in the marker a finding comment starts with, or ``None``."""
     match = _FINDING_MARKER.match(body)
