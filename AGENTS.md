@@ -32,7 +32,12 @@ conversation.
   that is not safe on a public repository. It posts only through `python -m scripts.forge
   comment-upsert`, which refuses a body that lacks the marker, and the agent step holds no GitHub
   token: a separate job, which never checks out the pull request and runs the `scripts.forge` tool from
-  the base branch, checks the body the agent wrote and posts it. Changing the workflow, the forge write path, or this section needs the owner's yes.
+  the base branch, checks the body the agent wrote and posts it. It may also create, edit, and resolve inline review
+  comments on lines of the pull request's own diff, one per open blocker or concern, each beginning with a hidden
+  marker `<!-- pr-readiness:finding:<n> -->`, as `github-actions[bot]`, through the same trusted job and only via
+  `python -m scripts.forge inline-sync`, which refuses a comment without that marker or on a line outside the diff.
+  It may not post any other review or comment, request changes, approve, or dismiss. It has the same
+  public-repository limits. Changing the workflow, the forge write path, or this section needs the owner's yes.
 - `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
   `implement-plan` run on the pull request it opened, may for up to three rounds
   commit to that pull request's own branch, push that branch, add `Fix attempted`, `Not fixed`, and `Left`

@@ -1,6 +1,7 @@
 """GitHub adapter: implements :class:`scripts.forge.base.Forge` by calling the ``gh`` CLI."""
 
 import json
+import re
 import subprocess
 from collections.abc import Callable, Collection, Iterator, Sequence
 from contextlib import contextmanager
@@ -14,8 +15,10 @@ from scripts.forge.base import (
     CiStatus,
     Comment,
     ForgeError,
+    InlineComment,
     PullRequest,
     aggregate_ci_state,
+    require_finding_marker,
     require_marker,
 )
 
@@ -65,6 +68,45 @@ def _json_values(text: str) -> Iterator[Any]:
             continue
         value, index = decoder.raw_decode(text, index)
         yield value
+
+
+_HUNK_START = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+_THREADS_QUERY = """
+query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id isResolved isOutdated
+          comments(first: 1) { nodes { databaseId body path line author { login } } }
+        }
+      }
+    }
+  }
+}
+"""
+
+_RESOLVE_MUTATION = """
+mutation($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
+}
+"""
+
+
+def new_side_lines(patch: str) -> frozenset[int]:
+    """The new-side line numbers a unified-diff *patch* shows: added lines and unchanged context lines."""
+    lines: set[int] = set()
+    new_line = 0
+    for text in patch.splitlines():
+        start = _HUNK_START.match(text)
+        if start:
+            new_line = int(start.group(1))
+        elif new_line and text.startswith(("+", " ")):
+            lines.add(new_line)
+            new_line += 1
+    return frozenset(lines)
 
 
 def _classify(status: str, conclusion: str | None) -> CiState:
@@ -143,6 +185,87 @@ class GitHubForge:
             saved = json.loads(output)
             comment = Comment(id=saved["id"], body=saved["body"], author=saved["user"]["login"])
         return comment, existing is None
+
+    def _repository(self) -> tuple[str, str]:
+        name = self._run(["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], None).strip()
+        owner, _, repo = name.partition("/")
+        if not owner or not repo:
+            raise ForgeError("Could not determine the repository owner and name.")
+        return owner, repo
+
+    def diff_lines(self, number: int) -> dict[str, frozenset[int]]:
+        output = self._run(
+            [
+                "api",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/files",
+                "--paginate",
+                "--jq",
+                '.[] | {filename: .filename, patch: (.patch // "")}',
+            ],
+            None,
+        )
+        with _expect_shape("pull request files"):
+            return {item["filename"]: new_side_lines(item["patch"]) for item in _json_values(output)}
+
+    def inline_comments(self, number: int, authors: Collection[str]) -> list[InlineComment]:
+        owner, repo = self._repository()
+        output = self._run(
+            [
+                "api",
+                "graphql",
+                "--paginate",
+                "-f",
+                f"query={_THREADS_QUERY}",
+                "-f",
+                f"owner={owner}",
+                "-f",
+                f"name={repo}",
+                "-F",
+                f"number={number}",
+                "--jq",
+                ".data.repository.pullRequest.reviewThreads.nodes[] | {thread: .id, resolved: .isResolved, "
+                "outdated: .isOutdated, comment: .comments.nodes[0]}",
+            ],
+            None,
+        )
+        comments: list[InlineComment] = []
+        with _expect_shape("review threads"):
+            for item in _json_values(output):
+                comment = item["comment"]
+                if comment is None or comment["author"]["login"] not in authors:
+                    continue
+                found = InlineComment(
+                    id=comment["databaseId"],
+                    thread_id=item["thread"],
+                    body=comment["body"],
+                    author=comment["author"]["login"],
+                    path=comment["path"],
+                    line=comment["line"],
+                    resolved=item["resolved"],
+                    outdated=item["outdated"],
+                )
+                if found.finding_number is not None:
+                    comments.append(found)
+        return comments
+
+    def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
+        require_finding_marker(body)
+        payload = json.dumps({"body": body, "commit_id": head_sha, "path": path, "line": line, "side": "RIGHT"})
+        output = self._run(
+            ["api", "-X", "POST", f"repos/{{owner}}/{{repo}}/pulls/{number}/comments", "--input", "-"], payload
+        )
+        with _expect_shape("review comment write"):
+            return int(json.loads(output)["id"])
+
+    def edit_inline_comment(self, comment_id: int, body: str) -> None:
+        require_finding_marker(body)
+        self._run(
+            ["api", "-X", "PATCH", f"repos/{{owner}}/{{repo}}/pulls/comments/{comment_id}", "--input", "-"],
+            json.dumps({"body": body}),
+        )
+
+    def resolve_thread(self, thread_id: str) -> None:
+        self._run(["api", "graphql", "-f", f"query={_RESOLVE_MUTATION}", "-f", f"threadId={thread_id}"], None)
 
     def ci_status(self, sha: str, exclude: Collection[str] = ()) -> CiStatus:
         output = self._run(
