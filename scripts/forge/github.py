@@ -18,6 +18,7 @@ from scripts.forge.base import (
     InlineComment,
     PullRequest,
     aggregate_ci_state,
+    finding_marker_number,
     require_finding_marker,
     require_marker,
 )
@@ -254,6 +255,34 @@ class GitHubForge:
                 if found.finding_number is not None:
                     comments.append(found)
         return comments
+
+    def merged_pull_requests(self, limit: int) -> list[int]:
+        output = self._run(
+            ["pr", "list", "--state", "merged", "--limit", str(limit), "--json", "number", "--jq", ".[].number"], None
+        )
+        with _expect_shape("merged pull requests"):
+            return [int(line) for line in output.split()]
+
+    def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+        output = self._run(
+            [
+                "api",
+                f"repos/{{owner}}/{{repo}}/pulls/{number}/comments",
+                "--paginate",
+                "--jq",
+                '.[] | {author: .user.login, body: .body, up: .reactions["+1"], down: .reactions["-1"]}',
+            ],
+            None,
+        )
+        names = {_login(author) for author in authors}
+        reactions: dict[int, tuple[int, int]] = {}
+        with _expect_shape("review comments"):
+            for item in _json_values(output):
+                found = finding_marker_number(item["body"])
+                if found is not None and _login(item["author"]) in names:
+                    up, down = reactions.get(found, (0, 0))
+                    reactions[found] = (up + int(item["up"]), down + int(item["down"]))
+        return reactions
 
     def create_inline_comment(self, number: int, head_sha: str, path: str, line: int, body: str) -> int:
         require_finding_marker(body)

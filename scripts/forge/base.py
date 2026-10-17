@@ -166,6 +166,19 @@ class InlineForge(Protocol):
         ...
 
 
+@runtime_checkable
+class ScorecardForge(Protocol):
+    """A forge that can list merged pull requests and the reactions on finding comments, for scoring."""
+
+    def merged_pull_requests(self, limit: int) -> list[int]:
+        """Numbers of the most recently merged pull requests, newest first."""
+        ...
+
+    def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+        """Per finding number, the thumbs up and thumbs down on its inline comment."""
+        ...
+
+
 def aggregate_ci_state(states: Collection[CiState]) -> CiState:
     """One state for a set of checks: any failure wins, then any pending, else pass; ``none`` when empty."""
     if not states:

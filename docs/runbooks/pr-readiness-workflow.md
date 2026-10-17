@@ -49,6 +49,24 @@ The `readiness` job, which starts only if the first succeeded:
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
 
+## Review scorecard
+
+`python -m scripts.forge review-scorecard --merged 10` (or `--pr <n>`, repeatable; `--json` for the counts) reads the
+final readiness comment of each pull request and prints, per lens, how many findings it reported and how each ended:
+**fixed**, **decided** (the owner recorded a Decision), or **left open** (still an open note or test item at merge).
+It also adds the thumbs up and thumbs down on each finding's inline comment, so a click on a finding is a rating.
+It is read-only and needs `gh` signed in.
+
+How to read it:
+- A lens whose findings are mostly left open, or mostly thumbs down, is the one to tighten. A lens whose findings
+  are nearly all fixed is earning its cost.
+- "Fixed" is a weak signal on its own, because a cheap note is often fixed to keep a pass moving. Left open,
+  Decisions that decline a finding, and thumbs down say more.
+- `(untagged)` counts findings with no reviewer tag. Closed findings only keep their tag from the format that
+  introduced `[<reviewers>]` on Closed lines, so older pull requests show mostly `(untagged)`.
+- Run it about every ten merged pull requests, or when a pass feels noisy, and change a lens's prompt only when
+  the numbers say to.
+
 ## One-time setup
 
 ```bash

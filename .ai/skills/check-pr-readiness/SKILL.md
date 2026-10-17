@@ -178,7 +178,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>✓ Closed (<n>)</summary>
 
 #### Closed (<n>)
-- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.
+- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>. [<reviewers>]
 
 </details>
 
@@ -224,7 +224,7 @@ most and never makes the title NOT READY. If the code is wrong today, whether or
 the defect in its usual tier and name the test to add after its `→`. Tests items are fixed and closed like notes.
 
 A closed finding (fixed, or covered by a *Decision*) keeps its number, goes under Closed, and shrinks to one
-line with its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.` A finding
+line with its box checked and its reviewer tag kept: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>. [<reviewers>]` A finding
 covered by a *Decision* says `Decided` instead of `Fixed`. When a *Decision* exists, it replaces the finding's
 `*Not fixed*` or `*Left*` line.
 
@@ -251,7 +251,7 @@ A *Decision* is the owner's. The owner states it in the session; that pass write
 nowhere else, so it survives only if each pass copies it. No pass ever writes one on its own.
 
 Everything else is re-derived from the code. Each later pass re-reads the previous comment and
-re-verifies every open finding against the new HEAD. Finding numbers never change across passes: a
+re-verifies every open blocker and concern, and every open note whose code or text changed, against the new HEAD. Finding numbers never change across passes: a
 new finding takes the next number, and a fixed one keeps its number.
 
 A box is checked only by a pass that has verified the fix at HEAD (or that a *Decision* covers). An
