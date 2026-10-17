@@ -150,7 +150,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
 #### 🔴 Blockers
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem and the scenario that breaks it, in up to three lines>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem, and the scenario when the title does not show it, in at most two lines and 50 words>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
 
 #### 🟠 Concerns
 (the same form; "None." when there are none)
