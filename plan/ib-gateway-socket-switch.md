@@ -58,9 +58,12 @@ UNVERIFIED, decided by the trial below:
   it with its fills. IBKR reports completed orders for the current day only, so an order from an
   earlier day stays unreported. The native `ibapi` backend returns `None`.
 - DONE: the preflight failure message names IB Gateway as well as the Client Portal Gateway.
-- Reconnect. `IbAsyncClient.connect` is one attempt with a 20 s timeout. A connection held across
-  market hours needs a bounded reconnect with backoff that re-syncs `trades()` before trusting it,
-  and fails loudly if the sync does not complete (an empty `trades()` looks like "no open orders").
+- DONE: a bounded connect retry in `IbkrSocketAdapter.connect` (three attempts, pauses of 5 s and
+  15 s, only for `OSError`: refused, timed out, sync error). Nothing in the repo holds a broker
+  connection open: the daily run connects, uses and disconnects for each phase, and every connect
+  re-syncs `trades()` and fails loudly if the sync does not complete. Reconnecting a connection held
+  across market hours has nothing to attach to until a job is designed to hold one; decide that
+  before building it (a drop mid-use today surfaces as "not connected" on the next call).
 - `check_broker_sessions` (`broker_preflight.py`) treats `OSError` and `RuntimeError` as unavailable,
   which covers a refused socket. Change its failure message, which tells the operator to start the
   Client Portal gateway, to name IB Gateway for socket accounts.

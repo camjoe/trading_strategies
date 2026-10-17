@@ -34,6 +34,10 @@ Async fill note:
 
 from __future__ import annotations
 
+import logging
+import time
+from collections.abc import Callable
+
 from common.time import normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest, IbkrTrade
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
@@ -44,6 +48,12 @@ from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderSta
 _IB_DEFAULT_HOST = "127.0.0.1"
 _IB_DEFAULT_PORT = 7497
 _IB_DEFAULT_CLIENT_ID = 1
+
+# Pauses between connect attempts: IB Gateway refuses connections for a short time while it
+# restarts or finishes its own startup sync. A longer outage is left to fail.
+_CONNECT_RETRY_DELAYS_SECONDS = (5.0, 15.0)
+
+logger = logging.getLogger(__name__)
 
 # IB account summary tags used by get_account_info.
 _ACCOUNT_TAGS = frozenset(("TotalCashValue", "BuyingPower", "GrossPositionValue", "NetLiquidation"))
@@ -68,14 +78,27 @@ class IbkrSocketAdapter(BrokerConnection):
         host: str = _IB_DEFAULT_HOST,
         port: int = _IB_DEFAULT_PORT,
         client_id: int = _IB_DEFAULT_CLIENT_ID,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._client = client
+        self._sleep = sleep
         self.host = host
         self.port = port
         self.client_id = client_id
 
     def connect(self) -> None:
-        """Connect to TWS/IB Gateway."""
+        """Connect to TWS/IB Gateway, retrying a refused or timed-out attempt after a short pause.
+
+        Only OS-level failures are retried (refused, timed out, sync error); anything else
+        propagates at once. The last failure is raised when every attempt fails.
+        """
+        for delay in _CONNECT_RETRY_DELAYS_SECONDS:
+            try:
+                self._client.connect(self.host, self.port, client_id=self.client_id)
+                return
+            except OSError as exc:
+                logger.warning("IBKR socket connect failed (%s); retrying in %.0f s.", exc, delay)
+                self._sleep(delay)
         self._client.connect(self.host, self.port, client_id=self.client_id)
 
     def disconnect(self) -> None:

@@ -444,6 +444,54 @@ class TestIbAsyncClient:
         )
 
 
+class TestConnectRetry:
+    @staticmethod
+    def _adapter(client):
+        sleeps: list[float] = []
+        return IbkrSocketAdapter(client=client, host="127.0.0.1", port=4002, client_id=7, sleep=sleeps.append), sleeps
+
+    def test_retries_a_refused_connection_and_then_succeeds(self):
+        client = _mock_ib_client()
+        client.connect.side_effect = [ConnectionRefusedError("refused"), None]
+        adapter, sleeps = self._adapter(client)
+
+        adapter.connect()
+
+        assert client.connect.call_count == 2
+        assert sleeps == [5.0]
+
+    def test_raises_the_last_failure_after_three_attempts(self):
+        client = _mock_ib_client()
+        client.connect.side_effect = [TimeoutError("one"), ConnectionError("two"), ConnectionRefusedError("three")]
+        adapter, sleeps = self._adapter(client)
+
+        with pytest.raises(ConnectionRefusedError, match="three"):
+            adapter.connect()
+
+        assert client.connect.call_count == 3
+        assert sleeps == [5.0, 15.0]
+
+    def test_does_not_retry_an_error_that_is_not_a_connection_failure(self):
+        client = _mock_ib_client()
+        client.connect.side_effect = ValueError("bad configuration")
+        adapter, sleeps = self._adapter(client)
+
+        with pytest.raises(ValueError, match="bad configuration"):
+            adapter.connect()
+
+        assert client.connect.call_count == 1
+        assert sleeps == []
+
+    def test_a_first_attempt_that_works_never_sleeps(self):
+        client = _mock_ib_client()
+        adapter, sleeps = self._adapter(client)
+
+        adapter.connect()
+
+        client.connect.assert_called_once_with("127.0.0.1", 4002, client_id=7)
+        assert sleeps == []
+
+
 class TestGetOrder:
     def test_maps_the_trade_the_client_finds(self):
         adapter, client = _adapter_with_mock_client()
