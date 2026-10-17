@@ -80,25 +80,29 @@ def test_a_failing_disconnect_does_not_change_the_state() -> None:
     assert _check(client) == (module.GatewayState.ALIVE, "")
 
 
-def run_scripted(outcomes: list[tuple[object, str]]):
+def run_scripted(outcomes: list[tuple[object, str]], *, grace_seconds: float = 0.0, interval_seconds: float = 300.0):
     """Run the loop over scripted check results; return the alerts it raised."""
     script = list(outcomes)
     alerts: list[tuple[object, str]] = []
     sleeps: list[float] = []
+    now = [0.0]
 
     def sleep(seconds: float) -> None:
         sleeps.append(seconds)
+        now[0] += seconds
         if len(sleeps) == len(outcomes):
             raise StopLoop
 
     with pytest.raises(StopLoop):
         module.run_health_check(
             lambda: script.pop(0),
-            interval_seconds=300.0,
+            interval_seconds=interval_seconds,
+            grace_seconds=grace_seconds,
             notify=lambda state, detail: alerts.append((state, detail)),
             sleep=sleep,
+            clock=lambda: now[0],
         )
-    assert sleeps == [300.0] * len(outcomes)
+    assert sleeps == [interval_seconds] * len(outcomes)
     return alerts
 
 
@@ -123,9 +127,32 @@ def test_a_move_between_failure_states_alerts_again() -> None:
     assert run_scripted([DOWN, LOGGED_OUT]) == [DOWN, LOGGED_OUT]
 
 
-def test_logs_only_state_changes(caplog) -> None:
+def test_an_outage_shorter_than_the_grace_period_sends_nothing() -> None:
+    # Checks at 0, 300 and 600 s fail; the Gateway is back at 900 s, inside a 1000 s grace.
+    assert run_scripted([ALIVE, DOWN, DOWN, DOWN, ALIVE], grace_seconds=1000.0) == []
+
+
+def test_a_failure_alerts_once_it_has_lasted_the_grace_period() -> None:
+    # The first failing check is at 300 s; the one at 900 s is 600 s later.
+    alerts = run_scripted([ALIVE, DOWN, DOWN, DOWN, ALIVE], grace_seconds=600.0)
+
+    assert alerts == [DOWN, ALIVE]
+
+
+def test_a_start_with_the_gateway_down_alerts_after_the_grace_period() -> None:
+    assert run_scripted([DOWN, DOWN, DOWN], grace_seconds=600.0) == [DOWN]
+
+
+def test_a_recovery_inside_the_grace_period_clears_the_clock() -> None:
+    # Two short outages, each shorter than the grace period, must not add up.
+    outcomes = [DOWN, ALIVE, DOWN, ALIVE, DOWN, ALIVE]
+
+    assert run_scripted(outcomes, grace_seconds=400.0) == []
+
+
+def test_logs_every_state_change_even_inside_the_grace_period(caplog) -> None:
     with caplog.at_level(logging.INFO, logger=HEALTH_MODULE):
-        run_scripted([ALIVE, ALIVE, DOWN, DOWN, ALIVE])
+        run_scripted([ALIVE, ALIVE, DOWN, DOWN, ALIVE], grace_seconds=10_000.0)
 
     assert [(record.levelno, record.getMessage()) for record in caplog.records] == [
         (logging.INFO, "IB Gateway alive"),
@@ -156,3 +183,8 @@ def test_send_state_alert_tells_the_operator_what_to_do(monkeypatch) -> None:
 def test_a_non_positive_interval_is_refused() -> None:
     with pytest.raises(SystemExit):
         module.parse_args(["--interval-seconds", "0"])
+
+
+def test_a_negative_grace_period_is_refused() -> None:
+    with pytest.raises(SystemExit):
+        module.parse_args(["--grace-seconds", "-1"])

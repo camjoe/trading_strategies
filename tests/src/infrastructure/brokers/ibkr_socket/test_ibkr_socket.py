@@ -501,6 +501,14 @@ class TestConnectionState:
         client.is_connected.return_value = False
         assert adapter.is_connected() is False
 
+    def test_abandon_tears_the_client_down_even_when_it_says_it_is_disconnected(self):
+        adapter, client = _adapter_with_mock_client()
+        client.is_connected.return_value = False
+
+        adapter.abandon()
+
+        client.disconnect.assert_called_once_with()
+
 
 class TestBuildSocketClient:
     def test_defaults_to_ib_async(self, monkeypatch):

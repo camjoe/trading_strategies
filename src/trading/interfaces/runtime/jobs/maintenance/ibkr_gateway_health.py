@@ -9,9 +9,10 @@ disconnects. It uses its own ``--client-id`` so it never takes the id a trading 
 cannot log in, and it cannot tell a stopped Gateway from one waiting at its login screen: both
 refuse the connection, and either needs the operator.
 
-Each change of state sends a runtime alert through the webhook and SMTP settings in the environment,
-and so does the recovery that follows. A healthy start sends nothing; a start with the Gateway already
-down alerts, which is the reminder to log in.
+A failure sends a runtime alert through the webhook and SMTP settings in the environment only once it
+has lasted ``--grace-seconds``, so the Gateway's own nightly restart passes without one; the recovery
+that follows an alert sends another. A healthy start sends nothing; a start with the Gateway still down
+after the grace period alerts, which is the reminder to log in. Every change of state is logged at once.
 """
 
 from __future__ import annotations
@@ -41,6 +42,9 @@ DEFAULT_CLIENT_ID = 901
 DEFAULT_PORT = 4002
 
 DEFAULT_INTERVAL_SECONDS = 300.0
+
+# Long enough for IB Gateway's scheduled restart to finish without an alert.
+DEFAULT_GRACE_SECONDS = 900.0
 
 logger = logging.getLogger(__name__)
 
@@ -98,18 +102,32 @@ def run_health_check(
     check: Callable[[], tuple[GatewayState, str]],
     *,
     interval_seconds: float,
+    grace_seconds: float,
     notify: Callable[[GatewayState, str], None],
     sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
 ) -> None:
-    previous: GatewayState | None = None
+    logged: GatewayState | None = None
+    failing_since: float | None = None
+    alerted: GatewayState | None = None
     while True:
         state, detail = check()
-        if state != previous:
+        if state != logged:
             level = logging.INFO if state is GatewayState.ALIVE else logging.WARNING
             logger.log(level, "IB Gateway %s%s", state.value, f": {detail}" if detail else "")
-            if state is not GatewayState.ALIVE or previous is not None:
+            logged = state
+        if state is GatewayState.ALIVE:
+            failing_since = None
+            if alerted is not None:
                 notify(state, detail)
-            previous = state
+                alerted = None
+        else:
+            now = clock()
+            if failing_since is None:
+                failing_since = now
+            if now - failing_since >= grace_seconds and state != alerted:
+                notify(state, detail)
+                alerted = state
         sleep(interval_seconds)
 
 
@@ -119,9 +137,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--client-id", type=int, default=DEFAULT_CLIENT_ID)
     parser.add_argument("--interval-seconds", type=float, default=DEFAULT_INTERVAL_SECONDS)
+    parser.add_argument("--grace-seconds", type=float, default=DEFAULT_GRACE_SECONDS)
     args = parser.parse_args(argv)
     if args.interval_seconds <= 0:
         parser.error("--interval-seconds must be positive")
+    if args.grace_seconds < 0:
+        parser.error("--grace-seconds must not be negative")
     return args
 
 
@@ -133,6 +154,7 @@ def main(argv: list[str] | None = None) -> None:
     run_health_check(
         lambda: check_gateway(build_ibkr_socket_client(), host=args.host, port=args.port, client_id=args.client_id),
         interval_seconds=args.interval_seconds,
+        grace_seconds=args.grace_seconds,
         notify=lambda state, detail: send_state_alert(
             state, detail, webhook_url=webhook_url, email_config=email_config
         ),

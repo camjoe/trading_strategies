@@ -73,9 +73,12 @@ UNVERIFIED, decided by the trial below:
 ### 2. Replace the keepalive worker with a connection health check
 DONE in code, UNVERIFIED on a Gateway: `maintenance/ibkr_gateway_health.py`. Every
 `--interval-seconds` (default 300) it connects to the API port with `--client-id` (default 901),
-reads `managed_accounts()` and disconnects, and alerts on a change of state. Refused or timed out is
+reads `managed_accounts()` and disconnects, and alerts when a failure has lasted `--grace-seconds` (default 900, so the Gateway's nightly restart passes
+quietly) and again on recovery; every change of state is logged at once. Refused or timed out is
 `unreachable`; connected with no account, or a `RuntimeError`, is `rejected`; a start with the Gateway
-down alerts, which is the Sunday-night login reminder. It has no schedule of its own: the host starts it
+still down after the grace period alerts, which is the Sunday-night login reminder. Each check is a full
+client connect with the startup sync, so a slow Gateway can fail one; the grace period absorbs that. Client
+id 901 is not checked against the accounts' `broker_client_id`; record it as reserved in the runbook. It has no schedule of its own: the host starts it
 with the Sunday timer and stops it after Friday's close, so a planned suspend sends no alert.
 Remaining: the systemd unit and runbook text (item 3), and retiring `ibkr_session_keepalive` and its
 tests in the PR that switches the account; keep the Web API adapter itself.
@@ -136,6 +139,11 @@ job that uses them is not built.
   `broker_factory(account)` and `broker.disconnect()` in a `finally` works unchanged. The owner calls
   `session.close()` at shutdown. The session's `lease` is passed as `broker_factory` at the job's
   composition seam; no service changes.
+- The session keeps a connection only while the account row's broker settings and `live_trading_enabled`
+  match those it connected with, so turning the live flag off stops the next lease. Leases from before a
+  reconnect, or after `close()`, raise. The job must pass a freshly read account row to every lease.
+  UNVERIFIED: whether the Gateway refuses a same-client-id reconnect right after a drop; the connect
+  retry may absorb it.
 - A drop mid-call surfaces as the existing "not connected" error and, for submission, the
   `broker_api_anomaly` kill switch. An order sent just before a drop is recovered by the existing
   pending-row adoption on `orderRef` at the next reconcile.

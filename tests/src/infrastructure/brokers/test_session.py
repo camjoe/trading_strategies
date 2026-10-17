@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from infrastructure.brokers.factory import LiveTradingNotEnabledError
 from infrastructure.brokers.ibkr_socket.adapter import IbkrSocketAdapter
 from infrastructure.brokers.paper_adapter import PaperBrokerAdapter
 from infrastructure.brokers.session import BrokerSession
@@ -86,6 +87,7 @@ def test_a_dropped_connection_is_replaced_on_the_next_lease() -> None:
     assert connector.requested == [1, 1]
     dropped_client.positions.assert_not_called()
     replacement_client.positions.assert_called_once_with()
+    dropped_client.disconnect.assert_called_once_with()
 
 
 def test_each_account_holds_its_own_connection() -> None:
@@ -168,3 +170,73 @@ def test_the_lease_forwards_every_broker_call_and_the_execution_flag() -> None:
     held.get_account_info.assert_called_once_with()
     held.get_quotes.assert_called_once_with(["AAPL"])
     assert lease.reports_executions is False
+
+
+def test_a_changed_live_trading_flag_releases_the_connection_and_runs_the_guard_again() -> None:
+    held, held_client = _socket_adapter()
+
+    def connect(account):
+        if not account.live_trading_enabled:
+            raise LiveTradingNotEnabledError("live_trading_enabled = 0")
+        return held
+
+    session = BrokerSession(connect=connect)
+    session.lease(make_account_record(id=1, live_trading_enabled=1))
+
+    with pytest.raises(LiveTradingNotEnabledError):
+        session.lease(make_account_record(id=1, live_trading_enabled=0))
+
+    held_client.disconnect.assert_called_once_with()
+    with pytest.raises(LiveTradingNotEnabledError):
+        session.lease(make_account_record(id=1, live_trading_enabled=0))
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        {"broker_port": 4001},
+        {"broker_host": "10.0.0.5"},
+        {"broker_client_id": 8},
+        {"broker_type": "interactive_brokers_socket"},
+    ],
+)
+def test_a_changed_broker_setting_reconnects_through_the_factory(changed) -> None:
+    first, first_client = _socket_adapter()
+    second, _ = _socket_adapter()
+    connector = _Connector(first, second)
+    session = BrokerSession(connect=connector)
+    base = {"id": 1, "broker_port": 4002, "broker_host": "127.0.0.1", "broker_client_id": 7}
+    session.lease(make_account_record(**base))
+
+    session.lease(make_account_record(**{**base, **changed}))
+
+    assert connector.requested == [1, 1]
+    first_client.disconnect.assert_called_once_with()
+
+
+def test_a_lease_taken_before_a_reconnect_refuses_to_run() -> None:
+    first, first_client = _socket_adapter()
+    second, _ = _socket_adapter()
+    session = BrokerSession(connect=_Connector(first, second))
+    account = make_account_record(id=1)
+    stale = session.lease(account)
+    first_client.is_connected.return_value = False
+    session.lease(account)
+
+    with pytest.raises(RuntimeError, match="stale"):
+        stale.get_positions()
+    first_client.positions.assert_not_called()
+
+
+def test_a_closed_session_refuses_leases_and_stales_the_ones_it_gave() -> None:
+    adapter, client = _socket_adapter()
+    session = BrokerSession(connect=_Connector(adapter))
+    lease = session.lease(make_account_record(id=1))
+
+    session.close()
+
+    with pytest.raises(RuntimeError, match="closed"):
+        session.lease(make_account_record(id=1))
+    with pytest.raises(RuntimeError, match="stale"):
+        lease.get_open_trades()
+    client.trades.assert_not_called()

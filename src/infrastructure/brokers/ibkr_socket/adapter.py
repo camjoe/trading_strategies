@@ -106,6 +106,14 @@ class IbkrSocketAdapter(BrokerConnection):
         if self._client.is_connected():
             self._client.disconnect()
 
+    def abandon(self) -> None:
+        """Tear the client down even when it already reports itself disconnected.
+
+        ``disconnect`` skips a client that says it is not connected, which leaves a dropped
+        connection's resources (the native backend's message-loop thread) unreleased.
+        """
+        self._client.disconnect()
+
     def is_connected(self) -> bool:
         """Whether the underlying client still holds its connection to TWS/IB Gateway."""
         return self._client.is_connected()
