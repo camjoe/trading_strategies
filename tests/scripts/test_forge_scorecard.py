@@ -1,12 +1,13 @@
 import json
 from collections import Counter
 from collections.abc import Collection, Sequence
+from pathlib import Path
 
 from scripts.forge import cli as cli_module
 from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError
 from scripts.forge.findings import parse_findings
 from scripts.forge.github import GitHubForge
-from scripts.forge.scorecard import UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
+from scripts.forge.scorecard import LENSES, UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
 
 BODY = (
     f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 3\n\n"
@@ -358,3 +359,25 @@ class TestRepliesAreNotFindings:
         GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"])
 
         assert "select(.in_reply_to_id == null)" in runner.calls[0][-1]
+
+
+class TestNames:
+    def _closed(self, line: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n{line}\n"
+        return parse_findings(body)[0]
+
+    def test_lens_names_ignore_case_and_nested_suffixes(self) -> None:
+        assert lenses_of(self._closed("- [x] **1. T.** Fixed in `a`: ok. [Break It]")) == ("Break it",)
+        assert lenses_of(self._closed("- [x] **1. T.** Fixed in `a`: ok. [Operator (a (b))]")) == ("Operator",)
+
+    def test_a_title_ending_in_a_question_mark_is_stripped_before_reading_the_outcome(self) -> None:
+        assert outcome_of(self._closed("- [x] **3. Why is X?** Fixed in `a`: ok. [Operator]")) == "fixed"
+
+    def test_every_lens_the_scorecard_knows_is_named_in_the_lens_guide(self) -> None:
+        guide = (Path(__file__).resolve().parents[2] / ".ai" / "skills" / "code-review" / "lenses.md").read_text(
+            encoding="utf-8"
+        )
+
+        for lens in LENSES:
+            if lens != "Orchestrator":
+                assert lens in guide, lens

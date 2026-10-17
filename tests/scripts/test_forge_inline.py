@@ -141,7 +141,7 @@ class TestSync:
 
         counts = run_sync(stub, readiness(CONCERN, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
+        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
         assert stub.created == [] and stub.edited == {} and stub.resolved == []
 
     def test_changed_text_edits_the_comment_in_place(self) -> None:
@@ -193,7 +193,7 @@ class TestSync:
             stub, readiness("- [ ] **1. A design problem.** The layering is wrong. → Move it. [Architecture]\n")
         )
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
+        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
 
     def test_a_moved_finding_resolves_the_old_comment_and_posts_a_new_one(self) -> None:
         stub = InlineStub(comments=[existing()])
@@ -373,7 +373,7 @@ class TestSyncMore:
 
         counts = run_sync(stub, readiness(off_diff, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1, "unresolved": 0}
+        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1, "unresolved": 0, "reply_failed": 0}
         assert "no longer on a changed line" in stub.edited[7]
         assert stub.resolved == ["T7"]
 
@@ -497,14 +497,49 @@ class TestReplyOnClose:
 
         assert moved.replies == [] and removed.replies == []
 
-    def test_a_refused_reply_does_not_stop_the_sync(self) -> None:
+    def test_a_refused_reply_leaves_the_comment_untouched_so_the_next_pass_retries_it(self) -> None:
         stub = InlineStub(comments=[existing()])
         stub.cannot_reply = True
         closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+        body = readiness("None.", closed=closed, pass_no=2)
 
-        counts = run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+        first = run_sync(stub, body)
 
-        assert counts["resolved"] == 1 and stub.resolved == ["T7"]
+        assert first["reply_failed"] == 1 and first["resolved"] == 0
+        assert stub.edited == {} and stub.resolved == []
+
+        stub.cannot_reply = False
+        second = run_sync(stub, body)
+
+        assert second["reply_failed"] == 0 and second["resolved"] == 1
+        assert len(stub.replies) == 1 and 7 in stub.edited
+
+    def test_a_finding_lowered_to_a_note_gets_no_reply(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 2\n\n"
+            "#### 🟡 Notes (1)\n- [ ] **1. A broker error is swallowed.** `src/x.py:10`: x. → y. [Break it]\n"
+        )
+
+        run_sync(stub, body)
+
+        assert stub.replies == [] and stub.resolved == ["T7"]
+
+    def test_a_closed_finding_that_names_no_fix_gets_a_plain_closed_reply(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        closed = "- [x] **1. A broker error is swallowed.** Covered elsewhere. [Break it]\n"
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert stub.replies[0][1].endswith("✓ Closed.")
+
+    def test_a_fix_named_without_backticks_still_keeps_its_sha_in_the_reply(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in abc1234: ok. [Break it]\n"
+
+        run_sync(stub, readiness("None.", closed=closed, pass_no=2))
+
+        assert stub.replies[0][1].endswith("✓ Fixed in abc1234.")
 
     def test_the_adapter_posts_a_reply_to_the_thread_and_refuses_an_unmarked_one(self) -> None:
         runner = FakeRunner({"/replies": "{}"})

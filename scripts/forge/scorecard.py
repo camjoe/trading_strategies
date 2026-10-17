@@ -13,10 +13,11 @@ from scripts.forge.base import ForgeError, ScorecardForge
 from scripts.forge.findings import Finding, after_title, parse_findings
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
-_LENS_SUFFIX = re.compile(r"\s*(?:\([^()]*\)|x\d+)\s*$")
+_LENS_SUFFIX = re.compile(r"\s+x\d+$")
 UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
-_LENS_ALIASES = {"Architecture": "Architecture and conventions"}
+_LENS_ALIASES = {"architecture": "architecture and conventions"}
+_CANONICAL = {name.lower(): name for name in LENSES}
 
 
 @dataclass(frozen=True)
@@ -35,17 +36,15 @@ def lenses_of(finding: Finding) -> tuple[str, ...]:
         return (UNTAGGED,)
     names: list[str] = []
     for part in match.group(1).split(";")[0].split(","):
-        name = part.strip()
-        while (stripped := _LENS_SUFFIX.sub("", name)) != name:
-            name = stripped
+        name = _LENS_SUFFIX.sub("", re.split(r"\s+\(", part.strip())[0]).lower()
         name = _LENS_ALIASES.get(name, name)
-        if name in LENSES:
-            names.append(name)
+        if name in _CANONICAL:
+            names.append(_CANONICAL[name])
     return tuple(dict.fromkeys(names)) or (UNTAGGED,)
 
 
 def outcome_of(finding: Finding) -> str:
-    """``left open``, ``decided``, ``fixed``, or ``other``; the word is read after the ``**n. Title.**`` prefix."""
+    """``left open``, ``decided``, ``fixed``, or ``other``."""
     if finding.is_open:
         return "left open"
     said = after_title(finding.text)

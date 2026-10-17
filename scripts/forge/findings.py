@@ -9,7 +9,7 @@ _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
 _TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Tests|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
-_FINDING_TITLE = re.compile(r"^\*\*\d+\..*?\.\*\*\s*")
+_FINDING_TITLE = re.compile(r"^\*\*\d+\..*?[.?!]\*\*\s*")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Tests": "note", "Closed": "closed"}
 
 

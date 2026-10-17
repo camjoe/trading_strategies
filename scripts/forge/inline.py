@@ -1,7 +1,8 @@
 """Keeping one review comment per open blocker or concern on the line it names.
 
 The readiness comment stays the full record. This module copies each open blocker and concern onto its
-changed line, edits the copy when the finding changes, and resolves it when the finding closes.
+changed line, edits the copy when the finding changes, and, when the finding closes, edits it to the closed
+text, replies once, and tries to resolve the thread.
 """
 
 import re
@@ -12,7 +13,7 @@ from scripts.forge.findings import Finding, after_title, parse_findings
 
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
 _INLINE_TIERS = ("blocker", "concern")
-_CLOSING = re.compile(r"(Fixed in `[^`]+`|Decided)")
+_CLOSING = re.compile(r"(Fixed in [^:]+|Decided)")
 
 
 def anchor_of(finding: Finding) -> tuple[str, int] | None:
@@ -26,32 +27,29 @@ def render(finding: Finding) -> str:
     return f"{finding_marker(finding.number)}\n{finding.text}"
 
 
-def _closing_text(number: int, known: Finding | None) -> str:
-    """What a comment says once its finding no longer needs a comment on that line."""
+def _closing(number: int, known: Finding | None) -> tuple[str, str | None]:
+    """The text a comment keeps once its finding needs no comment on that line, and the reply that announces a close."""
     marker = finding_marker(number)
     if known is None:
-        return f"{marker}\nNo longer in the readiness comment."
+        return f"{marker}\nNo longer in the readiness comment.", None
     if known.checked:
-        return f"{marker}\n✓ {known.text}"
+        said = _CLOSING.match(after_title(known.text))
+        return f"{marker}\n✓ {known.text}", f"{marker}\n✓ {said.group(1) if said else 'Closed'}."
     if known.is_open and known.tier in _INLINE_TIERS:
-        return f"{marker}\nThe finding is no longer on a changed line: see the readiness comment."
+        return f"{marker}\nThe finding is no longer on a changed line: see the readiness comment.", None
     if known.is_open:
-        return f"{marker}\nLowered to a note: see the readiness comment."
-    return f"{marker}\nSee the readiness comment."
-
-
-def _closing_reply(number: int, known: Finding | None) -> str | None:
-    """The one-line reply that announces a finding closed, or ``None`` when it did not close."""
-    if known is None or not known.checked:
-        return None
-    said = _CLOSING.match(after_title(known.text))
-    return f"{finding_marker(number)}\n✓ {said.group(1) if said else 'Closed'}."
+        return f"{marker}\nLowered to a note: see the readiness comment.", None
+    return f"{marker}\nSee the readiness comment.", None
 
 
 def sync_inline_comments(
     forge: InlineForge, number: int, head_sha: str, body: str, authors: Collection[str]
 ) -> dict[str, int]:
-    """Create, edit, and resolve finding comments so they match *body*; returns what it did."""
+    """Create, edit, reply to, and resolve finding comments so they match *body*; returns what it did.
+
+    A closing comment is edited only after its reply went out, so a refused reply is tried again on the next pass.
+    A thread that cannot be resolved stays open and is counted under ``unresolved``.
+    """
     findings = {finding.number: finding for finding in parse_findings(body)}
     wanted: dict[int, tuple[Finding, tuple[str, int]]] = {}
     for n, finding in findings.items():
@@ -70,16 +68,17 @@ def sync_inline_comments(
         else:
             open_threads.setdefault(owner, []).append(comment)
 
-    counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
+    counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0, "reply_failed": 0}
 
-    def resolve(comment: InlineComment, text: str, reply: str | None = None) -> None:
+    def close(comment: InlineComment, text: str, reply: str | None = None) -> None:
         if comment.body != text:
-            forge.edit_inline_comment(comment.id, text)
             if reply is not None:
                 try:
                     forge.reply_to_inline_comment(number, comment.id, reply)
                 except ForgeError:
-                    pass
+                    counts["reply_failed"] += 1
+                    return
+            forge.edit_inline_comment(comment.id, text)
         try:
             forge.resolve_thread(comment.thread_id)
         except ForgeError:
@@ -103,7 +102,7 @@ def sync_inline_comments(
                 reason = "Duplicate of another comment on this finding."
             else:
                 reason = f"Moved: the finding now sits on {path}:{line}."
-            resolve(comment, f"{finding_marker(n)}\n{reason}")
+            close(comment, f"{finding_marker(n)}\n{reason}")
         if current is not None:
             if current.body != text:
                 forge.edit_inline_comment(current.id, text)
@@ -113,7 +112,7 @@ def sync_inline_comments(
             counts["created"] += 1
 
     for n, comments in open_threads.items():
-        known = findings.get(n)
+        text, reply = _closing(n, findings.get(n))
         for comment in comments:
-            resolve(comment, _closing_text(n, known), _closing_reply(n, known))
+            close(comment, text, reply)
     return counts
