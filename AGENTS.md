@@ -35,7 +35,7 @@ conversation.
   the base branch, checks the body the agent wrote and posts it. It may also create, edit, and resolve inline review
   comments on lines of the pull request's own diff, one per open blocker or concern, each beginning with a hidden
   marker `<!-- pr-readiness:finding:<n> -->`, as `github-actions[bot]`, through the same trusted job and only via
-  `python -m scripts.forge inline-sync`, which refuses a comment without that marker or on a line outside the diff.
+  `python -m scripts.forge inline-sync`, which refuses a comment without that marker and skips a line outside the diff.
   It may not post any other review or comment, request changes, approve, or dismiss. It has the same
   public-repository limits. Changing the workflow, the forge write path, or this section needs the owner's yes.
 - `python -m scripts.forge fix-loop`, started by the owner on a pull request, or by the owner's
