@@ -39,6 +39,7 @@ class InlineStub:
         self.diff = DIFF if diff is None else diff
         self.comments = comments or []
         self.created: list[tuple[str, int, str]] = []
+        self.cannot_resolve = False
         self.edited: dict[int, str] = {}
         self.resolved: list[str] = []
 
@@ -57,6 +58,8 @@ class InlineStub:
         self.edited[comment_id] = body
 
     def resolve_thread(self, thread_id: str) -> None:
+        if self.cannot_resolve:
+            raise ForgeError("Resource not accessible by integration")
         self.resolved.append(thread_id)
 
 
@@ -130,7 +133,7 @@ class TestSync:
 
         counts = run_sync(stub, readiness(CONCERN, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0}
+        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
         assert stub.created == [] and stub.edited == {} and stub.resolved == []
 
     def test_changed_text_edits_the_comment_in_place(self) -> None:
@@ -182,7 +185,7 @@ class TestSync:
             stub, readiness("- [ ] **1. A design problem.** The layering is wrong. → Move it. [Architecture]\n")
         )
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0}
+        assert counts == {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
 
     def test_a_moved_finding_resolves_the_old_comment_and_posts_a_new_one(self) -> None:
         stub = InlineStub(comments=[existing()])
@@ -362,7 +365,7 @@ class TestSyncMore:
 
         counts = run_sync(stub, readiness(off_diff, pass_no=2))
 
-        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1}
+        assert counts == {"created": 0, "edited": 0, "resolved": 1, "skipped": 1, "unresolved": 0}
         assert "no longer on a changed line" in stub.edited[7]
         assert stub.resolved == ["T7"]
 
@@ -435,3 +438,18 @@ class TestGitHubInlineArguments:
         comments = GitHubForge(runner).inline_comments(3, ["github-actions[bot]"])
 
         assert [c.author for c in comments] == ["github-actions"]
+
+
+class TestResolveRefused:
+    def test_a_thread_that_cannot_be_resolved_stays_open_and_the_sync_goes_on(self) -> None:
+        stub = InlineStub(comments=[existing()])
+        stub.cannot_resolve = True
+        other = "- [ ] **2. Another.** `src/y.py:3`: x. → y. [Operator]\n"
+        closed = "- [x] **1. A broker error is swallowed.** Fixed in `abc1234`: ok. [Break it]\n"
+
+        counts = run_sync(stub, readiness(other, closed=closed, pass_no=2))
+
+        assert counts["unresolved"] == 1 and counts["resolved"] == 0
+        assert counts["created"] == 1
+        assert "✓ **1. A broker error is swallowed.** Fixed in `abc1234`" in stub.edited[7]
+        assert stub.resolved == []

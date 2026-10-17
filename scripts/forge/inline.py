@@ -7,7 +7,7 @@ changed line, edits the copy when the finding changes, and resolves it when the 
 import re
 from collections.abc import Collection
 
-from scripts.forge.base import InlineComment, InlineForge, finding_marker
+from scripts.forge.base import ForgeError, InlineComment, InlineForge, finding_marker
 from scripts.forge.findings import Finding, parse_findings
 
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
@@ -61,13 +61,17 @@ def sync_inline_comments(
         else:
             open_threads.setdefault(owner, []).append(comment)
 
-    counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0}
+    counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0, "unresolved": 0}
 
     def resolve(comment: InlineComment, text: str) -> None:
         if comment.body != text:
             forge.edit_inline_comment(comment.id, text)
-        forge.resolve_thread(comment.thread_id)
-        counts["resolved"] += 1
+        try:
+            forge.resolve_thread(comment.thread_id)
+        except ForgeError:
+            counts["unresolved"] += 1
+        else:
+            counts["resolved"] += 1
 
     for n, (finding, (path, line)) in wanted.items():
         if line not in on_diff.get(path, frozenset()):

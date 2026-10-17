@@ -76,7 +76,9 @@ def build_parser() -> argparse.ArgumentParser:
         "review-scorecard", help="Per lens: findings reported, how they ended, and reactions on them (read-only)."
     )
     scorecard.add_argument("--pr", type=int, action="append", default=[], help="Pull request to score; repeatable.")
-    scorecard.add_argument("--merged", type=int, default=0, help="Also score the last N merged pull requests (N > 0).")
+    scorecard.add_argument(
+        "--merged", type=int, default=0, help="Also score the last N merged pull requests (0 = none)."
+    )
     scorecard.add_argument(
         "--author",
         action="append",
@@ -189,18 +191,20 @@ def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     if not isinstance(forge, ScorecardForge):
         raise ForgeError("This forge cannot score reviews.")
     if args.merged < 0:
-        raise ForgeError("--merged must be a positive number.")
+        raise ForgeError("--merged must not be negative.")
     authors = tuple(args.author) or ("github-actions[bot]",)
     numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
     if not numbers:
         raise ForgeError("Name pull requests with --pr or --merged.")
-    scored, _failed = collect_scores(forge, numbers, authors)
+    scored, read, failed = collect_scores(forge, numbers, authors)
     rows = tally(scored)
     if args.json:
-        _print({"pull_requests": numbers, "lenses": {lens: dict(row) for lens, row in rows.items()}})
+        _print({"pull_requests": read, "skipped": failed, "lenses": {lens: dict(row) for lens, row in rows.items()}})
     else:
-        print(f"Scored {len(scored)} findings from {len(numbers)} pull request(s).")
+        print(f"Scored {len(scored)} findings from {len(read)} pull request(s).")
         print(render_table(rows))
+    if failed:
+        raise ForgeError("Could not read " + "; ".join(f"#{number}: {why}" for number, why in failed.items()))
 
 
 def _review_context(args: argparse.Namespace, forge: Forge) -> None:

@@ -5,7 +5,6 @@ or left open. Reactions on a finding's inline comment (a thumbs up or down) are 
 """
 
 import re
-import sys
 from collections import Counter
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
@@ -14,9 +13,11 @@ from scripts.forge.base import ForgeError, ScorecardForge
 from scripts.forge.findings import Finding, parse_findings
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
-_TITLE = re.compile(r"^\*\*\d+\..*?\*\*\s*")
-_LENS_SUFFIX = re.compile(r"\s*(?:\(.*?\)|x\d+)\s*$")
+_TITLE = re.compile(r"^\*\*\d+\..*?\.\*\*\s*")
+_LENS_SUFFIX = re.compile(r"\s*(?:\([^()]*\)|x\d+)\s*$")
 UNTAGGED = "(untagged)"
+LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
+_LENS_ALIASES = {"Architecture": "Architecture and conventions"}
 
 
 @dataclass(frozen=True)
@@ -35,17 +36,17 @@ def lenses_of(finding: Finding) -> tuple[str, ...]:
         return (UNTAGGED,)
     names: list[str] = []
     for part in match.group(1).split(";")[0].split(","):
-        name = _LENS_SUFFIX.sub("", part.strip())
-        if name[:1].isupper():
+        name = part.strip()
+        while (stripped := _LENS_SUFFIX.sub("", name)) != name:
+            name = stripped
+        name = _LENS_ALIASES.get(name, name)
+        if name in LENSES:
             names.append(name)
     return tuple(dict.fromkeys(names)) or (UNTAGGED,)
 
 
 def outcome_of(finding: Finding) -> str:
-    """``left open``, ``decided``, ``fixed``, or ``other`` (a finding that is neither open nor says it was fixed or decided).
-
-    The word is looked for after the ``**n. Title.**`` prefix, so a title containing "Decided" does not count.
-    """
+    """``left open``, ``decided``, ``fixed``, or ``other``; the word is read after the ``**n. Title.**`` prefix."""
     if finding.is_open:
         return "left open"
     text = finding.text.splitlines()[0] if finding.text else ""
@@ -100,20 +101,21 @@ def render_table(rows: Mapping[str, Counter[str]]) -> str:
 
 def collect_scores(
     forge: ScorecardForge, numbers: Collection[int], authors: Collection[str]
-) -> tuple[list[ScoredFinding], list[int]]:
-    """Score each pull request's readiness comment; returns the findings and the numbers that could not be read.
+) -> tuple[list[ScoredFinding], list[int], dict[int, str]]:
+    """The findings of every readable pull request, the numbers scored, and why each unreadable one failed.
 
-    A pull request with no readiness comment contributes nothing. One that fails is reported on stderr and skipped,
-    so a single failing request does not hide the others.
+    A pull request with no readiness comment is counted as scored and contributes no findings.
     """
     scored: list[ScoredFinding] = []
-    failed: list[int] = []
+    read: list[int] = []
+    failed: dict[int, str] = {}
     for number in numbers:
         try:
             comment = forge.find_comment(number, authors)
             if comment is not None:
                 scored.extend(score_comment(comment.body, forge.finding_reactions(number, authors)))
         except ForgeError as exc:
-            print(f"forge: skipped #{number}: {exc}", file=sys.stderr)
-            failed.append(number)
-    return scored, failed
+            failed[number] = str(exc)
+        else:
+            read.append(number)
+    return scored, read, failed

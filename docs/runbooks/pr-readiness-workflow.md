@@ -42,8 +42,9 @@ The `readiness` job, which starts only if the first succeeded:
    push landed meanwhile.
 7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. Then
    `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
-   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and resolves its
-   thread when the finding closes. A finding whose line is not in the diff stays in the summary only. A failure here
+   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and marks it
+   "✓ ... Fixed in `<sha>`" when the finding closes. It also tries to resolve the thread; the workflow token is refused
+   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it. A finding whose line is not in the diff stays in the summary only. A failure here
    is a warning, not a red check, because the summary is already posted. The `readiness` job is the
    only one with the GitHub token.
 

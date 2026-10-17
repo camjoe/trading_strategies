@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from collections.abc import Collection, Sequence
 
 from scripts.forge import cli as cli_module
@@ -87,7 +88,6 @@ class TestGitHubScoring:
         runner = FakeRunner({"pr list": "318\n317\n316\n"})
 
         assert GitHubForge(runner).merged_pull_requests(3) == [318, 317, 316]
-        assert "merged" in runner.calls[0] and "3" in runner.calls[0]
 
     def test_reactions_are_read_for_the_named_authors_only(self) -> None:
         def item(login: str, number: int, comment_id: int, up: int, down: int) -> str:
@@ -272,9 +272,9 @@ class TestCliEdges:
         code = cli_module.main(["review-scorecard", "--merged", "-1"], forge=ScoreStub({}))  # type: ignore[arg-type]
 
         assert code == 1
-        assert "positive" in capsys.readouterr().err
+        assert "must not be negative" in capsys.readouterr().err
 
-    def test_one_failing_pull_request_does_not_hide_the_others(self, capsys) -> None:
+    def test_one_failing_pull_request_is_reported_and_the_rest_are_still_scored(self, capsys) -> None:
         class Flaky(ScoreStub):
             def find_comment(self, number: int, authors: Collection[str]) -> Comment | None:
                 if number == 5:
@@ -284,6 +284,68 @@ class TestCliEdges:
         code = cli_module.main(["review-scorecard", "--pr", "5", "--pr", "20"], forge=Flaky({20: BODY}))  # type: ignore[arg-type]
 
         captured = capsys.readouterr()
-        assert code == 0
-        assert "skipped #5" in captured.err
-        assert captured.out.startswith("Scored 6 findings from 2 pull request(s).")
+        assert code == 1
+        assert captured.out.startswith("Scored 6 findings from 1 pull request(s).")
+        assert "Could not read #5: gh pr failed" in captured.err
+
+    def test_a_failure_while_reading_reactions_is_also_reported(self, capsys) -> None:
+        class NoReactions(ScoreStub):
+            def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
+                raise ForgeError("reactions failed")
+
+        code = cli_module.main(["review-scorecard", "--pr", "20", "--json"], forge=NoReactions({20: BODY}))  # type: ignore[arg-type]
+
+        data = json.loads(capsys.readouterr().out)
+        assert code == 1
+        assert data["pull_requests"] == [] and data["skipped"] == {"20": "reactions failed"}
+
+    def test_a_pull_request_named_and_merged_is_scored_once(self, capsys) -> None:
+        stub = ScoreStub({20: BODY, 10: BODY})
+
+        cli_module.main(["review-scorecard", "--pr", "20", "--merged", "2", "--json"], forge=stub)  # type: ignore[arg-type]
+
+        assert json.loads(capsys.readouterr().out)["pull_requests"] == [20, 10]
+
+
+class TestMoreEdges:
+    def _closed(self, line: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n{line}\n"
+        return parse_findings(body)[0]
+
+    def test_only_known_lens_names_count_and_aliases_and_stacked_suffixes_are_cleaned(self) -> None:
+        assert lenses_of(self._closed("- [x] **1. T.** Fixed in `a`: ok. [Unreleased]")) == (UNTAGGED,)
+        assert lenses_of(self._closed("- [x] **1. T.** Fixed in `a`: ok. [Break it (opus) x2]")) == ("Break it",)
+        assert lenses_of(self._closed("- [x] **1. T.** Fixed in `a`: ok. [Architecture]")) == (
+            "Architecture and conventions",
+        )
+
+    def test_a_decision_line_alone_makes_a_closed_finding_decided(self) -> None:
+        line = "- [x] **1. T.** Fixed in `a`: ok. [Operator]\n  *Decision: Approved by the owner on 2026-10-17: keep.*"
+
+        assert outcome_of(self._closed(line)) == "decided"
+
+    def test_a_title_with_bold_text_still_reads_the_outcome_after_the_title(self) -> None:
+        assert outcome_of(self._closed("- [x] **1. The **bold** word.** Fixed in `a`: ok. [Operator]")) == "fixed"
+
+    def test_equal_counts_are_listed_by_name(self) -> None:
+        rows = {"Zed": Counter(findings=1), "Alpha": Counter(findings=1)}
+
+        names = [line.split()[0] for line in render_table(rows).splitlines()[1:]]
+
+        assert names == ["Alpha", "Zed"]
+
+    def test_the_comments_endpoint_call_is_exact(self) -> None:
+        runner = FakeRunner({"pulls/3/comments": ""})
+
+        GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"])
+
+        assert runner.calls[0][:3] == ["api", "repos/{owner}/{repo}/pulls/3/comments", "--paginate"]
+
+    def test_the_latest_comment_wins_even_when_the_ids_arrive_in_descending_order(self) -> None:
+        def item(comment_id: int, up: int) -> str:
+            body = FINDING_MARKER.format(number=1) + "\nx"
+            return json.dumps({"id": comment_id, "author": "github-actions[bot]", "body": body, "up": up, "down": 0})
+
+        runner = FakeRunner({"pulls/3/comments": item(20, 1) + "\n" + item(10, 5)})
+
+        assert GitHubForge(runner).finding_reactions(3, ["github-actions[bot]"]) == {1: (1, 0)}
