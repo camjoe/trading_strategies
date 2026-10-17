@@ -53,13 +53,13 @@ def sync_inline_comments(
     open_threads: dict[int, list[InlineComment]] = {}
     resolved_places: set[tuple[int, str, int | None]] = set()
     for comment in forge.inline_comments(number, authors):
-        n = comment.finding_number
-        if n is None:
+        owner = comment.finding_number
+        if owner is None:
             continue
         if comment.resolved:
-            resolved_places.add((n, comment.path, comment.line))
+            resolved_places.add((owner, comment.path, comment.line))
         else:
-            open_threads.setdefault(n, []).append(comment)
+            open_threads.setdefault(owner, []).append(comment)
 
     counts = {"created": 0, "edited": 0, "resolved": 0, "skipped": 0}
 
