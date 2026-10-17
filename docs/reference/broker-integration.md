@@ -234,8 +234,11 @@ and load-bearing for the socket path.
 A broker's open-order list can omit an order that has filled. The IBKR Web API's list returned
 nothing for three fractional market orders that its per-order status reported as `Filled`. So after
 the list pass, reconciliation asks the broker about each open order the list left out, through
-`BrokerConnection.get_order(broker_order_id)`. The default returns `None`; only the Web adapter
-implements it, from the order status reply.
+`BrokerConnection.get_order(broker_order_id)`. The default returns `None`. The Web adapter implements
+it from the order status reply. The socket adapter implements it for the `ib_async` backend by
+rebuilding the order from its executions and the day's completed orders (one bounded request per
+connection); the native `ibapi` backend returns `None`. IBKR reports completed orders for the current
+day only.
 
 - Both the Web API's open-order list and its status reply state the cumulative filled size and average
   price, not executions, and the Web adapter does not invent one. Reconciliation posts a single fill for

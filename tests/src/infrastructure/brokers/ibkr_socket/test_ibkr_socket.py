@@ -473,14 +473,15 @@ class TestGetOrder:
         assert IbApiClient().find_trade(55) is None
 
 
-def _sdk_fill(*, order_id=42, client_id=7, perm_id=9001, shares=4.0, price=150.0, exec_id="e1"):
+def _sdk_fill(*, order_id=42, client_id=7, perm_id=9001, shares=4.0, price=150.0, avg_price=None, exec_id="e1"):
     return SimpleNamespace(
         execution=SimpleNamespace(
             orderId=order_id,
             clientId=client_id,
             permId=perm_id,
             shares=shares,
-            avgPrice=price,
+            price=price,
+            avgPrice=price if avg_price is None else avg_price,
             execId=exec_id,
             time="t",
         ),
@@ -501,6 +502,19 @@ def _sdk_completed(*, perm_id=9001, status="Filled", total=10.0):
     )
 
 
+def _sdk_known_trade(*, client_id=7):
+    return SimpleNamespace(
+        order=SimpleNamespace(
+            orderId=42, clientId=client_id, action="BUY", totalQuantity=10.0, lmtPrice=0.0, orderRef="ref-1"
+        ),
+        orderStatus=SimpleNamespace(status="Submitted", filled=0.0, avgFillPrice=0.0),
+        contract=SimpleNamespace(symbol="AAPL"),
+        fills=[],
+        advancedError="",
+        log=[],
+    )
+
+
 class TestIbAsyncFindTrade:
     """An order that filled while no job was connected is in `fills()` but on no trade."""
 
@@ -510,44 +524,79 @@ class TestIbAsyncFindTrade:
         backend.client.clientId = 7
         backend.trades.return_value = list(trades)
         backend.fills.return_value = list(fills)
-        backend.reqCompletedOrders.return_value = list(completed)
+        backend.reqCompletedOrdersAsync.return_value = list(completed)
+        backend.run.side_effect = lambda awaitable, timeout=None: awaitable
         monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
         return IbAsyncClient(), backend
 
     def test_returns_a_trade_the_session_already_knows(self, monkeypatch):
-        known = SimpleNamespace(
-            order=SimpleNamespace(orderId=42, action="BUY", totalQuantity=10.0, lmtPrice=0.0, orderRef="ref-1"),
-            orderStatus=SimpleNamespace(status="Submitted", filled=0.0, avgFillPrice=0.0),
-            contract=SimpleNamespace(symbol="AAPL"),
-            fills=[],
-            advancedError="",
-            log=[],
-        )
-        client, backend = self._client(monkeypatch, trades=[known])
+        client, backend = self._client(monkeypatch, trades=[_sdk_known_trade()])
 
         trade = client.find_trade(42)
 
         assert trade is not None
         assert trade.status == "Submitted"
-        backend.reqCompletedOrders.assert_not_called()
+        backend.reqCompletedOrdersAsync.assert_not_called()
+
+    def test_skips_a_known_trade_that_belongs_to_another_client(self, monkeypatch):
+        client, backend = self._client(monkeypatch, trades=[_sdk_known_trade(client_id=8)])
+
+        assert client.find_trade(42) is None
+        backend.reqCompletedOrdersAsync.assert_not_called()
 
     def test_rebuilds_a_prior_connection_fill_from_executions_and_the_completed_order(self, monkeypatch):
+        # IBKR's avgPrice is the order's running average, so the second execution reports 150.6.
         client, backend = self._client(
             monkeypatch,
-            fills=[_sdk_fill(shares=4.0, price=150.0, exec_id="e1"), _sdk_fill(shares=6.0, price=151.0, exec_id="e2")],
+            fills=[
+                _sdk_fill(shares=4.0, price=150.0, exec_id="e1"),
+                _sdk_fill(shares=6.0, price=151.0, avg_price=150.6, exec_id="e2"),
+            ],
             completed=[_sdk_completed()],
         )
 
         trade = client.find_trade(42)
 
-        backend.reqCompletedOrders.assert_called_once_with(apiOnly=True)
         assert trade is not None
         assert (trade.order_id, trade.symbol, trade.action, trade.status) == (42, "AAPL", "BUY", "Filled")
         assert trade.total_quantity == 10.0
         assert trade.filled == 10.0
-        assert trade.avg_fill_price == pytest.approx((4 * 150.0 + 6 * 151.0) / 10)
+        assert trade.avg_fill_price == pytest.approx(150.6)
         assert [fill.exec_id for fill in trade.fills] == ["e1", "e2"]
         assert trade.order_ref == "ref-1"
+
+    def test_reports_a_partial_fill_that_was_then_cancelled(self, monkeypatch):
+        client, _ = self._client(
+            monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[_sdk_completed(status="Cancelled")]
+        )
+
+        trade = client.find_trade(42)
+
+        assert trade is not None
+        assert (trade.status, trade.filled, trade.total_quantity) == ("Cancelled", 4.0, 10.0)
+
+    def test_requests_completed_orders_once_per_connection_with_a_timeout(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch,
+            fills=[_sdk_fill(), _sdk_fill(order_id=43, perm_id=9002, exec_id="e9")],
+            completed=[_sdk_completed(), _sdk_completed(perm_id=9002)],
+        )
+
+        assert client.find_trade(42) is not None
+        assert client.find_trade(43) is not None
+
+        backend.reqCompletedOrdersAsync.assert_called_once_with(True)
+        assert backend.run.call_args.kwargs["timeout"] > 0
+
+    def test_a_timed_out_request_propagates_and_is_retried_next_time(self, monkeypatch):
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
+        backend.run.side_effect = TimeoutError
+
+        with pytest.raises(TimeoutError):
+            client.find_trade(42)
+        backend.run.side_effect = lambda awaitable, timeout=None: awaitable
+
+        assert client.find_trade(42) is not None
 
     def test_ignores_executions_of_another_order_or_client(self, monkeypatch):
         client, backend = self._client(
@@ -557,12 +606,34 @@ class TestIbAsyncFindTrade:
         )
 
         assert client.find_trade(42) is None
-        backend.reqCompletedOrders.assert_not_called()
+        backend.reqCompletedOrdersAsync.assert_not_called()
+
+    def test_does_not_match_on_an_unset_perm_id(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch, fills=[_sdk_fill(perm_id=0)], completed=[_sdk_completed(perm_id=0)]
+        )
+
+        assert client.find_trade(42) is None
+        backend.reqCompletedOrdersAsync.assert_not_called()
 
     def test_returns_none_without_a_matching_completed_order(self, monkeypatch):
         client, _ = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed(perm_id=1)])
 
         assert client.find_trade(42) is None
+
+    def test_connect_discards_the_completed_orders_of_the_previous_connection(self, monkeypatch):
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
+        monkeypatch.setitem(
+            sys.modules,
+            "ib_async",
+            SimpleNamespace(IB=MagicMock(return_value=backend), StartupFetch=_FakeStartupFetch),
+        )
+        client.find_trade(42)
+
+        client.connect("127.0.0.1", 4002, client_id=7)
+        client.find_trade(42)
+
+        assert backend.reqCompletedOrdersAsync.call_count == 2
 
 
 class TestIbAsyncConnect:
