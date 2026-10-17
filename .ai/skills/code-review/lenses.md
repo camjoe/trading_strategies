@@ -144,8 +144,6 @@ Used by `pr ready` and by a review of a PR by number.
    `check-pr-readiness/SKILL.md`). One defect can be rated differently by different reviewers. A finding about the
    tests alone is a Tests item (`Gap:` or `Extra:`) and is never above NOTE. On a later pass, a CONCERN about
    code or text that the increment did not change is a NOTE tagged `(found late)`; a BLOCKER stays a BLOCKER.
-   Report at most 3 CONCERNs per pass, most severe first; any further CONCERN is listed as a NOTE tagged
-   `(overflow)`.
 5. **Name the test to add in each defect's fix hint**, from the Test skeptic's output and your own reading;
    say so when the current tests already catch it.
 6. **Cost.** A reviewer costs about 60-90k tokens whatever the model. Run only the selected ones. On a

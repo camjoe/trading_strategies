@@ -150,7 +150,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
 #### 🔴 Blockers
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem, and the scenario when the title does not show it, in at most two lines and 50 words>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in plain words, and the steps of the scenario only when the title does not show them>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
 
 #### 🟠 Concerns
 (the same form; "None." when there are none)
@@ -190,15 +190,30 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 </details>
 ```
 
-A note or a test item is one line, and a blocker or concern at most two lines and 50 words: the defect and its
-`→` fix hint. State a scenario only when the title does not make it obvious, and never repeat what `path:line`
-shows; the fixer's `*Fix attempted*`,
+A note or a test item is one line, and a blocker or concern as long as it takes to understand it once: the defect
+and its `→` fix hint, in the plain voice below; the fixer's `*Fix attempted*`,
 `*Not fixed*`, and `*Left*` lines and the owner's `*Decision*` line each go on their own indented line
 directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
 diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
 the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
 CI is the backstop]`.
+
+**Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
+sentences, one idea in each. Say what is wrong, where, and what to do. Leave out hedges ("may", "could
+potentially"), stacked clauses, and anything the title or `path:line` already says. If a scenario has steps, list
+them as short bullets under the finding, not in one long sentence. If the owner would have to reread it, cut it
+down.
+
+Before: `A failed same-day catch-up can still change the burn-in result. burn_in_status.py:129-131: the day's
+status comes only from the latest artifact, while anomalies, kill switches and traded accounts are combined
+across the day. (a) The scheduled run fails at step 08 after orders went out, then --accounts x --force-run
+succeeds: the day counts as success. (b) Per-account sim,ibkr: sim traded cleanly, then the ibkr catch-up
+fails (status: failed); sim is judged failed and its streak resets. The new test covers only a catch-up that
+succeeds.`
+
+After: `A failed catch-up for ibkr also fails sim for the day, though sim traded fine. burn_in_status.py:129: the
+day takes its status from the newest artifact only. → Judge failure per account.`
 
 A finding about the tests alone goes under Tests, titled `Gap:` (a missing case, a mutation that would survive,
 a weak assertion) or `Extra:` (two tests that repeat each other, a redundant or brittle test). It is a NOTE at
