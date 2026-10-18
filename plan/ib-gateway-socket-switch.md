@@ -80,17 +80,19 @@ still down after the grace period alerts, which is the Sunday-night login remind
 client connect with the startup sync, so a slow Gateway can fail one; the grace period absorbs that. Client
 id 901 is not checked against the accounts' `broker_client_id`; record it as reserved in the runbook. It has no schedule of its own: the host starts it
 with the Sunday timer and stops it after Friday's close, so a planned suspend sends no alert.
-Remaining: the systemd unit and runbook text (item 3), and retiring `ibkr_session_keepalive` and its
-tests in the PR that switches the account; keep the Web API adapter itself.
+The Web API `ibkr_session_keepalive` worker and its tests are retired; the Web API adapter and client stay.
 
 ### 3. Host setup (runbook, no repo code)
-DONE as text, UNTESTED on the host: Part 7 of `docs/runbooks/production-runtime-host.md` (IB Gateway
+DONE as text, UNTESTED on the host: Part 6 of `docs/runbooks/production-runtime-host.md` (IB Gateway
 settings, the Sunday-to-Friday awake window as system units with a sleep inhibitor, the health unit,
 reserved client ids, switching from the Client Portal Gateway, and the first-week checks that settle the
 UNVERIFIED items) and a socket section in `docs/runbooks/ibkr-operations.md`. The transport guidance in
 `ibkr-paper-trading.md` was not touched: that file is not valid UTF-8 and the edit tools refuse it.
-Remaining: run the units on the host, record the answers in the private checklist, and retire the Part 6
-text and `ibkr_session_keepalive` when the account moves.
+The old Part 6 of the host runbook (the Client Portal units) and the Client Portal text in the operations and
+paper-trading runbooks are retired; `broker-setup-ibkr.md` stays as the Web API adapter's checklist.
+Remaining: run the units on the host, switch the account row, remove the old user units, and record the
+answers in the private checklist. Merge only after the host account is switched, or the old keepalive
+service will fail every 30 seconds.
 
 ### 4. Trial, then switch
 1. Smoke test on the host against IB Gateway paper, including one fractional-size order.

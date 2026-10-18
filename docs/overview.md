@@ -165,7 +165,8 @@ list if it has aged.
 - **Trends workflow** — `apps/trends/` is a standalone CLI, reachable only from the command line.
 - **Alternative data** — policy signals are derived from ETF proxies, not from policy datasets
   directly.
-- **IBKR connectivity** — the Client Portal / Web API is the primary integration; a TWS/IB Gateway
-  socket integration exists alongside it, over `ib_async` or a native `ibapi` client. See
+- **IBKR connectivity** — the TWS/IB Gateway socket integration, over `ib_async` or a native `ibapi`
+  client, is the one the host runbooks set up; a Client Portal / Web API adapter exists alongside it
+  but has no session keepalive or host setup. See
   [broker integration](reference/broker-integration.md) for what each transport supports and
   [ADR 018](adr/018-broker-transport-venue-matrix.md) for how transport and venue are modelled.

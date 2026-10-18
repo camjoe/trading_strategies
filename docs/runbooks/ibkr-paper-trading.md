@@ -30,51 +30,36 @@ Both paper venues connect without it and assert the account instead.
 
 ### Choosing a transport
 
-- **Web API** (`interactive_brokers_web_paper`) — needs the Client Portal Gateway running and
-  browser-authenticated. Its session expires and must be re-authenticated periodically.
-- **Socket** (`interactive_brokers_socket_paper`) — needs TWS or IB Gateway running and logged in.
-  Uses `broker_host` / `broker_port` / `broker_client_id` on the account row, so different accounts
-  can hold different client ids against the same gateway.
+- **Socket** (`interactive_brokers_socket_paper`) � needs IB Gateway (or TWS) running and logged in.
+  This is the transport the host runbooks set up and operate. It uses `broker_host` / `broker_port` /
+  `broker_client_id` on the account row, so different accounts can hold different client ids against the
+  same Gateway. IB Gateway stays logged in through the week on IBKR's own auto-restart, with one manual
+  login a week.
+- **Web API** (`interactive_brokers_web_paper`) � still supported in code, but nothing in this repo keeps
+  its session open between runs or sets up its host. Its setup checklist is
+  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
 
-Both are supported. If you have no strong preference, the Web API path has the longer history in
-this repo; the socket path has the more complete client (snapshot quotes, structured rejections).
+Both reach **the same IBKR account** � same positions, same orders, same statements. Only the local
+plumbing differs. IBKR restricts concurrent sessions per username, so a Client Portal Gateway and IB
+Gateway logged in with the same login may disconnect one another.
 
-Whichever you pick, both reach **the same IBKR account** — same positions, same orders, same
-statements. Only the local plumbing differs.
-
-### "Client Portal" names two different things
-
-Worth separating, because the collision causes real confusion:
-
-- **Client Portal** (the website) — IBKR account management. Where you create the paper account, set
-  market-data subscriptions, and view the account's orders. Shared by both transports.
-- **Client Portal Gateway** (`clientportal.gw`) — a local Java proxy exposing IBKR's REST API on
-  `https://localhost:5000`. **Web API path only.** The socket path never touches it; it uses TWS or
-  IB Gateway on `7497` / `4002` instead.
-
-The two also authenticate differently: the Client Portal Gateway holds a browser-established session
-that expires and needs re-authentication, while TWS/IB Gateway stays logged in until its daily
-forced restart.
-
-IBKR restricts concurrent sessions per username, so running the Client Portal Gateway and TWS
-against the same login simultaneously may disconnect one of them. Test that before depending on
-having both available.
+"Client Portal" also names IBKR's website: where you create the paper account, set market-data
+subscriptions, and view the account's orders. That is shared by both transports.
 
 ## Gateway session
 
-The Web API path needs the Client Portal Gateway running and logged in whenever a run touches an
-IBKR account.
+The socket transport needs IB Gateway running and logged in whenever a run touches an IBKR account.
 
 - **Before each daily run**, step 00 connects every run account's broker. An account whose session is
   unavailable is skipped, named in the log, the artifact and a `warn` alert, and the others trade. If
   every account is unavailable the run fails there, before any step runs. Run a skipped account later
   with `--accounts <name> --force-run`.
-- **Between runs**, the keepalive worker holds the session open — set it up in
-  [Production Runtime Host Runbook, Part 6](production-runtime-host.md#part-6--ibkr-gateway-and-session-keepalive).
-  A job's own keepalive thread only lives while the job is connected.
-- **Logging in** is manual: open `https://localhost:5000` and sign in with the paper login. Do it
-  after a reboot, a forced IBKR reset, or any `rejected` line in the keepalive journal.
-- **Check** the session with `python -m scripts.ibkr_web_api_smoke_test`.
+- **Between runs**, IB Gateway holds its own session; the host stays awake for the trading week and a
+  health alert watches the Gateway. Set both up in
+  [Production Runtime Host Runbook, Part 6](production-runtime-host.md#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
+- **Logging in** is manual, on the host's desktop, with the paper login: once on Sunday night, and after
+  a reboot or any alert that does not clear.
+- **Check** the session with `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99`.
 
 The start, confirm, and failure-alert commands for the whole stack are in
 [ibkr-operations.md](ibkr-operations.md).

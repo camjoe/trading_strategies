@@ -24,7 +24,7 @@ assume an activated shell.
 | [runtime-operations.md](runtime-operations.md) | Daily + weekly-backup monitoring, failure recovery, log inspection |
 | [burn-in-protocol.md](burn-in-protocol.md) | Burn-in period definition, stability thresholds, go-live checklist |
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
-| [ibkr-operations.md](ibkr-operations.md) | Starting and confirming the IBKR gateway, session keepalive, and daily trader, and what alerts go out when one fails |
+| [ibkr-operations.md](ibkr-operations.md) | Starting and confirming IB Gateway, its health alert, and the daily trader, and what alerts go out when one fails |
 | [ibkr-paper-trading.md](ibkr-paper-trading.md) | Moving a book off the internal simulator onto real IBKR paper-account order mechanics |
 | [pr-readiness-workflow.md](pr-readiness-workflow.md) | The GitHub workflow that runs `pr ready` on pull requests: setup, variables, and failures |
 

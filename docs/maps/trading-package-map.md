@@ -96,7 +96,6 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `governance/payload_models.py` | Governance job payload models |
 | `maintenance/burn_in_status.py` | Burn-in protocol status job |
 | `maintenance/ibkr_gateway_health.py` | Long-running worker that connects to IB Gateway's API port on an interval and alerts when it is down or logged out |
-| `maintenance/ibkr_session_keepalive.py` | Long-running worker that tickles the IBKR Client Portal Gateway between scheduled runs |
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |

@@ -402,85 +402,17 @@ registered. Unregister any superseded schedule before enabling this host so jobs
 
 ---
 
-## Part 6 — IBKR gateway and session keepalive
+## Part 6 — IB Gateway, the weekday awake window, and the health alert
 
-Accounts on `interactive_brokers_web_paper` need the Client Portal Gateway running and logged in at
-every run. Two user services keep it up. Nothing here logs in for you — see
-[ibkr-paper-trading.md](ibkr-paper-trading.md#gateway-session) for the login step.
+For accounts on `interactive_brokers_socket_paper`. Nothing here is verified on a host yet. Each
+assumption that decides whether it works is marked UNVERIFIED, and 6.6 is how to settle them.
 
-Replace `<gateway-dir>` (the unzipped `clientportal.gw`) and `<repo>` (the production checkout).
-The keepalive unit loads `.env` so the worker sees the runtime alert settings; the path must be
-absolute. When the session is lost, or the gateway goes down, the worker sends one alert through the
-webhook and SMTP settings in section 1.3, and one more when the session returns.
-
-`~/.config/systemd/user/ibkr-gateway.service`:
-
-```ini
-[Unit]
-Description=IBKR Client Portal Gateway
-
-[Service]
-WorkingDirectory=<gateway-dir>
-ExecStart=<gateway-dir>/bin/run.sh root/conf.yaml
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=default.target
-```
-
-`~/.config/systemd/user/ibkr-keepalive.service`:
-
-```ini
-[Unit]
-Description=IBKR Client Portal session keepalive
-After=ibkr-gateway.service
-Wants=ibkr-gateway.service
-
-[Service]
-WorkingDirectory=<repo>
-EnvironmentFile=-<repo>/.env
-ExecStart=<repo>/.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.ibkr_session_keepalive
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=default.target
-```
-
-Enable both, and keep them running after logout and across reboots:
-
-```bash
-systemctl --user daemon-reload
-systemctl --user enable --now ibkr-gateway.service ibkr-keepalive.service
-loginctl enable-linger <user>
-```
-
-Follow the session state. The worker logs one line per change: `alive`, `rejected` (gateway up,
-not logged in), or `unreachable` (gateway down):
-
-```bash
-journalctl --user -u ibkr-keepalive.service -f
-```
-
-After a reboot the gateway starts logged out. Log in at `https://localhost:5000` before the next
-daily run. Day-to-day start, confirm, and failure-alert commands are in
-[ibkr-operations.md](ibkr-operations.md).
-
----
-
-## Part 7 — IB Gateway, the weekday awake window, and the health alert
-
-For accounts on `interactive_brokers_socket_paper`. The Client Portal Gateway and keepalive units from
-Part 6 are not used by this transport; see 7.5 for switching. Nothing here is verified on a host yet.
-Each assumption that decides whether it works is marked UNVERIFIED, and 7.6 is how to settle them.
-
-The design, from [the switch plan](../../plan/ib-gateway-socket-switch.md): IB Gateway stays logged in
+The design: IB Gateway stays logged in
 all week through IBKR's own auto-restart, so the host stays awake from Sunday evening until after
 Friday's close, and you log in to the Gateway once, on Sunday night. Between Friday's close and Sunday
 evening the host may suspend.
 
-### 7.1 Install and configure IB Gateway
+### 6.1 Install and configure IB Gateway
 
 Install IB Gateway (the stable build) from IBKR's own installer on the host, as the user that runs the
 jobs. Start it from the desktop session and log in with the IBKR **paper** login. IBKR does not support a
@@ -498,10 +430,10 @@ In the Gateway's settings:
 | Lock and Exit > Auto restart | on, at a time outside IBKR's own maintenance window |
 | Lock and Exit > Never lock | on |
 
-The Gateway's window can be minimised; do not quit it. IBKR allows one session per username: stop the
-Client Portal Gateway before logging in here if both use the same login.
+The Gateway's window can be minimised; do not quit it. IBKR allows one session per username, so a Client
+Portal Gateway logged in with the same login may disconnect this one; stop it first.
 
-### 7.2 The awake window
+### 6.2 The awake window
 
 Three system units plus a stop service. A system unit is needed because only the system manager can set
 the RTC alarm that wakes a suspended host. Replace `<user>`, `<repo>`, and `<env-file>` (an absolute path
@@ -560,14 +492,14 @@ ExecStart=/usr/bin/systemctl stop trading-awake.service
 ```
 
 The Sunday time is when the host wakes, not when you must log in: log in before the health alert's
-grace period ends (7.3). Choose the time you want.
+grace period ends (6.3). Choose the time you want.
 
 `systemd-inhibit` holds a `sleep` block, which makes logind refuse a suspend request while it is held.
-UNVERIFIED that the desktop's idle suspend and the lid switch respect it on this host; 7.6 checks it.
+UNVERIFIED that the desktop's idle suspend and the lid switch respect it on this host; 6.6 checks it.
 If they do not, mask the targets for the week instead (`systemctl mask sleep.target suspend.target
 hibernate.target hybrid-sleep.target` from the start unit, `unmask` from the stop one).
 
-### 7.3 The health alert
+### 6.3 The health alert
 
 `/etc/systemd/system/ibkr-gateway-health.service`, which runs only while the awake window does:
 
@@ -603,7 +535,7 @@ the Gateway's nightly restart passes without an alert. A Gateway that is down or
 Sunday evening alerts after that grace period: that is the reminder to log in. It sends one more alert
 when the Gateway is back. Its options are in the [runtime jobs reference](../reference/runtime-jobs.md).
 
-### 7.4 Client ids
+### 6.4 Client ids
 
 IBKR allows one API connection per client id. Do not reuse these:
 
@@ -616,16 +548,18 @@ IBKR allows one API connection per client id. Do not reuse these:
 Today every phase of the daily run connects and disconnects, so an operator tool can run between phases.
 A job that holds a connection open (not built) would keep the account's id, and tools would need another.
 
-### 7.5 Switching from the Client Portal Gateway
+### 6.5 Moving an account onto the socket venue
 
-1. Stop and disable the Part 6 units: `systemctl --user disable --now ibkr-keepalive.service ibkr-gateway.service`.
-2. Log in to IB Gateway (7.1).
+1. If the host still has the retired Client Portal units, remove them so they stop failing every 30
+   seconds: `systemctl --user disable --now ibkr-keepalive.service ibkr-gateway.service`, then delete
+   their unit files from `~/.config/systemd/user/`.
+2. Log in to IB Gateway (6.1).
 3. Point the account at the socket venue with `broker_type = 'interactive_brokers_socket_paper'`, its
    `broker_port` set to `4002`, and a `broker_client_id`; the SQL and the in-flight order caveat are in the
    [IBKR paper trading runbook](ibkr-paper-trading.md). Do this only when the account has no open orders.
 4. Run `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99` before the first daily run.
 
-### 7.6 First-week checks
+### 6.6 First-week checks
 
 These settle what is UNVERIFIED above. Record the answers in `local/operations/production-host-checklist.md`.
 
