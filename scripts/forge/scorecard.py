@@ -14,13 +14,17 @@ from scripts.forge.findings import Finding, after_title, parse_findings, verdict
 from scripts.forge.readiness import pass_number
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
+KINDS = ("bug", "safety", "docs", "test", "design", "wording")
+_PASS_SEGMENT = re.compile(r"pass (\d+)")
+_NEEDS = re.compile(r"→\s*(fix|decision|info):")
+_CLOSED_BY = re.compile(r"\(pass (\d+), by (fixer|author|owner)\)")
 _LENS_SUFFIX = re.compile(r"(?:\s*x\d+)+$")
 UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
 _CANONICAL = {name.lower(): name for name in LENSES} | {"architecture": "Architecture and conventions"}
 _ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
 _FIXED_IN = re.compile(r"Fixed in (?:`([^`]+)`|([0-9a-fA-F]{7,40})\b)")
-_LOWERED = re.compile(r"lowered to NOTE because ([^\]]+)")
+_LOWERED = re.compile(r"lowered to NOTE because (.+)$")
 _TITLE_TEXT = re.compile(r"^\*\*\d+\.\s*(.*?)\.?\*\*")
 _DOC_SUFFIXES = (".md", ".rst")
 _CONFIG_SUFFIXES = (".json", ".yml", ".yaml", ".toml", ".ini", ".cfg")
@@ -59,6 +63,11 @@ class ScoredFinding:
     fixed_in: str | None = None
     lowered: str | None = None
     text: str = ""
+    kind: str | None = None
+    needs: str | None = None
+    opened_pass: int | None = None
+    closed_pass: int | None = None
+    closed_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,13 +81,24 @@ class PullRequestScore:
     file_areas: dict[str, str] = field(default_factory=dict)
 
 
-def lenses_of(finding: Finding) -> tuple[str, ...]:
-    """The lens names in the finding's trailing ``[...]`` tag, without model or sample suffixes."""
+def _tag_parts(finding: Finding) -> tuple[str, str | None, int | None]:
+    """The reviewers text, the kind, and the opening pass from the trailing ``[reviewers · kind · pass n]`` tag."""
     match = _TAG.search(finding.text.splitlines()[0]) if finding.text else None
     if match is None:
+        return "", None, None
+    segments = [segment.strip() for segment in match.group(1).split(" · ")]
+    kind = next((segment for segment in segments[1:] if segment in KINDS), None)
+    opened = next((int(m.group(1)) for segment in segments[1:] if (m := _PASS_SEGMENT.fullmatch(segment))), None)
+    return segments[0], kind, opened
+
+
+def lenses_of(finding: Finding) -> tuple[str, ...]:
+    """The lens names in the finding's trailing ``[...]`` tag, without model or sample suffixes."""
+    reviewers, _, _ = _tag_parts(finding)
+    if not reviewers:
         return (UNTAGGED,)
     names: list[str] = []
-    for part in match.group(1).split(";")[0].split(","):
+    for part in reviewers.split(";")[0].split(","):
         name = _LENS_SUFFIX.sub("", re.split(r"\s*\(", part.strip().lower())[0]).strip()
         if name in _CANONICAL:
             names.append(_CANONICAL[name])
@@ -100,15 +120,22 @@ def outcome_of(finding: Finding) -> str:
 def score_comment(body: str, reactions: Mapping[int, tuple[int, int]] | None = None) -> list[ScoredFinding]:
     """Every finding of one readiness comment with its outcome, lenses, and reactions."""
     reactions = reactions or {}
-    return [_scored(finding, *reactions.get(finding.number, (0, 0))) for finding in parse_findings(body)]
+    scored = {
+        finding.number: _scored(finding, *reactions.get(finding.number, (0, 0))) for finding in parse_findings(body)
+    }
+    return list(scored.values())
 
 
 def _scored(finding: Finding, up: int, down: int) -> ScoredFinding:
     first = finding.text.splitlines()[0] if finding.text else ""
     anchor = _ANCHOR.search(first)
     title = _TITLE_TEXT.match(first)
-    fixed = _FIXED_IN.search(after_title(finding.text))
-    lowered = _LOWERED.search(first)
+    said = after_title(finding.text)
+    fixed = _FIXED_IN.search(said)
+    reviewers, kind, opened = _tag_parts(finding)
+    lowered = _LOWERED.search(reviewers)
+    needs = _NEEDS.search(first)
+    closed = _CLOSED_BY.search(said)
     path = anchor.group(1) if anchor else None
     return ScoredFinding(
         finding.number,
@@ -124,6 +151,11 @@ def _scored(finding: Finding, up: int, down: int) -> ScoredFinding:
         (fixed.group(1) or fixed.group(2)) if fixed else None,
         lowered.group(1).strip() if lowered else None,
         finding.text,
+        kind,
+        needs.group(1) if needs else None,
+        opened,
+        int(closed.group(1)) if closed else None,
+        closed.group(2) if closed else None,
     )
 
 
@@ -183,3 +215,16 @@ def collect_scores(
         else:
             read.append(number)
     return scores, read, failed
+
+
+HUMAN_ENDINGS = ("fixer", "author", "owner", "left open", "(not recorded)")
+HUMAN_NEEDS = ("fix", "decision", "info", "(not recorded)")
+
+
+def render_human_table(counts: Mapping[tuple[str, str], int]) -> str:
+    """Rows are what the reviewer predicted the finding needed; columns are how it ended."""
+    header = f"{'predicted':16}" + "".join(f"{ending:>16}" for ending in HUMAN_ENDINGS)
+    lines = [header]
+    for need in HUMAN_NEEDS:
+        lines.append(f"{need:16}" + "".join(f"{counts.get((need, ending), 0):16}" for ending in HUMAN_ENDINGS))
+    return "\n".join(lines)

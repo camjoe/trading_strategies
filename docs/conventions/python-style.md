@@ -85,6 +85,10 @@ Any timestamp written to a database column goes through `src/common/time.py`:
 - `common.time.parse_utc_iso(text)` to read one back.
 - `common.time.next_date_str(date_str)` for the exclusive upper bound of a calendar day.
 
+The one exception is the review scorecard file (`local/review_scorecard.db`, written by
+`scripts/forge/scorecard_store.py`): it is not application data, and the forge tool imports no project code that a
+pull request could change, so it writes ISO UTC with the standard library.
+
 Do not call `datetime.isoformat()` directly on a value headed for a column. Stored timestamps are
 compared as **strings** in SQL, so a column holding a mix of `Z`, `+00:00`, and bare-naive spellings
 of the same instant does not order or range-filter correctly — `"…Z" < "…+00:00"` is False, and a

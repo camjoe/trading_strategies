@@ -89,7 +89,23 @@ python -m scripts.forge review-scorecard --from-db --repo owner/name --json
 
 The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
 (`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
-the forge tool imports no project code that a pull request could change. `--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
+the forge tool imports no project code that a pull request could change. ### Is a human really needed?
+
+Each finding says what the reviewer thinks it needs: the text after `→` starts with `fix` (the author can resolve it
+alone), `decision` (the owner must choose), or `info` (only the owner knows a fact). When it closes, the Closed line
+says which pass closed it and who: `by fixer` (a fixer-loop commit), `by author` (any other fix), or `by owner` (a
+recorded Decision). `review-scorecard --from-db --human` counts one against the other:
+
+```bash
+python -m scripts.forge review-scorecard --from-db --human
+```
+
+A `decision` or `info` finding that ends `author` with no Decision was escalated without need; a `fix` finding that
+ends `owner` was under-flagged. Findings from before this format show as `(not recorded)`. The database also keeps each
+finding's kind (`bug`, `safety`, `docs`, `test`, `design`, `wording`), the pass that first reported it, and the pass
+that closed it. A version 2 file is migrated in place; any other version is refused untouched.
+
+`--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
 very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
 `--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
 is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head

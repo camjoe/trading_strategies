@@ -10,6 +10,7 @@ _DECISION = re.compile(r"^\s*\*Decision: ")
 _TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Tests|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
 _FINDING_TITLE = re.compile(r"^\*\*\d+\..*?[.?!]\*\*\s*")
+_LEADING_ANCHOR = re.compile(r"^`[^`]+:\d+(?:-\d+)?`:\s*")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Tests": "note", "Closed": "closed"}
 
 
@@ -33,8 +34,8 @@ class Finding:
 
 
 def after_title(text: str) -> str:
-    """The first line of a finding's *text* without its ``**n. Title.**`` prefix."""
-    return _FINDING_TITLE.sub("", text.splitlines()[0]) if text else ""
+    """The first line of a finding's *text* without its ``**n. Title.**`` prefix and a ``path:line`` after it."""
+    return _LEADING_ANCHOR.sub("", _FINDING_TITLE.sub("", text.splitlines()[0])) if text else ""
 
 
 def verdict(body: str) -> str | None:

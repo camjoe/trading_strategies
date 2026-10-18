@@ -48,8 +48,9 @@ about the tests alone (a missing case, a redundant or brittle test) is a Tests i
   diff.
 - You have not seen the author's reasoning. Do not assume the change is correct. Do not read `plan/`,
   `local/`, commit messages, or any PR description.
-- Report each finding exactly as: `SEVERITY | path:line | the issue | the concrete scenario that
-  breaks it`. Line numbers refer to the file at the head.
+- Report each finding exactly as: `SEVERITY | path:line | kind | the issue | the concrete scenario that
+  breaks it`. `kind` is one of `bug`, `safety`, `docs`, `test`, `design`, `wording`. Line numbers refer to the file at
+  the head.
 - No finding without a file, a line, and a concrete failing scenario. Report a defect once, per root
   cause. At most 8 findings, most severe first. If you find nothing, say so and list what you checked.
 - Suggest a fix only as a one-line pointer. Never implement one.

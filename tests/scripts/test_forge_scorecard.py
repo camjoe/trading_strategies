@@ -500,3 +500,80 @@ class TestMetadataEdges:
         body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] no title here. [Operator]\n"
 
         assert score_comment(body) == []
+
+
+NEW_BODY = (
+    "<!-- pr-readiness -->\n## PR readiness: READY\n\nReviewed `a` · 2026-10-18 · pass 3 · current\n\n"
+    "#### 🟠 Concerns\n"
+    "- [ ] **4. Still open.** `src/a.py:7`: text. → decision: keep or drop X? [Break it, Operator · design · pass 2]\n\n"
+    "<details>\n<summary>🟡 Notes (1 open)</summary>\n\n#### 🟡 Notes (1)\n"
+    "- [ ] **5. A note.** `src/a.py:9`: text. → info: what does the host run? "
+    "[Break it, rated CONCERN; lowered to NOTE because unconfirmed · bug · pass 3]\n\n</details>\n\n"
+    "<details>\n<summary>✓ Closed (3)</summary>\n\n#### Closed (3)\n"
+    "- [x] **1. Fixed by the fixer.** `src/a.py:1`: Fixed in `abc1234` (pass 2, by fixer): ok. [Operator · bug · pass 1]\n"
+    "- [x] **2. Fixed by the author.** `docs/a.md:2`: Fixed in `def5678` (pass 3, by author): ok. "
+    "[Test skeptic · test · pass 1]\n"
+    "- [x] **3. Decided.** `src/b.py:3`: Decided (pass 3, by owner): keep it. [Simplifier · wording · pass 2]\n"
+    "  *Decision: Approved by the owner on 2026-10-18: keep it.*\n"
+    "</details>\n"
+)
+
+
+class TestNewFormat:
+    def _found(self):
+        return {f.number: f for f in score_comment(NEW_BODY)}
+
+    def test_the_predicted_need_the_kind_and_the_opening_pass_are_read_from_an_open_finding(self) -> None:
+        concern = self._found()[4]
+
+        assert (concern.needs, concern.kind, concern.opened_pass) == ("decision", "design", 2)
+        assert concern.lenses == ("Break it", "Operator")
+        assert (concern.path, concern.line, concern.area) == ("src/a.py", 7, "code")
+
+    def test_a_lowered_note_keeps_its_reason_kind_and_pass_without_the_tag_noise(self) -> None:
+        note = self._found()[5]
+
+        assert note.lowered == "unconfirmed"
+        assert (note.needs, note.kind, note.opened_pass) == ("info", "bug", 3)
+        assert note.lenses == ("Break it",)
+
+    def test_a_closed_finding_says_who_closed_it_and_in_which_pass(self) -> None:
+        found = self._found()
+
+        assert (found[1].closed_by, found[1].closed_pass, found[1].fixed_in) == ("fixer", 2, "abc1234")
+        assert (found[2].closed_by, found[2].closed_pass, found[2].outcome) == ("author", 3, "fixed")
+        assert (found[3].closed_by, found[3].closed_pass, found[3].outcome) == ("owner", 3, "decided")
+
+    def test_a_closed_finding_keeps_its_path_and_area_and_reads_its_outcome_after_the_anchor(self) -> None:
+        found = self._found()
+
+        assert (found[1].path, found[1].area, found[1].outcome) == ("src/a.py", "code", "fixed")
+        assert (found[2].path, found[2].area) == ("docs/a.md", "docs")
+        assert found[3].kind == "wording" and found[3].opened_pass == 2
+
+    def test_findings_in_the_old_format_have_no_new_fields(self) -> None:
+        old = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] **1. T.** Fixed in `abc1234`: ok. [Operator]\n"
+
+        finding = score_comment(old)[0]
+
+        assert (finding.kind, finding.needs, finding.opened_pass, finding.closed_pass, finding.closed_by) == (
+            None,
+        ) * 5
+        assert finding.lenses == ("Operator",)
+
+    def test_a_repeated_finding_number_is_counted_once_in_the_live_tally_too(self) -> None:
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (2)\n"
+            "- [ ] **1. First.** `a.py:1`: x. → fix: y. [Operator]\n- [ ] **1. Again.** `a.py:2`: x. → fix: y. [Operator]\n"
+        )
+
+        assert [f.title for f in score_comment(body)] == ["Again"]
+
+    def test_the_human_table_has_a_row_per_prediction_and_a_column_per_ending(self) -> None:
+        from scripts.forge.scorecard import render_human_table
+
+        table = render_human_table({("decision", "author"): 2, ("fix", "fixer"): 1})
+
+        lines = table.splitlines()
+        assert lines[0].split() == ["predicted", "fixer", "author", "owner", "left", "open", "(not", "recorded)"]
+        assert lines[1].split()[:3] == ["fix", "1", "0"] and lines[2].split()[:4] == ["decision", "0", "2", "0"]

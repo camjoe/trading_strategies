@@ -152,7 +152,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
 #### 🔴 Blockers
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in plain words, and the steps of the scenario only when the title does not show them>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in plain words, and the steps of the scenario only when the title does not show them>. → <fix|decision|info>: <one-line fix, and the test to add when it is a defect> [<reviewers> · <kind> · pass <n>]
 
 #### 🟠 Concerns
 (the same form; "None." when there are none)
@@ -161,7 +161,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>🟡 Notes (<n> open, optional): one line each</summary>
 
 #### 🟡 Notes (<n>)
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in one line>. → <one-line fix> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in one line>. → <fix|decision|info>: <one-line fix> [<reviewers> · <kind> · pass <n>]
 
 </details>
 
@@ -169,8 +169,8 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>🧪 Tests (<n> open, optional): gaps and extras. The code is not wrong; the tests could say more</summary>
 
 #### 🧪 Tests (<n>)
-- [ ] **<n>. Gap: <what is not tested>.** `<path>:<line>`: <what a test would pin>. → <the test to add> [<reviewers>]
-- [ ] **<n>. Extra: <what is redundant or brittle>.** `<path>:<line>`: <why>. → <what to remove or merge> [<reviewers>]
+- [ ] **<n>. Gap: <what is not tested>.** `<path>:<line>`: <what a test would pin>. → <fix|decision|info>: <the test to add> [<reviewers> · test · pass <n>]
+- [ ] **<n>. Extra: <what is redundant or brittle>.** `<path>:<line>`: <why>. → <fix|decision|info>: <what to remove or merge> [<reviewers> · test · pass <n>]
 
 </details>
 
@@ -178,7 +178,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>✓ Closed (<n>)</summary>
 
 #### Closed (<n>)
-- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>. [<reviewers>]
+- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · pass <n>]
 
 </details>
 
@@ -199,7 +199,11 @@ directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
 diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
 the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
-CI is the backstop]`.
+CI is the backstop · bug · pass 2]`.
+
+Start the text after `→` with one word. `fix`: the author can resolve it alone. `decision`: the owner must choose
+between options. `info`: it cannot be resolved without a fact only the owner has. `<kind>` is the reviewer's `kind`,
+and `pass <n>` in the tag is the pass that first reported the finding; a later pass copies both unchanged.
 
 **Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
 sentences, one idea in each. Say what is wrong, where, and what to do. Leave out stacked clauses, anything the
@@ -224,8 +228,8 @@ most and never makes the title NOT READY. If the code is wrong today, whether or
 the defect in its usual tier and name the test to add after its `→`. Tests items are fixed and closed like notes.
 
 A closed finding (fixed, or covered by a *Decision*) keeps its number, goes under Closed, and shrinks to one
-line with its box checked and its reviewer tag kept: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>. [<reviewers>]` A finding
-covered by a *Decision* says `Decided` instead of `Fixed`. When a *Decision* exists, it replaces the finding's
+line with its box checked, its `<path>:<line>`, and its reviewer tag kept: `- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · pass <n>]` A finding
+covered by a *Decision* says `Decided (pass <n>, by owner)` instead of `Fixed in <sha> (...)`. `by fixer` is a commit from the fixer loop and `by author` is any other fix; `pass` is the pass that closed it. When a *Decision* exists, it replaces the finding's
 `*Not fixed*` or `*Left*` line.
 
 Standard phrases for a step that did not run, in Review details: "not run: stopped at <step>" when the pass
