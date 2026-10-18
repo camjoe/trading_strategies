@@ -1,0 +1,148 @@
+<div id="tab-about" class="tab-panel layout" hidden>
+  <section class="card about-card">
+    <p class="section-kicker">About</p>
+    <h2 class="about-title">A research platform for quantitative trading strategies</h2>
+    <p class="about-lede">
+      Develop, backtest, and paper-trade strategies in one system. Evidence from walk-forward tests and
+      paper trading feeds a promotion process that a person must approve. Broker and live-trading paths
+      sit behind explicit safety gates.
+    </p>
+    <div id="aboutStats" class="about-stats"></div>
+    <div class="about-actions">
+      <button type="button" class="catalog-filter active" data-about-open="catalog">Browse the command catalog</button>
+      <button type="button" class="catalog-filter" data-about-open="accounts">Open the account workspace</button>
+      <button type="button" class="catalog-filter" data-about-open="docs">Read the documentation</button>
+    </div>
+  </section>
+
+  <section class="card about-card">
+    <p class="section-kicker">How it works</p>
+    <h3 class="about-heading">From idea to monitored execution</h3>
+    <ol class="about-steps">
+      <li>
+        <button type="button" class="about-step" data-about-open="backtesting">
+          <span class="about-step-number">1</span>
+          <span class="about-step-name">Research</span>
+          <span class="about-step-copy">Backtests and walk-forward optimization run the real signal functions.</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="about-step" data-about-open="strategy-lab">
+          <span class="about-step-number">2</span>
+          <span class="about-step-name">Evaluate</span>
+          <span class="about-step-copy">Backtest, walk-forward, and paper evidence combine into one confidence score.</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="about-step" data-about-open="admin">
+          <span class="about-step-number">3</span>
+          <span class="about-step-name">Promote</span>
+          <span class="about-step-copy">A person approves each step from research to paper to live review, with an audit trail.</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="about-step" data-about-open="accounts">
+          <span class="about-step-number">4</span>
+          <span class="about-step-name">Execute</span>
+          <span class="about-step-copy">Each book runs one strategy through a broker port: paper, IBKR Web API, or IBKR socket.</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="about-step" data-about-open="autonomy-monitor">
+          <span class="about-step-number">5</span>
+          <span class="about-step-name">Govern</span>
+          <span class="about-step-copy">Scheduled jobs check health, review allocation, and audit performance.</span>
+        </button>
+      </li>
+    </ol>
+  </section>
+
+  <section class="card about-card">
+    <p class="section-kicker">Architecture</p>
+    <h3 class="about-heading">Layers with one direction of dependency</h3>
+    <p class="section-copy">
+      Dependencies point downward, and no layer reaches back up. An automated check,
+      <code>layer_check</code>, fails the build when code breaks this rule.
+    </p>
+    <svg class="about-diagram" viewBox="0 0 760 410" role="img" aria-labelledby="aboutDiagramTitle aboutDiagramDesc">
+      <title id="aboutDiagramTitle">Architecture layers</title>
+      <desc id="aboutDiagramDesc">
+        Interfaces call services. Services use the domain and the repositories. Repositories use the
+        persistence layer, which writes to the SQLite database. Infrastructure adapters for brokers,
+        market data, and feature providers connect to services through ports. The backtesting context
+        owns its own repositories and tables.
+      </desc>
+      <defs>
+        <marker id="aboutArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" class="about-arrow-head" />
+        </marker>
+      </defs>
+
+      <rect class="about-box about-box--top" x="20" y="20" width="440" height="62" rx="12" />
+      <text class="about-box-title" x="40" y="46">Interfaces</text>
+      <text class="about-box-sub" x="40" y="68">CLI · Web UI and API · Runtime jobs</text>
+
+      <rect class="about-box" x="20" y="108" width="440" height="62" rx="12" />
+      <text class="about-box-title" x="40" y="134">Services</text>
+      <text class="about-box-sub" x="40" y="156">Orchestration: evaluation, promotion, books, execution</text>
+
+      <rect class="about-box" x="20" y="196" width="212" height="62" rx="12" />
+      <text class="about-box-title" x="40" y="222">Domain</text>
+      <text class="about-box-sub" x="40" y="244">Pure math and policy</text>
+      <rect class="about-box" x="248" y="196" width="212" height="62" rx="12" />
+      <text class="about-box-title" x="268" y="222">Repositories</text>
+      <text class="about-box-sub" x="268" y="244">All SQL lives here</text>
+
+      <rect class="about-box" x="20" y="284" width="440" height="50" rx="12" />
+      <text class="about-box-title" x="40" y="314">Persistence</text>
+      <text class="about-box-sub" x="190" y="314">Transactions and column encoding</text>
+
+      <rect class="about-box about-box--base" x="20" y="360" width="720" height="40" rx="12" />
+      <text class="about-box-title" x="40" y="385">SQLite database</text>
+      <text class="about-box-sub" x="190" y="385">Numbered migrations · live money in integer minor units</text>
+
+      <path class="about-arrow" d="M 240 82 L 240 106" marker-end="url(#aboutArrow)" />
+      <path class="about-arrow" d="M 126 170 L 126 194" marker-end="url(#aboutArrow)" />
+      <path class="about-arrow" d="M 354 170 L 354 194" marker-end="url(#aboutArrow)" />
+      <path class="about-arrow" d="M 354 258 L 354 282" marker-end="url(#aboutArrow)" />
+      <path class="about-arrow" d="M 240 334 L 240 358" marker-end="url(#aboutArrow)" />
+
+      <rect class="about-box about-box--side" x="500" y="108" width="240" height="150" rx="12" />
+      <text class="about-box-title" x="520" y="134">Infrastructure adapters</text>
+      <text class="about-box-sub" x="520" y="160">Brokers: paper, IBKR Web API,</text>
+      <text class="about-box-sub" x="520" y="178">IBKR socket</text>
+      <text class="about-box-sub" x="520" y="202">Market data</text>
+      <text class="about-box-sub" x="520" y="226">Feature providers</text>
+      <text class="about-box-sub" x="520" y="246">Plugged in through ports</text>
+      <path class="about-arrow" d="M 498 139 L 462 139" marker-end="url(#aboutArrow)" />
+
+      <rect class="about-box about-box--side" x="500" y="284" width="240" height="50" rx="12" />
+      <text class="about-box-title" x="520" y="306">Backtesting context</text>
+      <text class="about-box-sub" x="520" y="324">Own repositories and tables</text>
+      <path class="about-arrow" d="M 620 334 L 620 358" marker-end="url(#aboutArrow)" />
+    </svg>
+  </section>
+
+  <section class="card about-card">
+    <p class="section-kicker">Safety</p>
+    <h3 class="about-heading">Built to fail safe</h3>
+    <div class="about-safety">
+      <div class="about-safety-item">
+        <h4>Live trading is gated</h4>
+        <p>Live orders need the <code>live_trading_enabled</code> flag on the account. Only a human operator sets it, by hand.</p>
+      </div>
+      <div class="about-safety-item">
+        <h4>A person approves promotion</h4>
+        <p>A strategy moves from research to paper to live review only after a human decision. The system records each step.</p>
+      </div>
+      <div class="about-safety-item">
+        <h4>Orders pass a risk gate</h4>
+        <p>A pre-submit gate and kill switches check each order. A drawdown breaker stops new buys but never blocks an exit.</p>
+      </div>
+      <div class="about-safety-item">
+        <h4>Evidence is out of sample</h4>
+        <p>Walk-forward tests and a holdout produce the evidence. A reference note lists where backtests and live runs differ.</p>
+      </div>
+    </div>
+  </section>
+</div>
