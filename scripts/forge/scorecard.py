@@ -87,9 +87,19 @@ def _tag_parts(finding: Finding) -> tuple[str, str | None, int | None]:
     if match is None:
         return "", None, None
     segments = [segment.strip() for segment in match.group(1).split(" · ")]
-    kind = next((segment for segment in segments[1:] if segment in KINDS), None)
-    opened = next((int(m.group(1)) for segment in segments[1:] if (m := _PASS_SEGMENT.fullmatch(segment))), None)
-    return segments[0], kind, opened
+    kind: str | None = None
+    opened: int | None = None
+    while len(segments) > 1:
+        last = segments[-1]
+        pass_match = _PASS_SEGMENT.fullmatch(last)
+        if pass_match and opened is None:
+            opened = int(pass_match.group(1))
+        elif last in KINDS and kind is None:
+            kind = last
+        else:
+            break
+        segments.pop()
+    return " · ".join(segments), kind, opened
 
 
 def lenses_of(finding: Finding) -> tuple[str, ...]:
@@ -217,8 +227,9 @@ def collect_scores(
     return scores, read, failed
 
 
-HUMAN_ENDINGS = ("fixer", "author", "owner", "left open", "(not recorded)")
-HUMAN_NEEDS = ("fix", "decision", "info", "(not recorded)")
+NOT_RECORDED = "(not recorded)"
+HUMAN_ENDINGS = ("fixer", "author", "owner", "left open", NOT_RECORDED)
+HUMAN_NEEDS = ("fix", "decision", "info", NOT_RECORDED)
 
 
 def render_human_table(counts: Mapping[tuple[str, str], int]) -> str:

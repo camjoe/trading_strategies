@@ -89,7 +89,17 @@ python -m scripts.forge review-scorecard --from-db --repo owner/name --json
 
 The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
 (`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
-the forge tool imports no project code that a pull request could change. ### Is a human really needed?
+the forge tool imports no project code that a pull request could change. `--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
+very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
+`--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
+is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head
+branch, created and merged times, lines added and removed, commit count, and every changed file with an area
+(`code`, `tests`, `docs`, `config`, `ci`, `agent`). Each finding is stored with its tier, outcome, lenses, reactions,
+title, path and line, area, the sha that fixed it, why it was lowered (if it was), and its full text. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
+file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
+pull requests merged before that save with `(untagged)` lenses.
+
+### Is a human really needed?
 
 Each finding says what the reviewer thinks it needs: the text after `→` starts with `fix` (the author can resolve it
 alone), `decision` (the owner must choose), or `info` (only the owner knows a fact). When it closes, the Closed line
@@ -104,16 +114,6 @@ A `decision` or `info` finding that ends `author` with no Decision was escalated
 ends `owner` was under-flagged. Findings from before this format show as `(not recorded)`. The database also keeps each
 finding's kind (`bug`, `safety`, `docs`, `test`, `design`, `wording`), the pass that first reported it, and the pass
 that closed it. A version 2 file is migrated in place; any other version is refused untouched.
-
-`--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
-very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
-`--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
-is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head
-branch, created and merged times, lines added and removed, commit count, and every changed file with an area
-(`code`, `tests`, `docs`, `config`, `ci`, `agent`). Each finding is stored with its tier, outcome, lenses, reactions,
-title, path and line, area, the sha that fixed it, why it was lowered (if it was), and its full text. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
-file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
-pull requests merged before that save with `(untagged)` lenses.
 
 ### Using these tools in another project
 

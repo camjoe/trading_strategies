@@ -8,6 +8,7 @@ from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeE
 from scripts.forge.findings import parse_findings
 from scripts.forge.github import GitHubForge
 from scripts.forge.scorecard import LENSES, UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
+from tests.scripts.helpers import NEW_BODY
 
 BODY = (
     f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 3 · current\n\n"
@@ -502,23 +503,6 @@ class TestMetadataEdges:
         assert score_comment(body) == []
 
 
-NEW_BODY = (
-    "<!-- pr-readiness -->\n## PR readiness: READY\n\nReviewed `a` · 2026-10-18 · pass 3 · current\n\n"
-    "#### 🟠 Concerns\n"
-    "- [ ] **4. Still open.** `src/a.py:7`: text. → decision: keep or drop X? [Break it, Operator · design · pass 2]\n\n"
-    "<details>\n<summary>🟡 Notes (1 open)</summary>\n\n#### 🟡 Notes (1)\n"
-    "- [ ] **5. A note.** `src/a.py:9`: text. → info: what does the host run? "
-    "[Break it, rated CONCERN; lowered to NOTE because unconfirmed · bug · pass 3]\n\n</details>\n\n"
-    "<details>\n<summary>✓ Closed (3)</summary>\n\n#### Closed (3)\n"
-    "- [x] **1. Fixed by the fixer.** `src/a.py:1`: Fixed in `abc1234` (pass 2, by fixer): ok. [Operator · bug · pass 1]\n"
-    "- [x] **2. Fixed by the author.** `docs/a.md:2`: Fixed in `def5678` (pass 3, by author): ok. "
-    "[Test skeptic · test · pass 1]\n"
-    "- [x] **3. Decided.** `src/b.py:3`: Decided (pass 3, by owner): keep it. [Simplifier · wording · pass 2]\n"
-    "  *Decision: Approved by the owner on 2026-10-18: keep it.*\n"
-    "</details>\n"
-)
-
-
 class TestNewFormat:
     def _found(self):
         return {f.number: f for f in score_comment(NEW_BODY)}
@@ -577,3 +561,29 @@ class TestNewFormat:
         lines = table.splitlines()
         assert lines[0].split() == ["predicted", "fixer", "author", "owner", "left", "open", "(not", "recorded)"]
         assert lines[1].split()[:3] == ["fix", "1", "0"] and lines[2].split()[:4] == ["decision", "0", "2", "0"]
+
+
+class TestTagFromTheRight:
+    def _open(self, tag: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [{tag}]\n"
+        return parse_findings(body)[0]
+
+    def test_a_lowered_reason_may_contain_the_separator(self) -> None:
+        scored = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n"
+            "- [ ] **1. T.** `a.py:1`: x. → fix: y. [Break it, rated CONCERN; lowered to NOTE because a · b · bug · pass 2]\n"
+        )[0]
+
+        assert scored.lowered == "a · b"
+        assert (scored.kind, scored.opened_pass) == ("bug", 2)
+
+    def test_a_tag_with_only_a_kind_or_only_a_pass_is_read(self) -> None:
+        only_kind = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [Operator · docs]\n"
+        )[0]
+        only_pass = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [Operator · pass 4]\n"
+        )[0]
+
+        assert (only_kind.kind, only_kind.opened_pass, only_kind.lenses) == ("docs", None, ("Operator",))
+        assert (only_pass.kind, only_pass.opened_pass) == (None, 4)

@@ -7,6 +7,7 @@ from scripts.forge import cli as cli_module
 from scripts.forge.base import PullRequestDetails
 from scripts.forge.scorecard import PullRequestScore, ScoredFinding, score_pull_request, tally
 from scripts.forge.scorecard_store import SCHEMA_VERSION, ScoreStore, ScoreStoreError
+from tests.scripts.helpers import NEW_BODY
 from tests.scripts.test_forge_scorecard import BODY, ScoreStub
 
 
@@ -336,13 +337,13 @@ class TestErrors:
 
         assert json.loads(capsys.readouterr().out)["saved_to"] == str(db)
 
-    def test_a_comment_that_repeats_a_finding_number_still_saves(self, tmp_path) -> None:
+    def test_a_repeated_finding_number_is_refused_not_dropped(self, tmp_path) -> None:
         repeated = ScoredFinding(1, "left open", ("Operator",), "note")
         with ScoreStore(tmp_path / "s.db") as store:
-            store.save("o/r", 7, score(FIXED, repeated))
+            with pytest.raises(ScoreStoreError, match="UNIQUE"):
+                store.save("o/r", 7, score(FIXED, repeated))
 
-            assert [pr.findings for pr in store.pull_requests()] == [1]
-            assert store.lens_totals() == tally([repeated])
+            assert store.pull_requests() == []
 
 
 class TestScoring:
@@ -491,8 +492,6 @@ class TestHumanInput:
         assert code == 1 and "add --from-db" in capsys.readouterr().err
 
     def test_a_comment_in_the_new_format_round_trips_through_the_store(self, tmp_path) -> None:
-        from tests.scripts.test_forge_scorecard import NEW_BODY
-
         scored = score_pull_request(NEW_BODY)
         with ScoreStore(tmp_path / "s.db") as store:
             store.save("o/r", 20, scored)
@@ -503,3 +502,63 @@ class TestHumanInput:
             .fetchone()
         )
         assert row == ("test", None, 1, 3, "author", "docs")
+
+
+class TestInterruptedFiles:
+    def test_a_half_migrated_file_stays_at_version_2_and_gains_nothing(self, tmp_path) -> None:
+        path = tmp_path / "s.db"
+        with ScoreStore(path):
+            pass
+        conn = sqlite3.connect(path)
+        for column in ("needs", "opened_pass", "closed_pass", "closed_by"):
+            conn.execute(f"ALTER TABLE finding DROP COLUMN {column}")
+        conn.execute("UPDATE schema_version SET version = 2")
+        conn.commit()
+        conn.close()
+
+        with pytest.raises(ScoreStoreError, match="duplicate column"):
+            ScoreStore(path)
+
+        conn = sqlite3.connect(path)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(finding)")}
+        assert conn.execute("SELECT version FROM schema_version").fetchone() == (2,)
+        assert "kind" in columns and not columns & {"needs", "opened_pass", "closed_pass", "closed_by"}
+
+    def test_a_file_with_the_tables_but_no_version_row_is_repaired(self, tmp_path) -> None:
+        path = tmp_path / "s.db"
+        with ScoreStore(path) as store:
+            store.save("o/r", 7, score(FIXED))
+        conn = sqlite3.connect(path)
+        conn.execute("DELETE FROM schema_version")
+        conn.commit()
+        conn.close()
+
+        with ScoreStore(path) as store:
+            assert store.lens_totals()["Operator"]["fixed"] == 1
+
+        assert sqlite3.connect(path).execute("SELECT version FROM schema_version").fetchone() == (SCHEMA_VERSION,)
+
+
+class TestHumanTableCounts:
+    def test_the_printed_table_puts_each_count_in_its_row_and_column(self, tmp_path, capsys) -> None:
+        db = tmp_path / "s.db"
+        findings = [
+            ScoredFinding(1, "fixed", ("Operator",), "concern", needs="fix", closed_by="fixer"),
+            ScoredFinding(2, "fixed", ("Operator",), "concern", needs="decision", closed_by="author"),
+            ScoredFinding(3, "fixed", ("Operator",), "concern", needs="decision", closed_by="author"),
+            ScoredFinding(4, "left open", ("Operator",), "note", needs="info"),
+        ]
+        with ScoreStore(db) as store:
+            store.save("o/r", 7, score(*findings))
+
+        cli_module.main(["review-scorecard", "--from-db", "--human", "--db", str(db)], forge=object())  # type: ignore[arg-type]
+
+        rows = {
+            line.split()[0]: line.split()[1:]
+            for line in capsys.readouterr().out.splitlines()
+            if line.startswith(("fix ", "decision", "info"))
+        }
+        # columns: fixer, author, owner, left open, (not recorded)
+        assert rows["fix"] == ["1", "0", "0", "0", "0"]
+        assert rows["decision"] == ["0", "2", "0", "0", "0"]
+        assert rows["info"] == ["0", "0", "0", "1", "0"]
