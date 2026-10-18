@@ -8,6 +8,7 @@ from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeE
 from scripts.forge.findings import parse_findings
 from scripts.forge.github import GitHubForge
 from scripts.forge.scorecard import LENSES, UNTAGGED, lenses_of, outcome_of, render_table, score_comment, tally
+from tests.scripts.helpers import NEW_BODY
 
 BODY = (
     f"{READINESS_MARKER}\n## PR readiness: READY\n\nReviewed `abc` · 2026-10-17 · pass 3 · current\n\n"
@@ -500,3 +501,89 @@ class TestMetadataEdges:
         body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] no title here. [Operator]\n"
 
         assert score_comment(body) == []
+
+
+class TestNewFormat:
+    def _found(self):
+        return {f.number: f for f in score_comment(NEW_BODY)}
+
+    def test_the_predicted_need_the_kind_and_the_opening_pass_are_read_from_an_open_finding(self) -> None:
+        concern = self._found()[4]
+
+        assert (concern.needs, concern.kind, concern.opened_pass) == ("decision", "design", 2)
+        assert concern.lenses == ("Break it", "Operator")
+        assert (concern.path, concern.line, concern.area) == ("src/a.py", 7, "code")
+
+    def test_a_lowered_note_keeps_its_reason_kind_and_pass_without_the_tag_noise(self) -> None:
+        note = self._found()[5]
+
+        assert note.lowered == "unconfirmed"
+        assert (note.needs, note.kind, note.opened_pass) == ("info", "bug", 3)
+        assert note.lenses == ("Break it",)
+
+    def test_a_closed_finding_says_who_closed_it_and_in_which_pass(self) -> None:
+        found = self._found()
+
+        assert (found[1].closed_by, found[1].closed_pass, found[1].fixed_in) == ("fixer", 2, "abc1234")
+        assert (found[2].closed_by, found[2].closed_pass, found[2].outcome) == ("author", 3, "fixed")
+        assert (found[3].closed_by, found[3].closed_pass, found[3].outcome) == ("owner", 3, "decided")
+
+    def test_a_closed_finding_keeps_its_path_and_area_and_reads_its_outcome_after_the_anchor(self) -> None:
+        found = self._found()
+
+        assert (found[1].path, found[1].area, found[1].outcome) == ("src/a.py", "code", "fixed")
+        assert (found[2].path, found[2].area) == ("docs/a.md", "docs")
+        assert found[3].kind == "wording" and found[3].opened_pass == 2
+
+    def test_findings_in_the_old_format_have_no_new_fields(self) -> None:
+        old = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n- [x] **1. T.** Fixed in `abc1234`: ok. [Operator]\n"
+
+        finding = score_comment(old)[0]
+
+        assert (finding.kind, finding.needs, finding.opened_pass, finding.closed_pass, finding.closed_by) == (
+            None,
+        ) * 5
+        assert finding.lenses == ("Operator",)
+
+    def test_a_repeated_finding_number_is_counted_once_in_the_live_tally_too(self) -> None:
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (2)\n"
+            "- [ ] **1. First.** `a.py:1`: x. → fix: y. [Operator]\n- [ ] **1. Again.** `a.py:2`: x. → fix: y. [Operator]\n"
+        )
+
+        assert [f.title for f in score_comment(body)] == ["Again"]
+
+    def test_the_human_table_has_a_row_per_prediction_and_a_column_per_ending(self) -> None:
+        from scripts.forge.scorecard import render_human_table
+
+        table = render_human_table({("decision", "author"): 2, ("fix", "fixer"): 1})
+
+        lines = table.splitlines()
+        assert lines[0].split() == ["predicted", "fixer", "author", "owner", "left", "open", "(not", "recorded)"]
+        assert lines[1].split()[:3] == ["fix", "1", "0"] and lines[2].split()[:4] == ["decision", "0", "2", "0"]
+
+
+class TestTagFromTheRight:
+    def _open(self, tag: str):
+        body = f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [{tag}]\n"
+        return parse_findings(body)[0]
+
+    def test_a_lowered_reason_may_contain_the_separator(self) -> None:
+        scored = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n"
+            "- [ ] **1. T.** `a.py:1`: x. → fix: y. [Break it, rated CONCERN; lowered to NOTE because a · b · bug · pass 2]\n"
+        )[0]
+
+        assert scored.lowered == "a · b"
+        assert (scored.kind, scored.opened_pass) == ("bug", 2)
+
+    def test_a_tag_with_only_a_kind_or_only_a_pass_is_read(self) -> None:
+        only_kind = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [Operator · docs]\n"
+        )[0]
+        only_pass = score_comment(
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n- [ ] **1. T.** `a.py:1`: x. → fix: y. [Operator · pass 4]\n"
+        )[0]
+
+        assert (only_kind.kind, only_kind.opened_pass, only_kind.lenses) == ("docs", None, ("Operator",))
+        assert (only_pass.kind, only_pass.opened_pass) == (None, 4)

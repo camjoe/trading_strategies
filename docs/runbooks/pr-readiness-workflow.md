@@ -99,6 +99,22 @@ title, path and line, area, the sha that fixed it, why it was lowered (if it was
 file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
 pull requests merged before that save with `(untagged)` lenses.
 
+### Is a human really needed?
+
+Each finding says what the reviewer thinks it needs: the text after `→` starts with `fix` (the author can resolve it
+alone), `decision` (the owner must choose), or `info` (only the owner knows a fact). When it closes, the Closed line
+says which pass closed it and who: `by fixer` (a fixer-loop commit), `by author` (any other fix), or `by owner` (a
+recorded Decision). `review-scorecard --from-db --human` counts one against the other:
+
+```bash
+python -m scripts.forge review-scorecard --from-db --human
+```
+
+A `decision` or `info` finding that ends `author` with no Decision was escalated without need; a `fix` finding that
+ends `owner` was under-flagged. Findings from before this format show as `(not recorded)`. The database also keeps each
+finding's kind (`bug`, `safety`, `docs`, `test`, `design`, `wording`), the pass that first reported it, and the pass
+that closed it. A version 2 file is migrated in place; any other version is refused untouched.
+
 ### Using these tools in another project
 
 The core modules in `scripts/forge` import only the standard library and each other (a test enforces it):

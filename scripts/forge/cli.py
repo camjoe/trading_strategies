@@ -10,8 +10,8 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Callable, Iterator, Sequence
-from contextlib import contextmanager, nullcontext
+from collections.abc import Callable, Sequence
+from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
@@ -25,8 +25,8 @@ from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
-from scripts.forge.scorecard import ScoredFinding, collect_scores, render_table, tally
-from scripts.forge.scorecard_store import ScoreStore, ScoreStoreError
+from scripts.forge.scorecard import ScoredFinding, collect_scores, render_human_table, render_table, tally
+from scripts.forge.scorecard_store import ScoreStore
 from scripts.forge.service import resolve_authors, review_context
 
 SCORECARD_DB_ENV = "REVIEW_SCORECARD_DB"
@@ -94,6 +94,11 @@ def build_parser() -> argparse.ArgumentParser:
     scorecard.add_argument("--save", action="store_true", help="Also store each scored pull request in the database.")
     scorecard.add_argument(
         "--from-db", action="store_true", help="Report from the database only, with no calls to the forge."
+    )
+    scorecard.add_argument(
+        "--human",
+        action="store_true",
+        help="With --from-db, also show what reviewers predicted each finding needed (fix, decision, info) against how it ended.",
     )
     scorecard.add_argument(
         "--db",
@@ -237,37 +242,37 @@ def _print_scorecard(
         print(f"Saved to {saved_to}.")
 
 
-@contextmanager
-def _open_scorecard_db(path: Path) -> Iterator[ScoreStore]:
-    try:
-        with ScoreStore(path) as store:
-            yield store
-    except ScoreStoreError as exc:
-        raise ForgeError(str(exc)) from exc
-
-
 def _scorecard_from_db(args: argparse.Namespace) -> None:
     if args.pr or args.merged or args.save:
         raise ForgeError("--from-db reads the database only: drop --pr, --merged and --save.")
     path = _scorecard_db(args)
     if not path.exists():
         raise ForgeError(f"No scorecard database at {path}: run review-scorecard with --save first.")
-    with _open_scorecard_db(path) as store:
+    with ScoreStore(path) as store:
         rows = store.lens_totals(args.repo)
         saved = store.pull_requests(args.repo)
+        human = store.human_input(args.repo) if args.human else None
     if args.json:
-        _print(
-            {
-                "pull_requests": [{"repo": pr.repo, "number": pr.number, "passes": pr.passes} for pr in saved],
-                "lenses": {lens: dict(row) for lens, row in rows.items()},
-            }
-        )
+        payload: dict[str, object] = {
+            "pull_requests": [{"repo": pr.repo, "number": pr.number, "passes": pr.passes} for pr in saved],
+            "lenses": {lens: dict(row) for lens, row in rows.items()},
+        }
+        if human is not None:
+            payload["human_input"] = [
+                {"predicted": need, "ended": ended, "count": count} for (need, ended), count in sorted(human.items())
+            ]
+        _print(payload)
         return
     print(f"{sum(pr.findings for pr in saved)} findings from {len(saved)} saved pull request(s).")
     print(render_table(rows))
+    if human is not None:
+        print()
+        print(render_human_table(human))
 
 
 def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
+    if args.human and not args.from_db:
+        raise ForgeError("--human reads the database: add --from-db.")
     if args.from_db:
         _scorecard_from_db(args)
         return
@@ -282,7 +287,7 @@ def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     if args.save and len(args.repo) > 1:
         raise ForgeError("--save stores under one label: pass --repo at most once.")
     saved_to = _scorecard_db(args) if args.save else None
-    with _open_scorecard_db(saved_to) if saved_to else nullcontext() as store:
+    with ScoreStore(saved_to) if saved_to else nullcontext() as store:
         scores, read, failed = collect_scores(forge, numbers, authors, with_details=args.save)
         if store is not None:
             label = args.repo[0] if args.repo else forge.repository()
