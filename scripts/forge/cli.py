@@ -10,7 +10,8 @@ import json
 import os
 import sys
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager, nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
@@ -24,8 +25,12 @@ from scripts.forge.local import LocalGit, email_notifier, run_claude_agent, run_
 from scripts.forge.pipeline import run_pipeline
 from scripts.forge.readiness import comment_problems
 from scripts.forge.sandbox import SandboxFactory, sandbox
-from scripts.forge.scorecard import collect_scores, render_table, tally
+from scripts.forge.scorecard import ScoredFinding, collect_scores, render_table, tally
+from scripts.forge.scorecard_store import ScoreStore, ScoreStoreError
 from scripts.forge.service import resolve_authors, review_context
+
+SCORECARD_DB_ENV = "REVIEW_SCORECARD_DB"
+DEFAULT_SCORECARD_DB = "local/review_scorecard.db"
 
 
 def _add_pr_argument(command: argparse.ArgumentParser) -> None:
@@ -86,6 +91,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Account that wrote the readiness comments; repeatable (default: github-actions[bot]).",
     )
     scorecard.add_argument("--json", action="store_true", help="Print the counts as JSON instead of a table.")
+    scorecard.add_argument("--save", action="store_true", help="Also store each scored pull request in the database.")
+    scorecard.add_argument(
+        "--from-db", action="store_true", help="Report from the database only, with no calls to the forge."
+    )
+    scorecard.add_argument(
+        "--db",
+        help=f"SQLite file for --save and --from-db (default: ${SCORECARD_DB_ENV} or {DEFAULT_SCORECARD_DB}).",
+    )
+    scorecard.add_argument(
+        "--repo",
+        action="append",
+        default=[],
+        help="With --from-db, only these repos; with --save, the label to store.",
+    )
 
     context = commands.add_parser("review-context", help="Pull request, previous readiness comment, and CI state.")
     _add_pr_argument(context)
@@ -190,7 +209,68 @@ def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
         print(f"forge: warning: {refused} inline reply or edit request(s) were refused.", file=sys.stderr)
 
 
+def _scorecard_db(args: argparse.Namespace) -> Path:
+    return Path(args.db or os.environ.get(SCORECARD_DB_ENV) or DEFAULT_SCORECARD_DB)
+
+
+def _print_scorecard(
+    args: argparse.Namespace,
+    scored: list[ScoredFinding],
+    read: list[int],
+    failed: dict[int, str],
+    saved_to: Path | None,
+) -> None:
+    rows = tally(scored)
+    if args.json:
+        _print(
+            {
+                "pull_requests": read,
+                "skipped": failed,
+                "saved_to": None if saved_to is None else str(saved_to),
+                "lenses": {lens: dict(row) for lens, row in rows.items()},
+            }
+        )
+        return
+    print(f"Scored {len(scored)} findings from {len(read)} pull request(s).")
+    print(render_table(rows))
+    if saved_to is not None:
+        print(f"Saved to {saved_to}.")
+
+
+@contextmanager
+def _open_scorecard_db(path: Path) -> Iterator[ScoreStore]:
+    try:
+        with ScoreStore(path) as store:
+            yield store
+    except ScoreStoreError as exc:
+        raise ForgeError(str(exc)) from exc
+
+
+def _scorecard_from_db(args: argparse.Namespace) -> None:
+    if args.pr or args.merged or args.save:
+        raise ForgeError("--from-db reads the database only: drop --pr, --merged and --save.")
+    path = _scorecard_db(args)
+    if not path.exists():
+        raise ForgeError(f"No scorecard database at {path}: run review-scorecard with --save first.")
+    with _open_scorecard_db(path) as store:
+        rows = store.lens_totals(args.repo)
+        saved = store.pull_requests(args.repo)
+    if args.json:
+        _print(
+            {
+                "pull_requests": [{"repo": pr.repo, "number": pr.number, "passes": pr.passes} for pr in saved],
+                "lenses": {lens: dict(row) for lens, row in rows.items()},
+            }
+        )
+        return
+    print(f"{sum(pr.findings for pr in saved)} findings from {len(saved)} saved pull request(s).")
+    print(render_table(rows))
+
+
 def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
+    if args.from_db:
+        _scorecard_from_db(args)
+        return
     if not isinstance(forge, ScorecardForge):
         raise ForgeError("This forge cannot score reviews.")
     if args.merged < 0:
@@ -199,13 +279,18 @@ def _review_scorecard(args: argparse.Namespace, forge: Forge) -> None:
     numbers = list(dict.fromkeys([*args.pr, *(forge.merged_pull_requests(args.merged) if args.merged else [])]))
     if not numbers:
         raise ForgeError("Name pull requests with --pr or --merged.")
-    scored, read, failed = collect_scores(forge, numbers, authors)
-    rows = tally(scored)
-    if args.json:
-        _print({"pull_requests": read, "skipped": failed, "lenses": {lens: dict(row) for lens, row in rows.items()}})
-    else:
-        print(f"Scored {len(scored)} findings from {len(read)} pull request(s).")
-        print(render_table(rows))
+    if args.save and len(args.repo) > 1:
+        raise ForgeError("--save stores under one label: pass --repo at most once.")
+    saved_to = _scorecard_db(args) if args.save else None
+    with _open_scorecard_db(saved_to) if saved_to else nullcontext() as store:
+        scores, read, failed = collect_scores(forge, numbers, authors, with_details=args.save)
+        if store is not None:
+            label = args.repo[0] if args.repo else forge.repository()
+            for number, score in scores.items():
+                store.save(label, number, score)
+    _print_scorecard(
+        args, [finding for score in scores.values() for finding in score.findings], read, failed, saved_to
+    )
     if failed:
         raise ForgeError("Could not read " + "; ".join(f"#{number}: {why}" for number, why in failed.items()))
 

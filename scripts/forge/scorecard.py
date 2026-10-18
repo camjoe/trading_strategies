@@ -7,16 +7,41 @@ or left open. Reactions on a finding's inline comment (a thumbs up or down) are 
 import re
 from collections import Counter
 from collections.abc import Collection, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from scripts.forge.base import ForgeError, ScorecardForge
-from scripts.forge.findings import Finding, after_title, parse_findings
+from scripts.forge.base import ForgeError, PullRequestDetails, ScorecardForge
+from scripts.forge.findings import Finding, after_title, parse_findings, verdict
+from scripts.forge.readiness import pass_number
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
 _LENS_SUFFIX = re.compile(r"(?:\s*x\d+)+$")
 UNTAGGED = "(untagged)"
 LENSES = ("Break it", "Operator", "Test skeptic", "Simplifier", "Architecture and conventions", "Orchestrator")
 _CANONICAL = {name.lower(): name for name in LENSES} | {"architecture": "Architecture and conventions"}
+_ANCHOR = re.compile(r"`([^`\s:]+):(\d+)(?:-\d+)?`")
+_FIXED_IN = re.compile(r"Fixed in (?:`([^`]+)`|([0-9a-fA-F]{7,40})\b)")
+_LOWERED = re.compile(r"lowered to NOTE because ([^\]]+)")
+_TITLE_TEXT = re.compile(r"^\*\*\d+\.\s*(.*?)\.?\*\*")
+_DOC_SUFFIXES = (".md", ".rst")
+_CONFIG_SUFFIXES = (".json", ".yml", ".yaml", ".toml", ".ini", ".cfg")
+_AGENT_FILES = ("agents.md", "claude.md")
+
+
+def area_of(path: str) -> str:
+    """A coarse kind of file: ``tests``, ``ci``, ``agent`` (agent skills and instructions), ``docs``, ``config``, or ``code``."""
+    parts = path.lower().split("/")
+    name = parts[-1]
+    if any(part in ("test", "tests") for part in parts[:-1]) or name.startswith("test_") or name.endswith("_test.py"):
+        return "tests"
+    if parts[0] == ".github":
+        return "ci"
+    if parts[0] in (".ai", ".claude") or name in _AGENT_FILES:
+        return "agent"
+    if parts[0] == "docs" or name.endswith(_DOC_SUFFIXES):
+        return "docs"
+    if name.endswith(_CONFIG_SUFFIXES):
+        return "config"
+    return "code"
 
 
 @dataclass(frozen=True)
@@ -24,8 +49,27 @@ class ScoredFinding:
     number: int
     outcome: str
     lenses: tuple[str, ...]
+    tier: str = "note"
     up: int = 0
     down: int = 0
+    title: str = ""
+    path: str | None = None
+    line: int | None = None
+    area: str | None = None
+    fixed_in: str | None = None
+    lowered: str | None = None
+    text: str = ""
+
+
+@dataclass(frozen=True)
+class PullRequestScore:
+    """The scored findings of one pull request's readiness comment, with its pass count and verdict."""
+
+    findings: list[ScoredFinding]
+    passes: int | None
+    verdict: str | None
+    details: PullRequestDetails | None = None
+    file_areas: dict[str, str] = field(default_factory=dict)
 
 
 def lenses_of(finding: Finding) -> tuple[str, ...]:
@@ -56,15 +100,39 @@ def outcome_of(finding: Finding) -> str:
 def score_comment(body: str, reactions: Mapping[int, tuple[int, int]] | None = None) -> list[ScoredFinding]:
     """Every finding of one readiness comment with its outcome, lenses, and reactions."""
     reactions = reactions or {}
-    return [
-        ScoredFinding(
-            finding.number,
-            outcome_of(finding),
-            lenses_of(finding),
-            *reactions.get(finding.number, (0, 0)),
-        )
-        for finding in parse_findings(body)
-    ]
+    return [_scored(finding, *reactions.get(finding.number, (0, 0))) for finding in parse_findings(body)]
+
+
+def _scored(finding: Finding, up: int, down: int) -> ScoredFinding:
+    first = finding.text.splitlines()[0] if finding.text else ""
+    anchor = _ANCHOR.search(first)
+    title = _TITLE_TEXT.match(first)
+    fixed = _FIXED_IN.search(after_title(finding.text))
+    lowered = _LOWERED.search(first)
+    path = anchor.group(1) if anchor else None
+    return ScoredFinding(
+        finding.number,
+        outcome_of(finding),
+        lenses_of(finding),
+        finding.tier,
+        up,
+        down,
+        title.group(1) if title else "",
+        path,
+        int(anchor.group(2)) if anchor else None,
+        area_of(path) if path else None,
+        (fixed.group(1) or fixed.group(2)) if fixed else None,
+        lowered.group(1).strip() if lowered else None,
+        finding.text,
+    )
+
+
+def score_pull_request(
+    body: str, reactions: Mapping[int, tuple[int, int]] | None = None, details: PullRequestDetails | None = None
+) -> PullRequestScore:
+    """The findings of one readiness comment with its pass number, verdict, and, when given, pull request details."""
+    file_areas = {path: area_of(path) for path in details.files} if details else {}
+    return PullRequestScore(score_comment(body, reactions), pass_number(body), verdict(body), details, file_areas)
 
 
 def tally(scored: Collection[ScoredFinding]) -> dict[str, Counter[str]]:
@@ -95,22 +163,23 @@ def render_table(rows: Mapping[str, Counter[str]]) -> str:
 
 
 def collect_scores(
-    forge: ScorecardForge, numbers: Collection[int], authors: Collection[str]
-) -> tuple[list[ScoredFinding], list[int], dict[int, str]]:
-    """The findings of every readable pull request, the numbers scored, and why each unreadable one failed.
+    forge: ScorecardForge, numbers: Collection[int], authors: Collection[str], with_details: bool = False
+) -> tuple[dict[int, PullRequestScore], list[int], dict[int, str]]:
+    """The score of every pull request that has a readiness comment, the numbers read, and why each unreadable one failed.
 
-    A pull request with no readiness comment is counted as scored and contributes no findings.
+    A pull request with no readiness comment counts as read and has no score.
     """
-    scored: list[ScoredFinding] = []
+    scores: dict[int, PullRequestScore] = {}
     read: list[int] = []
     failed: dict[int, str] = {}
     for number in numbers:
         try:
             comment = forge.find_comment(number, authors)
             if comment is not None:
-                scored.extend(score_comment(comment.body, forge.finding_reactions(number, authors)))
+                details = forge.pull_request_details(number) if with_details else None
+                scores[number] = score_pull_request(comment.body, forge.finding_reactions(number, authors), details)
         except ForgeError as exc:
             failed[number] = str(exc)
         else:
             read.append(number)
-    return scored, read, failed
+    return scores, read, failed

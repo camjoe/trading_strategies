@@ -70,6 +70,22 @@ class PullRequest:
 
 
 @dataclass(frozen=True)
+class PullRequestDetails:
+    """What a forge knows about a pull request beyond its refs: who, when, how big, and which files."""
+
+    title: str
+    author: str
+    base_ref: str
+    head_ref: str
+    created_at: str
+    merged_at: str | None
+    additions: int
+    deletions: int
+    commit_count: int
+    files: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Comment:
     id: int
     body: str
@@ -179,8 +195,16 @@ class ScorecardForge(Protocol):
         """The readiness comment on *number* written by one of *authors*."""
         ...
 
+    def repository(self) -> str:
+        """A label for the repository, ``owner/name`` on GitHub, used to key stored scores."""
+        ...
+
     def merged_pull_requests(self, limit: int) -> list[int]:
         """Numbers of the most recently merged pull requests, newest first."""
+        ...
+
+    def pull_request_details(self, number: int) -> PullRequestDetails:
+        """Title, author, refs, times, size, and changed files of pull request *number*."""
         ...
 
     def finding_reactions(self, number: int, authors: Collection[str]) -> dict[int, tuple[int, int]]:
