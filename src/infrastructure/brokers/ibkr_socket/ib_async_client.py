@@ -19,8 +19,8 @@ from infrastructure.brokers.ibkr_socket.contracts import (
 _CONNECT_TIMEOUT_SECONDS = 20.0
 
 # ib_async waits forever on a request by default (`RequestTimeout = 0`); a Gateway that never
-# answers a completed-orders request must not hang the run that asked.
-_COMPLETED_ORDERS_TIMEOUT_SECONDS = 20.0
+# answers a lookup request must not hang the run that asked.
+_LOOKUP_REQUEST_TIMEOUT_SECONDS = 20.0
 
 # A rebuilt order's summed fills may differ from its total by float noise only.
 _FILL_TOTAL_TOLERANCE = 1e-6
@@ -118,7 +118,9 @@ class IbAsyncClient:
         An execution from before this connection is held in ``fills()`` but attached to no
         trade, so ``trades()`` omits that order. Its permId links the execution to the
         completed order that carries the total quantity and final status. Without both, the
-        order cannot be reported and None is returned.
+        order cannot be reported and None is returned. So is an order with a fill whose
+        commission report has not arrived, even after the executions are requested again:
+        ib_async reports a missing commission as 0.0, and that figure would be kept for good.
 
         Completed orders are requested once between calls to ``trades()``, and a timed-out
         request is raised again until then. ``reqCompletedOrders`` adds them to ib_async's trade
@@ -137,6 +139,10 @@ class IbAsyncClient:
         perm_id = int(fills[0].execution.permId) if fills else 0
         if perm_id == 0:
             return None
+        if _commission_missing(fills):
+            self._ib.run(self._ib.reqExecutionsAsync(), timeout=_LOOKUP_REQUEST_TIMEOUT_SECONDS)
+            if _commission_missing(fills):
+                return None
         completed = next((trade for trade in self._completed() if int(trade.order.permId) == perm_id), None)
         if completed is None:
             return None
@@ -167,9 +173,7 @@ class IbAsyncClient:
             raise self._completed_error
         if self._completed_orders is None:
             try:
-                orders = self._ib.run(
-                    self._ib.reqCompletedOrdersAsync(True), timeout=_COMPLETED_ORDERS_TIMEOUT_SECONDS
-                )
+                orders = self._ib.run(self._ib.reqCompletedOrdersAsync(True), timeout=_LOOKUP_REQUEST_TIMEOUT_SECONDS)
             except TimeoutError as exc:
                 self._completed_error = exc
                 raise
@@ -233,6 +237,11 @@ def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
         status_reason=_ib_async_status_reason(trade, status),
         order_ref=str(getattr(trade.order, "orderRef", "") or ""),
     )
+
+
+def _commission_missing(fills: list[Any]) -> bool:
+    # A report that has not arrived keeps ib_async's default, which has no execId.
+    return any(fill.commissionReport is None or not fill.commissionReport.execId for fill in fills)
 
 
 def _normalize_ib_async_fill(fill: Any) -> IbkrFill:

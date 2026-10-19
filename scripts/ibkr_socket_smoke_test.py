@@ -401,7 +401,7 @@ def _judge_lookup(looked_up: BrokerOrder | None, *, out: TextIO) -> str:
     if looked_up is None:
         print(
             "  FAIL get_order   : returned None for an order that filled on the first connection "
-            "(the native ibapi backend always does)",
+            "(the native ibapi backend always does, and so does an order whose commission report never arrived)",
             file=out,
         )
         return "fail"
@@ -415,7 +415,7 @@ def _judge_lookup(looked_up: BrokerOrder | None, *, out: TextIO) -> str:
     filled_from_fills = sum(fill.filled_qty for fill in looked_up.fills)
     print(f"  fills sum        : {filled_from_fills:g}", file=out)
     if any(fill.commission == 0 for fill in looked_up.fills):
-        print("  note             : a commission of 0 may mean IBKR had not reported it yet", file=out)
+        print("  note             : a commission of 0 was reported by IBKR as no charge", file=out)
     if len(looked_up.fills) > 1:
         print(
             "  note             : the fill arrived in parts; compare each price with IBKR's statement "

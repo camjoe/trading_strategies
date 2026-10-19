@@ -170,9 +170,11 @@ the runbooks describe the new host setup. Delete this plan in the PR that ships 
 ## Open questions for the owner
 - Decided: after a mid-week reboot the owner restarts the awake window by hand with one command
   (`sudo systemctl restart trading-awake.service`), documented in the host and operations runbooks. Nothing starts it at boot.
-- Deferred: a fill rebuilt by `get_order` carries commission 0 unless IBKR sent the commission report during
-  the startup sync, and exec-id dedup then keeps the real figure out. Decide after the host trial prints each
-  fill's commission and shows whether IBKR paper reports any.
+- Decided (cheap option, built): `find_trade` requests the executions again when a rebuilt fill's commission
+  report is missing, and leaves the order unreported if it is still missing, so a 0 always means IBKR reported
+  no charge. UNVERIFIED: if IBKR paper never sends commission reports, every rebuilt order stays unreported;
+  the host trial shows which, and then the fuller option (a nullable commission with a later correction)
+  becomes the question.
 - Deferred: two held accounts on one Gateway with the same `broker_client_id` would collide. Nothing holds
   two connections at once today, so it cannot happen until the loop job exists; decide then.
 - What Sunday-night time should the host wake, and by what time must the login be done before the

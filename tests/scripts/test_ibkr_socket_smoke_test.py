@@ -494,11 +494,11 @@ class TestFillLookupCheck:
         assert adapter.cancelled == ["77"]
         assert "INCONCLUSIVE: the order did not fill" in output
 
-    def test_each_fill_prints_its_commission_and_a_zero_is_flagged(self, monkeypatch) -> None:
+    def test_each_fill_prints_its_commission_and_a_zero_is_labelled_as_reported(self, monkeypatch) -> None:
         _, output = _run(monkeypatch, _FakeAdapter(), **self._fill_args())
 
         assert "commission 0 exec e1" in output
-        assert "commission of 0 may mean IBKR had not reported it yet" in output
+        assert "commission of 0 was reported by IBKR as no charge" in output
 
     def test_refuses_to_submit_against_a_live_account(self, monkeypatch) -> None:
         adapter = _FakeAdapter(accounts=["U1234567"])

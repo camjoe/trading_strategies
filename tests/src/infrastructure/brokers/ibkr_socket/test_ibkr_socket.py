@@ -564,7 +564,7 @@ def _sdk_fill(*, order_id=42, client_id=7, perm_id=9001, shares=4.0, price=150.0
             execId=exec_id,
             time="t",
         ),
-        commissionReport=SimpleNamespace(commission=0.5),
+        commissionReport=SimpleNamespace(commission=0.5, execId=exec_id),
     )
 
 
@@ -706,6 +706,39 @@ class TestIbAsyncFindTrade:
         backend.trades.return_value = [_sdk_known_trade(), completed]
 
         assert [trade.order_id for trade in client.trades()] == [42]
+
+    def test_a_missing_commission_report_is_requested_again_and_used_when_it_arrives(self, monkeypatch):
+        fill = _sdk_fill(shares=4.0)
+        fill.commissionReport = SimpleNamespace(commission=0.0, execId="")
+        client, backend = self._client(monkeypatch, fills=[fill], completed=[_sdk_completed(total=4.0)])
+
+        def report_arrives():
+            fill.commissionReport = SimpleNamespace(commission=1.25, execId="e1")
+            return []
+
+        backend.reqExecutionsAsync.side_effect = report_arrives
+
+        trade = client.find_trade(42)
+
+        backend.reqExecutionsAsync.assert_called_once_with()
+        assert trade is not None
+        assert trade.fills[0].commission == 1.25
+
+    def test_a_commission_report_that_never_arrives_leaves_the_order_unreported(self, monkeypatch):
+        fill = _sdk_fill(shares=4.0)
+        fill.commissionReport = SimpleNamespace(commission=0.0, execId="")
+        client, backend = self._client(monkeypatch, fills=[fill], completed=[_sdk_completed(total=4.0)])
+
+        assert client.find_trade(42) is None
+        backend.reqExecutionsAsync.assert_called_once_with()
+
+    def test_commission_reports_that_are_all_present_are_not_requested_again(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[_sdk_completed(total=4.0)]
+        )
+
+        assert client.find_trade(42) is not None
+        backend.reqExecutionsAsync.assert_not_called()
 
     def test_trades_starts_a_new_pass_so_a_later_lookup_asks_again(self, monkeypatch):
         client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
