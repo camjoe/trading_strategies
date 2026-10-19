@@ -1,6 +1,6 @@
 # Plan: more trading and more evidence on the IBKR paper accounts
 
-Status: drafted 2026-10-09. Not started. Nothing below has been run against the IBKR host.
+Status: drafted 2026-10-09; design B chosen 2026-10-19. Not started. Nothing below has been run against the IBKR host.
 Branch to use: `feature/more-trading-evidence`, off `develop`.
 
 ## Goal
@@ -23,7 +23,8 @@ gates need at least 20 trades in the lookback window (default 30 days) before th
 | Consider expanding the universe | Wanted. Size and which tickers undecided. |
 | Consider raising the per-run trade caps | Possibly. Decide after the universe change shows whether caps bind. |
 | Leave strategy signals as they are | Decided. Signals are likely fine. |
-| Trade more than once per day | Wanted. Either extra scheduled runs or a periodic check through the day. Undecided which. |
+| Trade more than once per day | Decided 2026-10-19: design B, a periodic intraday job (not extra scheduled daily runs). Built as B1 below: the scheduler learns a repeat interval. |
+| What an intraday run acts on | Decided 2026-10-19: partial-day bars. An intraday run evaluates strategies on today's unfinished bar. Whether the data provider returns one is UNVERIFIED and is step 1. |
 | Address the consequences of intraday trading | Required as part of this work. See the list below. |
 
 ## Work items
@@ -49,37 +50,75 @@ gates need at least 20 trades in the lookback window (default 30 days) before th
 - UNVERIFIED: which accounts count as "primary", and whether the caps have ever bound. Check recent
   run logs for runs that stopped at the cap before changing any number.
 
-### 3. More runs per day
-Two designs, to be chosen:
-- **A. More scheduled runs.** Add entries to `job_schedule.json`. UNVERIFIED: whether the scheduler
-  accepts the same job id twice, and whether the entry would need distinct names.
-- **B. A periodic check through the day.** A new or reworked job that runs every N minutes in market
-  hours. Larger change; needs its own runtime-job scaffold (`create-runtime-job` skill).
+### 3. Intraday runs (design B1, chosen 2026-10-19)
+A new runtime job that runs every N minutes through US market hours, started by a scheduler that learns a
+repeat interval. Rejected: design A (extra `daily_paper_trading` entries) because the duplicate-run guard
+skips every run after the first `COMPLETE` of the day; design B3 (one job started each morning that loops until
+the close) because it is a long-running process on a host that sleeps, with its own crash and restart handling,
+where B1 keeps one short process per run, one log per run, and the existing timer model.
 
-Consequences to settle before shipping either design (none verified yet):
-- The daily job also snapshots accounts, writes the report, and sends notifications on every run.
-  Repeats would multiply those or need splitting from the trading step.
-- Strategies use daily bars. More runs per day may mostly re-evaluate the same signal. Confirm that a
-  second run in the same day does not re-submit an order for a signal already acted on.
-- Open orders, partial fills, and reconcile timing between runs on the shared IBKR account.
+**Scheduler (verified in the code, 2026-10-19).** A schedule entry has one `time` (`HH:MM`) and an optional
+`day_of_week`; `job_catalog.py` and `scheduler_installer.py` have no repeat interval. Add one, for example
+`interval_minutes` with a window start and end, and teach the installer's three targets (systemd `OnCalendar`,
+cron, Windows Task Scheduler) to express it. The production host is Linux, so systemd comes first.
+UNVERIFIED: how the installer's cron and Windows paths would express a windowed interval; the host's timezone and
+daylight-saving handling for a window in market time.
+
+**The intraday job.**
+- New runtime job (use the `create-runtime-job` skill) with its own job name and period tag, so the daily job's
+  `COMPLETE` sentinel and duplicate-run guard are untouched, and the daily health check still watches only the
+  daily log.
+- Trading only: reconcile, trade, reconcile. The snapshot, the report, and the success notification stay with
+  the daily job.
+- Its run artifacts must not be named `daily_paper_trading_*.json`: burn-in and the daily report read that
+  pattern, and several runs a day would be counted as one date's runs (a failure or broker anomaly in any run
+  fails the date). Decide separately whether burn-in should ever count intraday runs.
+- Alerts: a skipped-account, broker-anomaly, or unresolved-orders `warn` repeats on every run. Send an intraday
+  alert once per day per account and cause, or only on a change.
+
+**Reruns and duplicate orders (verified: selection code).** Buys are signaled tickers not already held and
+sells are signaled tickers held, so once a fill is reconciled a rerun with the same signal does nothing, and
+step 01 applies fills before each run trades. The gap is an order still working at the broker: the ticker is
+not held yet, so a rerun could buy it again. The intraday job needs an explicit "skip a ticker that has an open
+or pending order" check before it submits.
+
+**Partial-day bars (the chosen input).** Strategies evaluated on an unfinished bar can flip between buy and
+sell within a day. Risks to settle before shipping:
+- Whipsaw and same-day round trips. Consider a minimum hold or hysteresis, and confirm whether a signal that
+  flips back should be acted on at all.
+- IBKR day-trading rules for small margin accounts: UNVERIFIED whether they apply to this paper account.
+- What the data provider returns for today before the close: UNVERIFIED. If it returns no partial bar, intraday
+  runs re-evaluate the same signal and add no evidence; this is step 1 below. A read-only probe script (its own
+  pull request, under `scripts/data_ops/`) is run on the host while the market is open.
+- The market-data cache (verified in the code): signals read `fetch_ohlcv(ticker, period, "1d")`, which goes
+  through a 24-hour on-disk cache keyed by ticker, period, and interval. A second run in the same day reads the
+  first run's bars from disk, so intraday runs see no new data unless the cache is disabled
+  (`TRADING_MARKET_DATA_CACHE_DISABLED`) or its lifetime is cut for the intraday job. This must change with the
+  intraday job; the probe shows the cached and fresh bars side by side.
+- Backtests and the evidence the advisor reads assume daily-bar decisions. Intraday trades are a different
+  kind of evidence; label them so the scorecards and promotion review can separate them.
+
+**Other consequences to settle (none verified yet).**
 - One shared cash pool across seven accounts: more trades means more chances to run out of cash.
-- Rate limits and session health on the IBKR gateway (global 10 requests per second guard; the
-  keepalive service).
-- IBKR day-trading rules for small margin accounts: UNVERIFIED whether they apply to this paper
-  account. Check before relying on same-day round trips.
-- The success sentinel and the health check assume one daily run. Both need review.
-- Order of work with the contract-rules plan (`contract-trading-rules.md`): a bigger universe makes
-  more contract types likely, which that plan exists to handle.
+- Rate limits and session health on the IBKR gateway (the global 10 requests per second guard). The branch
+  `feature/ib-gateway-socket-switch` replaces the Client Portal keepalive with a held IB Gateway connection and a
+  gateway health check, and sets a weekday awake window; intraday runs must fit inside that window.
+- Order of work with the contract-rules plan (`contract-trading-rules.md`): a bigger universe makes more
+  contract types likely, which that plan exists to handle.
 
 ## Suggested order
-1. Run as is for a few weeks to build a baseline. Record trades per account per day.
-2. Universe change on one account, then the rest.
-3. Decide on caps from the logs.
-4. Pick A or B for more runs and resolve the consequences list.
+1. Find out what the data provider returns for today's bar before the close: run the probe script on the host
+   in session. This decides whether intraday runs can produce new signals at all.
+2. Run the daily job as is for a few weeks to build a baseline. Record trades per account per day.
+3. Universe change on one account, then the rest.
+4. Decide on caps from the logs.
+5. Scheduler interval support (its own pull request), then the intraday job (another), then resolve the
+   partial-bar risks above before enabling it on more than one account.
 
 ## Developer verification (fill in when the work ships)
 - `list-accounts` / `parameters` show the new universe.
 - Run logs show the new run times and the trades per run.
+- The scheduler lists the intraday job with its interval and window; the daily job's schedule is unchanged.
 
 ## Out of scope
 Renaming accounts. Enabling rotation. Changing strategy signal logic.
