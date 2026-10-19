@@ -111,7 +111,8 @@ python -m scripts.forge review-scorecard --from-db --human
 ```
 
 A `decision` or `info` finding that ends `author` with no Decision was escalated without need; a `fix` finding that
-ends `owner` was under-flagged. Findings from before this format show as `(not recorded)`. The database also keeps each
+ends `owner` was under-flagged. A Closed line carries the prediction in its tag, so closed findings are counted too. Findings from before this
+format show as `(not recorded)`. The database also keeps each
 finding's kind (`bug`, `safety`, `docs`, `test`, `design`, `wording`), the pass that first reported it, and the pass
 that closed it. A version 2 file is migrated in place; any other version is refused untouched.
 
