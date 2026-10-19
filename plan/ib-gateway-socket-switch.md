@@ -168,14 +168,13 @@ The trial week completes with no manual step except the one weekly login, reconc
 the runbooks describe the new host setup. Delete this plan in the PR that ships the work.
 
 ## Open questions for the owner
-- After a mid-week reboot nothing restarts the awake window, so there is no sleep inhibitor and no health
-  alert while the Gateway is logged out. Start the window at boot only inside Sunday to Friday, or document
-  a manual `systemctl start trading-awake.service` after any reboot?
-- A fill rebuilt by `get_order` carries commission 0 unless IBKR sent the commission report during the
-  startup sync, and exec-id dedup then keeps the real figure out. Treat a 0 commission on a rebuilt fill as
-  unknown, or accept it? The host trial prints each fill's commission to show which happens.
-- Two held accounts on one Gateway with the same `broker_client_id` would collide. Reject or warn when the
-  loop job leases them, or require distinct ids per account?
+- Decided: after a mid-week reboot the owner restarts the awake window by hand with one command
+  (`sudo systemctl restart trading-awake.service`), documented in the host and operations runbooks. Nothing starts it at boot.
+- Deferred: a fill rebuilt by `get_order` carries commission 0 unless IBKR sent the commission report during
+  the startup sync, and exec-id dedup then keeps the real figure out. Decide after the host trial prints each
+  fill's commission and shows whether IBKR paper reports any.
+- Deferred: two held accounts on one Gateway with the same `broker_client_id` would collide. Nothing holds
+  two connections at once today, so it cannot happen until the loop job exists; decide then.
 - What Sunday-night time should the host wake, and by what time must the login be done before the
   health check alerts?
 - Should the weekend suspend stay, or is the machine simply left on all week once this works?

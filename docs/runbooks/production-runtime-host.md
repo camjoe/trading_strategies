@@ -507,6 +507,18 @@ UNVERIFIED that the desktop's idle suspend and the lid switch respect it on this
 If they do not, mask the targets for the week instead (`systemctl mask sleep.target suspend.target
 hibernate.target hybrid-sleep.target` from the start unit, `unmask` from the stop one).
 
+If the window is not running (the host rebooted mid-week, or a report is missing for a day), one command
+starts it again, together with the health alert, which is bound to it:
+
+```bash
+sudo systemctl restart trading-awake.service
+```
+
+It is safe at any time. A window started outside Sunday to Friday ends at the next Friday stop timer.
+Confirm with `systemctl is-active trading-awake.service ibkr-gateway-health.service`. Then check the
+Gateway is logged in: a reboot leaves it logged out. UNVERIFIED on the host that `restart` brings the
+health unit back up with the window; 6.6 checks it.
+
 ### 6.3 The health alert
 
 `/etc/systemd/system/ibkr-gateway-health.service`, which runs only while the awake window does:
@@ -573,6 +585,7 @@ These settle what is UNVERIFIED above. Record the answers in `local/operations/p
 
 | Check | How | Settles |
 |---|---|---|
+| The restart command works | Stop the window with `sudo systemctl stop trading-awake.service`, then run `sudo systemctl restart trading-awake.service` | the window and the health alert both come back |
 | The inhibitor holds | Sunday after the window starts: `systemd-inhibit --list` shows `trading`; leave the host idle past the desktop's suspend timeout and confirm it stays up | the idle suspend and lid switch respect it |
 | The host wakes | Suspend it before Sunday 18:00: `systemctl list-timers trading-awake-start.timer` shows the next run; it should be awake at that time | `WakeSystem` works on this hardware |
 | Login survives the week | Log in Sunday; each morning check `journalctl -u ibkr-gateway-health.service -n 5` shows no alert and the daily run connected | the Gateway's auto-restart needs no login mid-week |

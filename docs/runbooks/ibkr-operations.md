@@ -43,6 +43,8 @@ systemctl is-active trading-awake.service ibkr-gateway-health.service
 systemd-inhibit --list | grep trading
 ```
 
+If either service is not `active` (the host rebooted mid-week, or no report came in for a day), run
+`sudo systemctl restart trading-awake.service`, which starts the window and the health alert together.
 If the Gateway is not running, start it from the desktop. Nothing logs in for you. Until you do, the
 health alert sends a `fail` after 15 minutes; log in and it sends `ok`.
 
@@ -211,7 +213,8 @@ its books catch up when you run it.
 
 ### Recovering
 
-1. Fix the cause: start IB Gateway and log in on the host's desktop.
+1. Fix the cause: start IB Gateway and log in on the host's desktop. If the awake window or the health
+   alert is not running, `sudo systemctl restart trading-awake.service` first.
 2. Check the Gateway with `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99`.
 3. Re-run the trader if the market is still open. If a day was missed, backfill it with
    `replay_daily_runs` (see [runtime-operations.md](runtime-operations.md#run-did-not-execute-scheduler-missed)).
