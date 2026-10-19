@@ -151,6 +151,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `build_database_diagram_viewer.py` | Build the checked-in interactive HTML database diagram viewer at `docs/reference/database-diagram-viewer.html` |
 | `capture_scenario_fixture.py` | Capture a real-history scenario-bench fixture into the untracked `local/scenario_bench/` (one episode, or all) |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
+| `probe_intraday_bars.py` | Read-only probe of what the market-data provider returns for today's daily bar in session: whether it is dated today, whether the on-disk cache and a fresh fetch agree, and whether a later fetch moves the bar |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
