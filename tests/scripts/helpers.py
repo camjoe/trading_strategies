@@ -21,10 +21,10 @@ NEW_BODY = (
     "- [ ] **5. A note.** `src/a.py:9`: text. → info: what does the host run? "
     "[Break it, rated CONCERN; lowered to NOTE because unconfirmed · bug · pass 3]\n\n</details>\n\n"
     "<details>\n<summary>✓ Closed (3)</summary>\n\n#### Closed (3)\n"
-    "- [x] **1. Fixed by the fixer.** `src/a.py:1`: Fixed in `abc1234` (pass 2, by fixer): ok. [Operator · bug · pass 1]\n"
+    "- [x] **1. Fixed by the fixer.** `src/a.py:1`: Fixed in `abc1234` (pass 2, by fixer): ok. [Operator · bug · fix · pass 1]\n"
     "- [x] **2. Fixed by the author.** `docs/a.md:2`: Fixed in `def5678` (pass 3, by author): ok. "
-    "[Test skeptic · test · pass 1]\n"
-    "- [x] **3. Decided.** `src/b.py:3`: Decided (pass 3, by owner): keep it. [Simplifier · wording · pass 2]\n"
+    "[Test skeptic · test · fix · pass 1]\n"
+    "- [x] **3. Decided.** `src/b.py:3`: Decided (pass 3, by owner): keep it. [Simplifier · wording · decision · pass 2]\n"
     "  *Decision: Approved by the owner on 2026-10-18: keep it.*\n"
     "</details>\n"
 )

@@ -587,3 +587,40 @@ class TestTagFromTheRight:
 
         assert (only_kind.kind, only_kind.opened_pass, only_kind.lenses) == ("docs", None, ("Operator",))
         assert (only_pass.kind, only_pass.opened_pass) == (None, 4)
+
+
+class TestPredictionOnClosedLines:
+    def _closed(self, tag: str):
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### Closed (1)\n"
+            f"- [x] **1. T.** `a.py:1`: Fixed in `abc1234` (pass 2, by author): ok. [{tag}]\n"
+        )
+        return score_comment(body)[0]
+
+    def test_a_closed_line_gives_its_predicted_need_from_the_tag(self) -> None:
+        finding = self._closed("Operator · bug · decision · pass 1")
+
+        assert (finding.needs, finding.kind, finding.opened_pass, finding.lenses) == (
+            "decision",
+            "bug",
+            1,
+            ("Operator",),
+        )
+
+    def test_a_closed_line_in_the_earlier_layout_has_no_predicted_need(self) -> None:
+        finding = self._closed("Operator · bug · pass 1")
+
+        assert finding.needs is None and finding.kind == "bug"
+
+    def test_the_tag_is_read_from_the_right_whatever_is_missing(self) -> None:
+        assert self._closed("Operator · fix").needs == "fix"
+        assert self._closed("Operator · bug · info").kind == "bug"
+        assert self._closed("Operator · info · pass 3").opened_pass == 3
+
+    def test_an_open_finding_takes_the_need_from_its_hint(self) -> None:
+        body = (
+            f"{READINESS_MARKER}\n## PR readiness: READY\n\nx\n\n#### 🟡 Notes (1)\n"
+            "- [ ] **1. T.** `a.py:1`: x. → info: what does the host run? [Operator · design · pass 2]\n"
+        )
+
+        assert score_comment(body)[0].needs == "info"

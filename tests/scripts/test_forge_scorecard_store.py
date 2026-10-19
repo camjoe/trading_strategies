@@ -501,7 +501,7 @@ class TestHumanInput:
             .execute("SELECT kind, needs, opened_pass, closed_pass, closed_by, area FROM finding WHERE number = 2")
             .fetchone()
         )
-        assert row == ("test", None, 1, 3, "author", "docs")
+        assert row == ("test", "fix", 1, 3, "author", "docs")
 
 
 class TestInterruptedFiles:
@@ -562,3 +562,19 @@ class TestHumanTableCounts:
         assert rows["fix"] == ["1", "0", "0", "0", "0"]
         assert rows["decision"] == ["0", "2", "0", "0", "0"]
         assert rows["info"] == ["0", "0", "0", "1", "0"]
+
+
+class TestHumanInputFromARealComment:
+    def test_closed_and_open_findings_are_counted_by_prediction_and_ending(self, tmp_path) -> None:
+        with ScoreStore(tmp_path / "s.db") as store:
+            store.save("o/r", 20, score_pull_request(NEW_BODY))
+
+            counts = store.human_input()
+
+        assert counts == {
+            ("fix", "fixer"): 1,
+            ("fix", "author"): 1,
+            ("decision", "owner"): 1,
+            ("decision", "left open"): 1,
+            ("info", "left open"): 1,
+        }

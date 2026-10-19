@@ -178,7 +178,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>✓ Closed (<n>)</summary>
 
 #### Closed (<n>)
-- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · pass <n>]
+- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · <fix|decision|info> · pass <n>]
 
 </details>
 
@@ -204,6 +204,8 @@ CI is the backstop · bug · pass 2]`.
 Start the text after `→` with one word. `fix`: the author can resolve it alone. `decision`: the owner must choose
 between options. `info`: it cannot be resolved without a fact only the owner has. `<kind>` is the reviewer's `kind`,
 and `pass <n>` in the tag is the pass that first reported the finding; a later pass copies both unchanged.
+A Closed line copies that first word into its tag, after `<kind>`, so what the reviewer predicted can be compared
+with how the finding ended.
 
 **Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
 sentences, one idea in each. Say what is wrong, where, and what to do. Leave out stacked clauses, anything the
@@ -228,7 +230,7 @@ most and never makes the title NOT READY. If the code is wrong today, whether or
 the defect in its usual tier and name the test to add after its `→`. Tests items are fixed and closed like notes.
 
 A closed finding (fixed, or covered by a *Decision*) keeps its number, goes under Closed, and shrinks to one
-line with its box checked, its `<path>:<line>`, and its reviewer tag kept: `- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · pass <n>]` A finding
+line with its box checked, its `<path>:<line>`, and its reviewer tag kept: `- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · <fix|decision|info> · pass <n>]` A finding
 covered by a *Decision* says `Decided (pass <n>, by owner)` instead of `Fixed in <sha> (...)`. `by fixer` is a commit from the fixer loop and `by author` is any other fix; `pass` is the pass that closed it. When a *Decision* exists, it replaces the finding's
 `*Not fixed*` or `*Left*` line.
 

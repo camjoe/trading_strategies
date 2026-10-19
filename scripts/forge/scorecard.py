@@ -15,6 +15,7 @@ from scripts.forge.readiness import pass_number
 
 _TAG = re.compile(r"\[([^\[\]]+)\]\s*$")
 KINDS = ("bug", "safety", "docs", "test", "design", "wording")
+NEEDS = ("fix", "decision", "info")
 _PASS_SEGMENT = re.compile(r"pass (\d+)")
 _NEEDS = re.compile(r"→\s*(fix|decision|info):")
 _CLOSED_BY = re.compile(r"\(pass (\d+), by (fixer|author|owner)\)")
@@ -81,30 +82,36 @@ class PullRequestScore:
     file_areas: dict[str, str] = field(default_factory=dict)
 
 
-def _tag_parts(finding: Finding) -> tuple[str, str | None, int | None]:
-    """The reviewers text, the kind, and the opening pass from the trailing ``[reviewers · kind · pass n]`` tag."""
+def _tag_parts(finding: Finding) -> tuple[str, str | None, str | None, int | None]:
+    """The reviewers text, kind, predicted need, and opening pass from the trailing ``[reviewers · kind · need · pass n]`` tag.
+
+    The kind, the need (a Closed line only), and the pass are each optional and read from the right.
+    """
     match = _TAG.search(finding.text.splitlines()[0]) if finding.text else None
     if match is None:
-        return "", None, None
+        return "", None, None, None
     segments = [segment.strip() for segment in match.group(1).split(" · ")]
     kind: str | None = None
+    need: str | None = None
     opened: int | None = None
     while len(segments) > 1:
         last = segments[-1]
         pass_match = _PASS_SEGMENT.fullmatch(last)
         if pass_match and opened is None:
             opened = int(pass_match.group(1))
+        elif last in NEEDS and need is None:
+            need = last
         elif last in KINDS and kind is None:
             kind = last
         else:
             break
         segments.pop()
-    return " · ".join(segments), kind, opened
+    return " · ".join(segments), kind, need, opened
 
 
 def lenses_of(finding: Finding) -> tuple[str, ...]:
     """The lens names in the finding's trailing ``[...]`` tag, without model or sample suffixes."""
-    reviewers, _, _ = _tag_parts(finding)
+    reviewers, _, _, _ = _tag_parts(finding)
     if not reviewers:
         return (UNTAGGED,)
     names: list[str] = []
@@ -142,7 +149,7 @@ def _scored(finding: Finding, up: int, down: int) -> ScoredFinding:
     title = _TITLE_TEXT.match(first)
     said = after_title(finding.text)
     fixed = _FIXED_IN.search(said)
-    reviewers, kind, opened = _tag_parts(finding)
+    reviewers, kind, tag_need, opened = _tag_parts(finding)
     lowered = _LOWERED.search(reviewers)
     needs = _NEEDS.search(first)
     closed = _CLOSED_BY.search(said)
@@ -162,7 +169,7 @@ def _scored(finding: Finding, up: int, down: int) -> ScoredFinding:
         lowered.group(1).strip() if lowered else None,
         finding.text,
         kind,
-        needs.group(1) if needs else None,
+        needs.group(1) if needs else tag_need,
         opened,
         int(closed.group(1)) if closed else None,
         closed.group(2) if closed else None,
