@@ -56,6 +56,7 @@ def test_a_refused_connection_is_unreachable() -> None:
     state, detail = _check(client)
 
     assert state is module.GatewayState.UNREACHABLE
+    assert "ConnectionRefusedError" in detail
     assert "Connection refused" in detail
     assert client.disconnects == 1
 
@@ -71,7 +72,21 @@ def test_a_runtime_error_from_the_client_is_rejected() -> None:
     state, detail = _check(FakeClient(RuntimeError("native handshake failed")))
 
     assert state is module.GatewayState.REJECTED
-    assert detail == "native handshake failed"
+    assert detail == "RuntimeError: native handshake failed"
+
+
+def test_an_unexpected_exception_is_a_failed_state_not_a_crash() -> None:
+    state, detail = _check(FakeClient(KeyError("clientId")))
+
+    assert state is module.GatewayState.REJECTED
+    assert detail.startswith("KeyError")
+
+
+def test_a_timeout_is_unreachable_and_names_the_exception() -> None:
+    state, detail = _check(FakeClient(TimeoutError("startup sync")))
+
+    assert state is module.GatewayState.UNREACHABLE
+    assert detail == "TimeoutError: startup sync"
 
 
 def test_a_failing_disconnect_does_not_change_the_state() -> None:
@@ -125,6 +140,13 @@ def test_alerts_once_when_lost_and_once_when_recovered() -> None:
 
 def test_a_move_between_failure_states_alerts_again() -> None:
     assert run_scripted([DOWN, LOGGED_OUT]) == [DOWN, LOGGED_OUT]
+
+
+def test_the_grace_clock_survives_a_change_between_failure_states() -> None:
+    # Checks at 0, 300 and 600 s; the third fails differently, 600 s after the first failure.
+    alerts = run_scripted([DOWN, DOWN, LOGGED_OUT], grace_seconds=600.0)
+
+    assert alerts == [LOGGED_OUT]
 
 
 def test_an_outage_shorter_than_the_grace_period_sends_nothing() -> None:

@@ -92,14 +92,15 @@ class IbkrSocketAdapter(BrokerConnection):
         Only OS-level failures are retried (refused, timed out, sync error); anything else
         propagates at once. The last failure is raised when every attempt fails.
         """
-        for delay in _CONNECT_RETRY_DELAYS_SECONDS:
+        for delay in (*_CONNECT_RETRY_DELAYS_SECONDS, None):
             try:
                 self._client.connect(self.host, self.port, client_id=self.client_id)
                 return
             except OSError as exc:
+                if delay is None:
+                    raise
                 logger.warning("IBKR socket connect failed (%s); retrying in %.0f s.", exc, delay)
                 self._sleep(delay)
-        self._client.connect(self.host, self.port, client_id=self.client_id)
 
     def disconnect(self) -> None:
         """Disconnect from TWS/IB Gateway."""

@@ -1,5 +1,7 @@
 """Hold one IBKR socket connection per account across several phases of a long-running process.
 
+No job uses this yet: every daily phase still connects through ``get_broker_for_account`` and disconnects.
+
 ``get_broker_for_account`` connects on every call and callers disconnect in a ``finally``. A
 :class:`BrokerSession` is passed in its place as ``broker_factory``: the first lease for an account
 connects through the factory, later leases reuse that connection, and the lease's ``disconnect()``

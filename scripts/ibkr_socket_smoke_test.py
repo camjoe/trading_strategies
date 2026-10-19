@@ -370,7 +370,7 @@ def _submit_market_order(
 def _report_unfilled(
     adapter: IbkrSocketAdapter, broker_order_id: str, observed: BrokerOrder | None, *, out: TextIO, wait_seconds: float
 ) -> str:
-    """Report an order that did not fill; return "fail" if IBKR ended it, else "inconclusive"."""
+    """Report an order that did not fill; return "refused" if IBKR ended it, else "inconclusive"."""
     detail = _describe_order(observed) if observed is not None else "never reported by get_open_trades()"
     print(f"  first connection : {detail}", file=out)
     if observed is not None and observed.status in _TERMINAL_STATUSES:
@@ -379,26 +379,43 @@ def _report_unfilled(
             "If the size was fractional, the socket path may not accept it.",
             file=out,
         )
-        return "fail"
+        return "refused"
     try:
         adapter.cancel_order(broker_order_id)
         print("  cancel           : requested", file=out)
     except Exception as exc:
         print(f"  cancel           : best-effort failed ({type(exc).__name__}: {exc})", file=out)
-    print(f"  INCONCLUSIVE     : no fill within {wait_seconds:g} s. Run this while the market is open.", file=out)
+    if observed is not None and observed.status == OrderStatus.PARTIALLY_FILLED:
+        print(
+            f"  PARTIAL          : {observed.filled_qty:g} of {observed.qty:g} filled within {wait_seconds:g} s; "
+            "the remainder was cancelled and a partial paper position remains.",
+            file=out,
+        )
+    else:
+        print(f"  INCONCLUSIVE     : no fill within {wait_seconds:g} s. Run this while the market is open.", file=out)
     return "inconclusive"
 
 
 def _judge_lookup(looked_up: BrokerOrder | None, *, out: TextIO) -> str:
     """Print what get_order rebuilt after the reconnect and return "pass" or "fail"."""
     if looked_up is None:
-        print("  FAIL get_order   : returned None for an order that filled on the first connection", file=out)
+        print(
+            "  FAIL get_order   : returned None for an order that filled on the first connection "
+            "(the native ibapi backend always does)",
+            file=out,
+        )
         return "fail"
     print(f"  get_order        : {_describe_order(looked_up)}", file=out)
     for index, fill in enumerate(looked_up.fills, start=1):
-        print(f"  fill {index}           : {fill.filled_qty:g} @ {fill.fill_price:g} exec {fill.exec_id}", file=out)
+        print(
+            f"  fill {index}           : {fill.filled_qty:g} @ {fill.fill_price:g} "
+            f"commission {fill.commission:g} exec {fill.exec_id}",
+            file=out,
+        )
     filled_from_fills = sum(fill.filled_qty for fill in looked_up.fills)
     print(f"  fills sum        : {filled_from_fills:g}", file=out)
+    if any(fill.commission == 0 for fill in looked_up.fills):
+        print("  note             : a commission of 0 may mean IBKR had not reported it yet", file=out)
     if len(looked_up.fills) > 1:
         print(
             "  note             : the fill arrived in parts; compare each price with IBKR's statement "
@@ -425,7 +442,9 @@ def run_fill_lookup_check(
     wait_seconds: float,
     managed_accounts: list[str],
 ) -> str:
-    """Fill a market order, reconnect, and look it up by id. Returns "pass", "fail" or "inconclusive".
+    """Fill a market order, reconnect, and look it up by id.
+
+    Returns "pass", "fail" (the lookup was wrong), "refused" (IBKR ended the order) or "inconclusive".
 
     "inconclusive" means the order did not fill in time (the market is probably closed), so
     nothing about the lookup was learned; the order is cancelled on a best-effort basis.
@@ -458,8 +477,11 @@ def _report_verdict(args: argparse.Namespace, out: TextIO, *, round_trip_ok: boo
         print("\nFAIL: socket path reachable, but the order round trip could not be verified.", file=out)
         return 1
 
+    if fill_lookup_result == "refused":
+        print("\nFAIL: IBKR refused or cancelled the order, so get_order() was not exercised.", file=out)
+        return 1
     if fill_lookup_result == "fail":
-        print("\nFAIL: the order filled or was refused, but get_order() could not rebuild it.", file=out)
+        print("\nFAIL: the order filled, but get_order() could not rebuild it correctly.", file=out)
         return 1
     if fill_lookup_result == "inconclusive":
         print("\nINCONCLUSIVE: the order did not fill, so get_order() was not exercised.", file=out)

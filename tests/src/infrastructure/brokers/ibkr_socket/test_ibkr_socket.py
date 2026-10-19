@@ -674,7 +674,7 @@ class TestIbAsyncFindTrade:
         client, backend = self._client(
             monkeypatch,
             fills=[_sdk_fill(), _sdk_fill(order_id=43, perm_id=9002, exec_id="e9")],
-            completed=[_sdk_completed(), _sdk_completed(perm_id=9002)],
+            completed=[_sdk_completed(total=4.0), _sdk_completed(perm_id=9002, total=4.0)],
         )
 
         assert client.find_trade(42) is not None
@@ -683,15 +683,45 @@ class TestIbAsyncFindTrade:
         backend.reqCompletedOrdersAsync.assert_called_once_with(True)
         assert backend.run.call_args.kwargs["timeout"] > 0
 
-    def test_a_timed_out_request_propagates_and_is_retried_next_time(self, monkeypatch):
-        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
+    def test_a_timed_out_request_is_not_repeated_until_the_next_pass(self, monkeypatch):
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed(total=4.0)])
         backend.run.side_effect = TimeoutError
 
         with pytest.raises(TimeoutError):
             client.find_trade(42)
+        with pytest.raises(TimeoutError):
+            client.find_trade(42)
+        assert backend.run.call_count == 1
+
         backend.run.side_effect = lambda awaitable, timeout=None: awaitable
+        client.trades()
 
         assert client.find_trade(42) is not None
+
+    def test_trades_leaves_out_the_completed_orders_find_trade_pulled_in(self, monkeypatch):
+        completed = _sdk_completed(total=4.0)
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[completed])
+        assert client.find_trade(42) is not None
+        # ib_async puts the completed orders it fetched into its own trade list.
+        backend.trades.return_value = [_sdk_known_trade(), completed]
+
+        assert [trade.order_id for trade in client.trades()] == [42]
+
+    def test_trades_starts_a_new_pass_so_a_later_lookup_asks_again(self, monkeypatch):
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
+        client.find_trade(42)
+
+        client.trades()
+        client.find_trade(42)
+
+        assert backend.reqCompletedOrdersAsync.call_count == 2
+
+    def test_an_order_whose_fills_fall_short_of_its_total_is_not_reported_as_filled(self, monkeypatch):
+        client, _ = self._client(
+            monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[_sdk_completed(status="Filled", total=10.0)]
+        )
+
+        assert client.find_trade(42) is None
 
     def test_ignores_executions_of_another_order_or_client(self, monkeypatch):
         client, backend = self._client(

@@ -42,7 +42,7 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 |---|---|
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
-| `session.py` | `BrokerSession`: leases one held socket connection per account in place of `broker_factory`, reconnecting through the factory when it drops |
+| `session.py` | `BrokerSession`: leases one held socket connection per account in place of `broker_factory`, reconnecting through the factory when it drops or the account row changes. No job uses it yet |
 | `ibkr_web/adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
 | `ibkr_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
 | `ibkr_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |

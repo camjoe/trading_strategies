@@ -22,6 +22,9 @@ _CONNECT_TIMEOUT_SECONDS = 20.0
 # answers a completed-orders request must not hang the run that asked.
 _COMPLETED_ORDERS_TIMEOUT_SECONDS = 20.0
 
+# A rebuilt order's summed fills may differ from its total by float noise only.
+_FILL_TOTAL_TOLERANCE = 1e-6
+
 
 class IbAsyncClient:
     """IBKR socket client backed by ``ib_async``.
@@ -38,6 +41,9 @@ class IbAsyncClient:
 
         self._ib = ib_async.IB()
         self._completed_orders: list[Any] | None = None
+        self._completed_error: Exception | None = None
+        # ids of the Trade objects reqCompletedOrders put into the session's trade list.
+        self._completed_trade_ids: set[int] = set()
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
         import ib_async  # noqa: PLC0415
@@ -54,6 +60,8 @@ class IbAsyncClient:
         # another request that can time out. Positions are always fetched by
         # ib_async regardless of the flags.
         self._completed_orders = None
+        self._completed_error = None
+        self._completed_trade_ids = set()
         self._ib.connect(
             host,
             port,
@@ -95,7 +103,14 @@ class IbAsyncClient:
         raise ValueError(f"No open IB order found with id {order_id!r}")
 
     def trades(self) -> list[IbkrTrade]:
-        return [_normalize_ib_async_trade(trade) for trade in self._ib.trades()]
+        # A new pass over the trade list: the next find_trade asks for completed orders again.
+        self._completed_orders = None
+        self._completed_error = None
+        return [_normalize_ib_async_trade(trade) for trade in self._session_trades()]
+
+    def _session_trades(self) -> list[Any]:
+        """The session's trades without the history ``reqCompletedOrders`` adds to them."""
+        return [trade for trade in self._ib.trades() if id(trade) not in self._completed_trade_ids]
 
     def find_trade(self, order_id: int) -> IbkrTrade | None:
         """Look up one order, including one that filled while no job was connected.
@@ -105,12 +120,12 @@ class IbAsyncClient:
         completed order that carries the total quantity and final status. Without both, the
         order cannot be reported and None is returned.
 
-        Completed orders are requested once per connection. ``reqCompletedOrders`` also adds
-        them to ``trades()`` with an unreliable ``orderId``, so do not call ``trades()``
-        again on this connection afterwards.
+        Completed orders are requested once between calls to ``trades()``, and a timed-out
+        request is raised again until then. ``reqCompletedOrders`` adds them to ib_async's trade
+        list with an unreliable ``orderId``; ``trades()`` leaves them out.
         """
         client_id = int(self._ib.client.clientId)
-        for trade in self._ib.trades():
+        for trade in self._session_trades():
             if int(trade.order.orderId) == order_id and int(trade.order.clientId) == client_id:
                 return _normalize_ib_async_trade(trade)
 
@@ -127,12 +142,17 @@ class IbAsyncClient:
             return None
 
         filled = sum(float(fill.execution.shares) for fill in fills)
+        total_quantity = float(completed.order.totalQuantity)
+        if str(completed.orderStatus.status) == "Filled" and filled < total_quantity - _FILL_TOTAL_TOLERANCE:
+            # An execution is missing from this connection's view; posting the rest would
+            # close the order with less than the broker holds.
+            return None
         notional = sum(float(fill.execution.shares) * float(fill.execution.price) for fill in fills)
         return IbkrTrade(
             order_id=order_id,
             symbol=str(completed.contract.symbol),
             action=str(completed.order.action),
-            total_quantity=float(completed.order.totalQuantity),
+            total_quantity=total_quantity,
             limit_price=float(completed.order.lmtPrice or 0.0),
             status=str(completed.orderStatus.status),
             filled=filled,
@@ -143,10 +163,18 @@ class IbAsyncClient:
         )
 
     def _completed(self) -> list[Any]:
+        if self._completed_error is not None:
+            raise self._completed_error
         if self._completed_orders is None:
-            self._completed_orders = self._ib.run(
-                self._ib.reqCompletedOrdersAsync(True), timeout=_COMPLETED_ORDERS_TIMEOUT_SECONDS
-            )
+            try:
+                orders = self._ib.run(
+                    self._ib.reqCompletedOrdersAsync(True), timeout=_COMPLETED_ORDERS_TIMEOUT_SECONDS
+                )
+            except TimeoutError as exc:
+                self._completed_error = exc
+                raise
+            self._completed_orders = orders
+            self._completed_trade_ids.update(id(trade) for trade in orders)
         return self._completed_orders
 
     def positions(self) -> list[IbkrPosition]:

@@ -7,7 +7,8 @@ Long-running worker, run as a service rather than from a scheduler:
 Every ``--interval-seconds`` it connects to the Gateway's API port, reads the managed accounts, and
 disconnects. It uses its own ``--client-id`` so it never takes the id a trading session holds. It
 cannot log in, and it cannot tell a stopped Gateway from one waiting at its login screen: both
-refuse the connection, and either needs the operator.
+refuse the connection, and either needs the operator. A connection that is accepted but times out is
+also reported as unreachable; the detail names the exception.
 
 A failure sends a runtime alert through the webhook and SMTP settings in the environment only once it
 has lasted ``--grace-seconds``, so the Gateway's own nightly restart passes without one; the recovery
@@ -67,9 +68,11 @@ def check_gateway(client: IbkrSocketClient, *, host: str, port: int, client_id: 
         client.connect(host, port, client_id=client_id)
         accounts = client.managed_accounts()
     except OSError as exc:
-        return GatewayState.UNREACHABLE, str(exc)
-    except RuntimeError as exc:
-        return GatewayState.REJECTED, str(exc)
+        return GatewayState.UNREACHABLE, f"{type(exc).__name__}: {exc}"
+    except Exception as exc:
+        # Anything else must not end the worker: a restart resets the grace period, so a
+        # persistent error would never alert.
+        return GatewayState.REJECTED, f"{type(exc).__name__}: {exc}"
     finally:
         try:
             client.disconnect()

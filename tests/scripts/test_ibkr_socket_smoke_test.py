@@ -31,6 +31,7 @@ class _FakeAdapter:
         self.market_order_status = market_order_status
         self.lookup = lookup
         self.connects = 0
+        self.events: list[str] = []
         self.connected = False
         self.disconnected = False
         self.quoted: list[str] = []
@@ -43,9 +44,11 @@ class _FakeAdapter:
             raise self.connect_error
         self.connected = True
         self.connects += 1
+        self.events.append("connect")
 
     def disconnect(self) -> None:
         self.disconnected = True
+        self.events.append("disconnect")
 
     def managed_accounts(self) -> list[str]:
         return list(self.accounts)
@@ -89,7 +92,9 @@ class _FakeAdapter:
                     price=order.price,
                     broker_order_id=self.submitted_order_id,
                     status=status,
-                    filled_qty=order.qty if status == OrderStatus.FILLED else 0.0,
+                    filled_qty={OrderStatus.FILLED: order.qty, OrderStatus.PARTIALLY_FILLED: order.qty / 2}.get(
+                        status, 0.0
+                    ),
                 )
             )
         self.last_placed = order
@@ -393,8 +398,9 @@ class TestFillLookupCheck:
         assert code == 0
         placed = adapter.placed[0]
         assert (placed.ticker, placed.side, placed.qty, placed.order_type) == ("AAPL", "buy", 0.5, OrderType.MARKET)
-        # One connection for the reads, one for the reconnect.
+        # One connection for the reads, one for the reconnect, and the first closes before the second opens.
         assert adapter.connects == 2
+        assert adapter.events[:3] == ["connect", "disconnect", "connect"]
         assert "first connection : status filled filled 0.5/0.5" in output
         assert "get_order        : status filled filled 0.5/0.5" in output
         assert "fill 1           : 0.5 @ 100" in output
@@ -473,6 +479,26 @@ class TestFillLookupCheck:
         assert "refused or cancelled" in output
         assert "fractional" in output
         assert adapter.cancelled == []
+        assert "get_order() was not exercised" in output
+        assert "could not rebuild" not in output
+
+    def test_a_partial_fill_is_cancelled_and_called_out(self, monkeypatch) -> None:
+        monkeypatch.setattr(ibkr_socket_smoke_test.time, "sleep", lambda _seconds: None)
+        adapter = _FakeAdapter(market_order_status=OrderStatus.PARTIALLY_FILLED)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "PARTIAL" in output
+        assert "0.25 of 0.5 filled" in output
+        assert adapter.cancelled == ["77"]
+        assert "INCONCLUSIVE: the order did not fill" in output
+
+    def test_each_fill_prints_its_commission_and_a_zero_is_flagged(self, monkeypatch) -> None:
+        _, output = _run(monkeypatch, _FakeAdapter(), **self._fill_args())
+
+        assert "commission 0 exec e1" in output
+        assert "commission of 0 may mean IBKR had not reported it yet" in output
 
     def test_refuses_to_submit_against_a_live_account(self, monkeypatch) -> None:
         adapter = _FakeAdapter(accounts=["U1234567"])

@@ -172,10 +172,12 @@ Socket:
 UPDATE accounts
 SET broker_type = 'interactive_brokers_socket_paper',
     broker_host = '127.0.0.1',
-    broker_port = 7497,
+    broker_port = 4002,
     broker_client_id = 11
 WHERE name = 'momentum_5k';
 ```
+
+`4002` is IB Gateway paper, the port the host runbook sets up; TWS paper is `7497`.
 
 Switch one account first. Leave the rest on `paper` until you trust the path.
 
