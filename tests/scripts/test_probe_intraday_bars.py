@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+import os
+from datetime import date, datetime, timezone
+
+import pandas as pd
+import pytest
+
+from scripts.data_ops import probe_intraday_bars as probe
+from scripts.data_ops.probe_intraday_bars import LastBar, TickerProbe
+
+TODAY = date(2026, 10, 19)
+
+
+def frame(day: date, close: float, volume: float = 1000.0) -> pd.DataFrame:
+    return pd.DataFrame(
+        {"close": [close - 1, close], "volume": [900.0, volume]},
+        index=pd.to_datetime([day.replace(day=day.day - 1), day]),
+    )
+
+
+class LiveLikeProvider:
+    """A provider with a disk-style cache: the first fetch is stored and served again unless the cache is disabled."""
+
+    def __init__(self, closes: list[float], day: date = TODAY) -> None:
+        self.closes = closes
+        self.day = day
+        self.network_calls = 0
+        self.stored: pd.DataFrame | None = None
+
+    def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        cache_off = os.environ.get("TRADING_MARKET_DATA_CACHE_DISABLED") == "1"
+        if self.stored is not None and not cache_off:
+            return self.stored
+        close = self.closes[min(self.network_calls, len(self.closes) - 1)]
+        self.network_calls += 1
+        result = frame(self.day, close)
+        if not cache_off:
+            self.stored = result
+        return result
+
+
+class TestParts:
+    def test_last_bar_reads_the_final_row(self) -> None:
+        assert probe.last_bar(frame(TODAY, 101.5, 1234)) == LastBar(TODAY, 101.5, 1234.0)
+
+    @pytest.mark.parametrize(
+        ("moment", "expected"),
+        [
+            (datetime(2026, 10, 19, 15, 0, tzinfo=timezone.utc), True),  # Monday 11:00 Eastern
+            (datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc), False),  # Monday 08:00 Eastern
+            (datetime(2026, 10, 19, 21, 0, tzinfo=timezone.utc), False),  # Monday 17:00 Eastern
+            (datetime(2026, 10, 17, 15, 0, tzinfo=timezone.utc), False),  # Saturday
+        ],
+    )
+    def test_market_is_open_only_in_a_weekday_session(self, moment: datetime, expected: bool) -> None:
+        assert probe.market_is_open(moment) is expected
+
+    def test_default_tickers_come_from_the_default_universe(self) -> None:
+        tickers = probe.default_tickers(3)
+
+        assert len(tickers) == 3 and all(name.isupper() for name in tickers)
+
+
+class TestProbeTicker:
+    def test_a_provider_that_serves_stale_cache_shows_it_and_a_moving_bar_shows_it(self) -> None:
+        provider = LiveLikeProvider([100.0, 101.0, 102.0])
+        slept: list[float] = []
+
+        result = probe.probe_ticker(provider, "AAA", "3mo", 60, sleep=slept.append)  # type: ignore[arg-type]
+
+        assert slept == [60]
+        assert result.first.close == 100.0  # the first network fetch
+        assert result.cached == result.first  # the cache returns the stored bar
+        assert result.fresh.close == 101.0  # cache off: a new network fetch
+        assert result.later is not None and result.later.close == 102.0
+
+    def test_the_cache_setting_is_restored_afterwards(self, monkeypatch) -> None:
+        monkeypatch.delenv("TRADING_MARKET_DATA_CACHE_DISABLED", raising=False)
+
+        probe.probe_ticker(LiveLikeProvider([1.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+
+        assert "TRADING_MARKET_DATA_CACHE_DISABLED" not in os.environ
+
+        monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DISABLED", "0")
+        probe.probe_ticker(LiveLikeProvider([1.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+        assert os.environ["TRADING_MARKET_DATA_CACHE_DISABLED"] == "0"
+
+    def test_a_zero_wait_skips_the_last_fetch(self) -> None:
+        result = probe.probe_ticker(LiveLikeProvider([1.0, 2.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+
+        assert result.later is None
+
+
+def a_probe(first: float = 100.0, cached: float = 100.0, fresh: float = 101.0, later: float | None = 102.0, day=TODAY):
+    def bar(close: float) -> LastBar:
+        return LastBar(day, close, 1000.0)
+
+    return TickerProbe("AAA", bar(first), bar(cached), bar(fresh), None if later is None else bar(later))
+
+
+class TestVerdicts:
+    def test_an_open_session_with_a_live_bar_and_a_stale_cache(self) -> None:
+        lines = probe.verdicts([a_probe()], TODAY, market_open=True)
+
+        text = "\n".join(lines)
+        assert "unfinished bar" in text
+        assert "cache returned a different last bar than a fresh fetch for AAA" in text
+        assert "changed the last bar for 1 of 1" in text
+        assert not any(line.startswith("WARNING") for line in lines)
+
+    def test_a_closed_market_warns_first(self) -> None:
+        assert probe.verdicts([a_probe()], TODAY, market_open=False)[0].startswith("WARNING: the market is closed")
+
+    def test_no_bar_dated_today_is_reported(self) -> None:
+        text = "\n".join(probe.verdicts([a_probe(day=date(2026, 10, 16))], TODAY, market_open=True))
+
+        assert "0 of 1 tickers (no unfinished bar was returned)" in text
+
+    def test_agreeing_cache_and_a_bar_that_did_not_move(self) -> None:
+        text = "\n".join(probe.verdicts([a_probe(cached=101.0, fresh=101.0, later=101.0)], TODAY, market_open=True))
+
+        assert "no ticker (cache and fresh agree)" in text
+        assert "changed the last bar for 0 of 1" in text
+
+    def test_without_a_wait_there_is_no_movement_line(self) -> None:
+        text = "\n".join(probe.verdicts([a_probe(later=None)], TODAY, market_open=True))
+
+        assert "after the wait" not in text
+
+
+class TestMain:
+    def test_it_prints_the_table_and_the_conclusions(self, capsys, monkeypatch) -> None:
+        monkeypatch.delenv("TRADING_MARKET_DATA_CACHE_DIR", raising=False)
+
+        code = probe.main(["--tickers", "aaa,bbb", "--wait-seconds", "0"], LiveLikeProvider([1.0, 2.0]))  # type: ignore[arg-type]
+
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "Probing AAA, BBB" in out and "AAA" in out and "BBB" in out
+        assert "Today's bar in a fresh fetch" in out and "cache returned" in out
+
+    def test_it_uses_a_temporary_cache_directory(self, monkeypatch) -> None:
+        seen: list[str] = []
+
+        class Recording(LiveLikeProvider):
+            def fetch_ohlcv(self, ticker, period, interval):
+                seen.append(os.environ["TRADING_MARKET_DATA_CACHE_DIR"])
+                return super().fetch_ohlcv(ticker, period, interval)
+
+        monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", "somewhere/real")
+
+        probe.main(["--tickers", "AAA", "--wait-seconds", "0"], Recording([1.0]))  # type: ignore[arg-type]
+
+        assert seen and all(path != "somewhere/real" for path in seen)
+        assert os.environ["TRADING_MARKET_DATA_CACHE_DIR"] == "somewhere/real"
+
+    def test_no_tickers_is_an_error(self, capsys, monkeypatch) -> None:
+        monkeypatch.setattr(probe, "default_tickers", lambda _count: [])
+
+        assert probe.main(["--wait-seconds", "0"], LiveLikeProvider([1.0])) == 1  # type: ignore[arg-type]
+        assert "No tickers" in capsys.readouterr().err
