@@ -13,7 +13,7 @@ from unittest.mock import Mock
 import pytest
 
 import infrastructure.database.connection as init_module
-import trading.interfaces.runtime.jobs.job_helpers as job_helpers
+import trading.interfaces.runtime.jobs.daily.paper_trading.workflow as workflow_module
 from tests.src.trading.interfaces.runtime.jobs.loaders import (
     make_run_auto_trades_args,
     run_auto_trades,
@@ -49,9 +49,9 @@ def _exit_code_for(monkeypatch, results: list[AccountRunResult]) -> int:
     return run_auto_trades.main()
 
 
-def _trading_step_status(monkeypatch, exit_code: int) -> str:
-    """Status of DAG step 05 when the auto-trades subprocess exits with *exit_code*."""
-    monkeypatch.setattr(job_helpers, "run_command", lambda *_args, **_kwargs: (exit_code, ""))
+def _trading_step_status(monkeypatch, exit_code: int, output: str = "") -> str:
+    """Status of DAG step 05 when the auto-trades subprocess exits with *exit_code* and prints *output*."""
+    monkeypatch.setattr(workflow_module, "run_command", lambda *_args, **_kwargs: (exit_code, output))
     step_results = new_step_results()
 
     def _run_group() -> dict[str, object]:
@@ -73,8 +73,8 @@ def _trading_step_status(monkeypatch, exit_code: int) -> str:
     return step_result(step_results, TRADING_STEP_ID).status
 
 
-def test_broker_anomaly_fails_the_trading_step(monkeypatch) -> None:
-    """The one halt that must not read as a clean run: orders may exist in an unknown state."""
+def test_a_broker_anomaly_is_named_not_a_step_failure(monkeypatch, capsys) -> None:
+    """Orders may exist in an unknown state: the account is named so the other groups can still trade."""
     exit_code = _exit_code_for(
         monkeypatch,
         [
@@ -86,8 +86,14 @@ def test_broker_anomaly_fails_the_trading_step(monkeypatch) -> None:
         ],
     )
 
+    output = capsys.readouterr().out
     assert exit_code == 1
-    assert _trading_step_status(monkeypatch, exit_code) == "failed"
+    assert "BROKER_API_ANOMALY_ACCOUNTS: acct1" in output.splitlines()
+    assert _trading_step_status(monkeypatch, exit_code, output) == "ok"
+
+
+def test_an_exit_1_that_names_no_account_still_fails_the_step(monkeypatch) -> None:
+    assert _trading_step_status(monkeypatch, 1, "Traceback ...") == "failed"
 
 
 def test_a_control_halt_leaves_the_trading_step_green(monkeypatch) -> None:
@@ -109,7 +115,7 @@ def test_a_control_halt_leaves_the_trading_step_green(monkeypatch) -> None:
 
 def test_the_step_reports_the_failing_exit_code(monkeypatch) -> None:
     """The operator has to be able to tell which subprocess failed and how."""
-    monkeypatch.setattr(job_helpers, "run_command", lambda *_args, **_kwargs: (1, ""))
+    monkeypatch.setattr(workflow_module, "run_command", lambda *_args, **_kwargs: (1, ""))
     step_results = new_step_results()
 
     with pytest.raises(RuntimeError, match=r"Auto Trader \(exit=1\)"):
@@ -129,3 +135,10 @@ def test_the_step_reports_the_failing_exit_code(monkeypatch) -> None:
         )
 
     assert step_result(step_results, TRADING_STEP_ID).error == "Step failed: Auto Trader (exit=1)"
+
+
+def test_the_anomaly_line_is_read_for_several_accounts_and_ignores_noise_after_it() -> None:
+    output = "x\nBROKER_API_ANOMALY_ACCOUNTS: acct_a, acct_b\nTraceback noise\n"
+
+    assert workflow_module._broker_anomaly_accounts(output) == ["acct_a", "acct_b"]
+    assert workflow_module._broker_anomaly_accounts("no line here") == []

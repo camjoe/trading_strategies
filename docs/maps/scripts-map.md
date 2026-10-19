@@ -39,14 +39,16 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 ## Forge Interface (`scripts/forge/`)
 
 Platform-neutral pull-request operations for the readiness workflow. Run via
-`python -m scripts.forge <operation>`; every operation prints JSON, and the only comment it writes is the
-`<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
+`python -m scripts.forge <operation>`; every operation prints JSON except `review-scorecard`, which prints a table (`--json` for JSON), and the only
+comment it writes is the `<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
 
 | Operation | What it returns or does |
 |---|---|
 | `pr-info [--pr N]` | Number, refs, head sha, draft flag, state, and `diff_base_ref` (`origin/<base>`) |
 | `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
 | `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
+| `review-scorecard [--pr N]... [--merged N] [--author L] [--json] [--save] [--from-db [--human]] [--db P] [--repo R]` | Per lens, the findings reported and how they ended (fixed, decided, left open), with thumbs up and down on their inline comments; reads GitHub only, and `--save` stores the result in a local SQLite file that `--from-db` reports from |
+| `inline-sync --body-file F [--pr N] [--head-sha S]` | Keeps one review comment per open blocker or concern on its changed line: creates, edits, and resolves; only comments with a finding marker |
 | `implement-plan --plan F [--base develop] [--model sonnet] [--depends-ok] [--no-ready] [--no-fix] [--no-container] [--agent-container] [--wait-minutes 45]` | Claims a plan from `plan/` with a draft pull request, has an agent implement it, runs the gate, and takes the pull request out of draft only when nothing needs the owner, then waits for the first review and runs the fixer loop unless `--no-fix` |
 | `fix-loop --pr N [--max-rounds 3] [--wait-minutes 45] [--model sonnet] [--agent-container]` | Runs fixer rounds on a pull request from the owner's machine until its comment says READY, only owner decisions are left, or the round cap is reached; at READY it first removes the plan file the branch claimed (and its index row), pushes, and waits for the confirming pass; emails the owner at the end |
 | `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
@@ -54,11 +56,14 @@ Platform-neutral pull-request operations for the readiness workflow. Run via
 
 | Module | Responsibility |
 |---|---|
-| `base.py` | Forge-neutral types, the `Forge` interface, CI aggregation, and the marker rule |
-| `github.py` | GitHub adapter over the `gh` CLI |
+| `base.py` | Forge-neutral types, the `Forge` and `InlineForge` interfaces, CI aggregation, and the readiness and finding marker rules |
+| `github.py` | GitHub adapter over the `gh` CLI: the readiness comment, CI state, and the review threads and comments behind `inline-sync` |
 | `service.py` | Trusted-author resolution, CI waiting, and the review context |
 | `readiness.py` | Pass-number parsing, the pre-post checks on a comment body, and the scan of an agent's commits and changed paths for the Claude token |
 | `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
+| `scorecard_store.py` | A standard-library SQLite store for scored pull requests, keyed by a repo label |
+| `scorecard.py` | Tallies the findings of readiness comments per lens by outcome and reaction, and renders the table |
+| `inline.py` | Which findings get a review comment on their line, and the create, edit, and resolve steps that keep those comments matching the readiness comment |
 | `guarded_paths.py` | Paths an unattended fixer must never change |
 | `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |
 | `implement.py` | The plan pickup: claim, agent, push, gate, path check, a scan of the agent's commits for the Claude token, plain-file reads of its summary and questions, and the decision to leave draft |

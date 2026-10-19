@@ -105,7 +105,14 @@ def test_every_forge_call_in_the_workflow_uses_flags_the_command_accepts() -> No
     known = _flags_by_command()
     calls = _forge_calls()
 
-    assert {name for name, _ in calls} == {"review-context", "comment-get", "check-body", "pr-info", "comment-upsert"}
+    assert {name for name, _ in calls} == {
+        "review-context",
+        "comment-get",
+        "check-body",
+        "pr-info",
+        "comment-upsert",
+        "inline-sync",
+    }
     for name, flags in calls:
         assert set(flags) <= known[name], f"{name}: {set(flags) - known[name]}"
 

@@ -11,6 +11,7 @@ from infrastructure.database.connection import db_session
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
+from trading.interfaces.runtime.jobs.job_helpers import BROKER_ANOMALY_LINE_PREFIX
 from trading.services.auto_trading.inputs import (
     resolve_account_names,
     resolve_market_inputs,
@@ -107,6 +108,7 @@ def main() -> int:
     ]
     if broker_anomalies:
         print(f"Broker API anomaly during submission for: {', '.join(broker_anomalies)}")
+        print(f"{BROKER_ANOMALY_LINE_PREFIX}{','.join(broker_anomalies)}")
         return 1
     return 0
 

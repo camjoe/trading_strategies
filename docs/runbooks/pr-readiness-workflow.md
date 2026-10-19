@@ -40,10 +40,96 @@ The `readiness` job, which starts only if the first succeeded:
    user name; any other name, bracketed or not, is refused.
 6. Confirms the pull request head is still the commit that was reviewed, and fails without posting if a
    push landed meanwhile.
-7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. This
-   is the only job with the GitHub token.
+7. Posts it with `python -m scripts.forge comment-upsert`, which writes only the readiness comment. Then
+   `python -m scripts.forge inline-sync` copies each open blocker and concern onto the changed line it names as a
+   review comment (marker `<!-- pr-readiness:finding:<n> -->`), edits it when the finding changes, and marks it
+   "✓ ... Fixed in `<sha>`" when the finding closes. It also tries to resolve the thread; the workflow token is refused
+   that (`Resource not accessible by integration`), so a closed finding's thread stays open until the owner resolves it (a failure to resolve is counted as
+   `unresolved`, a refused reply as `reply_failed`, a refused edit as `edit_failed`).
+   Once, when a finding closes, the bot also replies in its thread ("✓ Fixed in `<sha>`." or "✓ Decided.") so the
+   owner is notified; a thread that already holds a reply gets no second one. A finding whose line is not in the diff stays in the summary only. A failure here
+   is a warning, not a red check, because the summary is already posted. The `readiness` job is the
+   only one with the GitHub token.
 
 Drafts, fork pull requests, and Dependabot pull requests are skipped.
+
+## Review scorecard
+
+`python -m scripts.forge review-scorecard --merged 10` (or `--pr <n>`, repeatable; `--json` for the counts) reads the
+final readiness comment of each pull request and prints, per lens, how many findings it reported and how each ended:
+**fixed**, **decided** (the owner recorded a Decision), or **left open** (still open at merge, in any tier), or **other** (closed without saying fixed or decided).
+It also adds the thumbs up and thumbs down on each finding's inline comment, so a click on a finding is a rating:
+react to the bot's comment on the finding's line with 👍 (worth fixing) or 👎 (noise). Reactions on the summary comment and on replies are not counted.
+With `--json`, `pull_requests` lists the pull requests that were read (one with no readiness comment counts as read),
+`skipped` maps each pull request that failed to its reason, and `lenses` holds the counts; the output is printed
+before the command exits 1 for a skipped pull request.
+It is read-only and needs `gh` signed in. It reads comments written by `github-actions[bot]`; pass `--author <login>`
+for comments posted under another account. When a finding has more than one inline comment, the latest one's
+reactions count.
+
+How to read it:
+- A lens whose findings are mostly left open, or mostly thumbs down, is the one to tighten. A lens whose findings
+  are nearly all fixed is earning its cost.
+- "Fixed" is a weak signal on its own, because a cheap note is often fixed to keep a pass moving. Left open,
+  Decisions that decline a finding, and thumbs down say more.
+- `(untagged)` counts findings with no reviewer tag. Closed findings only keep their tag from the format that
+  introduced `[<reviewers>]` on Closed lines, so older pull requests show mostly `(untagged)`.
+- Run it about every ten merged pull requests, or when a pass feels noisy, and change a lens's prompt only when
+  the numbers say to.
+
+### Keeping the results
+
+The scorecard computes everything from GitHub on each run. To keep the results, add `--save`:
+
+```bash
+python -m scripts.forge review-scorecard --merged 10 --save      # score, print, and store each pull request
+python -m scripts.forge review-scorecard --from-db               # report from the stored data, no GitHub calls
+python -m scripts.forge review-scorecard --from-db --repo owner/name --json
+```
+
+The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
+(`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
+the forge tool imports no project code that a pull request could change. `--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
+very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
+`--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which
+is the passes it took to reach its last verdict), its verdict, and the forge's details: title, author, base and head
+branch, created and merged times, lines added and removed, commit count, and every changed file with an area
+(`code`, `tests`, `docs`, `config`, `ci`, `agent`). Each finding is stored with its tier, outcome, lenses, reactions,
+title, path and line, area, the sha that fixed it, why it was lowered (if it was), and its full text. Rows are keyed by a repo label (`owner/name` from `gh`, or `--repo` on `--save`), so one
+file can hold several projects. Closed findings only keep their reviewer tag from the format that added it, so
+pull requests merged before that save with `(untagged)` lenses.
+
+### Is a human really needed?
+
+Each finding says what the reviewer thinks it needs: the text after `→` starts with `fix` (the author can resolve it
+alone), `decision` (the owner must choose), or `info` (only the owner knows a fact). When it closes, the Closed line
+says which pass closed it and who: `by fixer` (a fixer-loop commit), `by author` (any other fix), or `by owner` (a
+recorded Decision). `review-scorecard --from-db --human` counts one against the other:
+
+```bash
+python -m scripts.forge review-scorecard --from-db --human
+```
+
+A `decision` or `info` finding that ends `author` with no Decision was escalated without need; a `fix` finding that
+ends `owner` was under-flagged. A Closed line carries the prediction in its tag, so closed findings are counted too. Findings from before this
+format show as `(not recorded)`. The database also keeps each
+finding's kind (`bug`, `safety`, `docs`, `test`, `design`, `wording`), the pass that first reported it, and the pass
+that closed it. A version 2 file is migrated in place; any other version is refused untouched.
+
+### Using these tools in another project
+
+The core modules in `scripts/forge` import only the standard library and each other (a test enforces it):
+`base.py` (types and the forge interface), `findings.py` (reading a readiness comment), `readiness.py`,
+`service.py`, `scorecard.py` (scoring), `scorecard_store.py` (the SQLite store), and `inline.py` (inline comments).
+To reuse them, copy `scripts/forge`, then bring or replace the project-specific parts:
+
+| Part | Where | What to do in another project |
+|---|---|---|
+| Forge adapter | `github.py` (needs `gh`; imports `common.git.get_repo_root`) | Keep it, or write another adapter against the `Forge`, `InlineForge`, and `ScorecardForge` interfaces. |
+| Comment layout and rules | `.ai/skills/check-pr-readiness/SKILL.md`, `.ai/skills/code-review/lenses.md` | Copy them; the parsers read their layout and the lens names in `scorecard.LENSES`. |
+| Workflow | `.github/workflows/pr-readiness.yml` | Copy it and set `CLAUDE_CODE_OAUTH_TOKEN`; it runs the forge tool from the base branch. |
+| Authorization text | `AGENTS.md` ("Standing authorizations") | State the same limits for that repository. |
+| Agent runners | `local.py`, `container.py`, `sandbox.py` | Only needed for the plan pickup and the fixer loop. |
 
 ## One-time setup
 

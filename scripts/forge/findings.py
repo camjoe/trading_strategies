@@ -9,6 +9,8 @@ _STATUS = re.compile(r"^\s*\*(?:Fix attempted|Not fixed|Left): ")
 _DECISION = re.compile(r"^\s*\*Decision: ")
 _TIER_HEADING = re.compile(r"^#### \W*(Blockers|Concerns|Notes|Tests|Closed)\W*(?:\(\d+\)\W*)?$")
 _ANY_HEADING = re.compile(r"^#{1,6} ")
+_FINDING_TITLE = re.compile(r"^\*\*\d+\..*?[.?!]\*\*\s*")
+_LEADING_ANCHOR = re.compile(r"^`[^`]+:\d+(?:-\d+)?`:\s*")
 _TIERS = {"Blockers": "blocker", "Concerns": "concern", "Notes": "note", "Tests": "note", "Closed": "closed"}
 
 
@@ -19,6 +21,7 @@ class Finding:
     checked: bool
     has_status_line: bool
     decided: bool
+    text: str
 
     @property
     def is_open(self) -> bool:
@@ -28,6 +31,11 @@ class Finding:
     def is_handled(self) -> bool:
         """Whether a fixer or the owner has already recorded something on it."""
         return self.has_status_line or self.decided
+
+
+def after_title(text: str) -> str:
+    """The first line of a finding's *text* without its ``**n. Title.**`` prefix and a ``path:line`` after it."""
+    return _LEADING_ANCHOR.sub("", _FINDING_TITLE.sub("", text.splitlines()[0])) if text else ""
 
 
 def verdict(body: str) -> str | None:
@@ -50,10 +58,11 @@ def parse_findings(body: str) -> list[Finding]:
     tier = "other"
     number: int | None = None
     checked = has_status = decided = False
+    lines: list[str] = []
 
     def close() -> None:
         if number is not None:
-            findings.append(Finding(number, tier, checked, has_status, decided))
+            findings.append(Finding(number, tier, checked, has_status, decided, "\n".join(lines).rstrip()))
 
     for line in body.splitlines():
         heading = _TIER_HEADING.match(line)
@@ -67,9 +76,12 @@ def parse_findings(body: str) -> list[Finding]:
             close()
             number, checked = int(item.group(2)), item.group(1) == "x"
             has_status = decided = False
+            lines = [line[len("- [ ] ") :]]
         elif number is not None:
             has_status = has_status or bool(_STATUS.match(line))
             decided = decided or bool(_DECISION.match(line))
+            if line.startswith("  "):
+                lines.append(line[2:])
     close()
     return findings
 

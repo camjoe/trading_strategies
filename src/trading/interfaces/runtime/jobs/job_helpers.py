@@ -32,6 +32,10 @@ CLI_MAIN_MODULE = "trading.interfaces.cli.main"
 ADMIN_MODULE = "trading.interfaces.runtime.data_ops.admin"
 RUN_AUTO_TRADES_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades"
 RECONCILE_ORDERS_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders"
+# Line ``run_auto_trades`` prints, before exiting 1, naming the accounts whose broker misbehaved mid-submission.
+BROKER_ANOMALY_LINE_PREFIX = "BROKER_API_ANOMALY_ACCOUNTS: "
+# Line ``reconcile_orders`` prints per account whose orders it could not resolve; the rest is a JSON object.
+UNRESOLVED_ORDERS_LINE_PREFIX = "UNRESOLVED_ORDERS: "
 DAILY_CHALLENGER_SHADOW_EVAL_MODULE = "trading.interfaces.runtime.jobs.daily.challenger_shadow_eval"
 DAILY_PAPER_TRADING_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 DAILY_TRADER_HEALTH_CHECK_MODULE = "trading.interfaces.runtime.jobs.daily.trader_health"
@@ -197,7 +201,17 @@ def run_command(log_path: Path, label: str, args: list[str], cwd: Path) -> tuple
     return exit_code, combined_output
 
 
-def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> None:
-    exit_code, _ = run_command(log_path, label, args, cwd)
+class CommandFailedError(RuntimeError):
+    """A streamed command exited non-zero; ``output`` is what it printed."""
+
+    def __init__(self, label: str, exit_code: int, output: str) -> None:
+        super().__init__(f"Step failed: {label} (exit={exit_code})")
+        self.output = output
+
+
+def stream_command(log_path: Path, label: str, args: list[str], cwd: Path) -> str:
+    """Run a command, teeing its output to the log; returns that output and raises if it exits non-zero."""
+    exit_code, output = run_command(log_path, label, args, cwd)
     if exit_code != 0:
-        raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+        raise CommandFailedError(label, exit_code, output)
+    return output

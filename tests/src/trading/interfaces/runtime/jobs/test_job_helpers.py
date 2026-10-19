@@ -195,6 +195,21 @@ def test_stream_command_raises_on_nonzero(tmp_path: Path):
         )
 
 
+def test_stream_command_returns_the_command_output(tmp_path: Path):
+    output = stream_command(tmp_path / "run.log", "ok-step", ["-c", "print('hello'); print('world')"], tmp_path)
+
+    assert output.splitlines() == ["hello", "world"]
+
+
+def test_stream_command_failure_carries_the_output(tmp_path: Path):
+    import pytest
+
+    with pytest.raises(RuntimeError, match="exit=3") as excinfo:
+        stream_command(tmp_path / "run.log", "bad-step", ["-c", "print('partial'); raise SystemExit(3)"], tmp_path)
+
+    assert excinfo.value.output == "partial"
+
+
 def test_stream_command_succeeds_silently(tmp_path: Path):
     log_path = tmp_path / "run.log"
     stream_command(

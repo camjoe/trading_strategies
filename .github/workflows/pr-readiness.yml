@@ -338,3 +338,11 @@ jobs:
         run: |
           python -m scripts.forge comment-upsert --pr "$PR_NUMBER" \
             --author "$COMMENT_AUTHOR" --body-file "$BODY_FILE"
+
+      - name: Post the inline finding comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m scripts.forge inline-sync --pr "$PR_NUMBER" \
+            --author "$COMMENT_AUTHOR" --body-file "$BODY_FILE" --head-sha "$HEAD_SHA" \
+            || echo "::warning::The inline comments were not posted; the readiness comment above is complete."

@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from common.runtime_job_status import DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS
+from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
+    DAILY_RUN_STATUS_FAILED,
+    DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
+)
 from tests.src.trading.interfaces.helpers import run_module_as_main
 
 MODULE = "trading.interfaces.runtime.jobs.maintenance.burn_in_status"
@@ -267,9 +272,11 @@ def test_scan_artifacts_ignores_invalid_names_and_handles_corrupt_json(tmp_path:
         {
             "date": "2026-05-20",
             "status": "failed",
+            "base_status": "failed",
             "artifact_file": "daily_paper_trading_20260520_120000.json",
             "accounts": [],
             "kill_switch_accounts": [],
+            "broker_anomaly_accounts": [],
         }
     ]
 
@@ -356,3 +363,383 @@ class TestPerAccountBurnIn:
         data = _load_single_burn_in_artifact(tmp_path)
         assert data["ready_for_live"] is True
         assert data["accounts"] == {}
+
+
+class TestBrokerAnomalyDays:
+    def test_a_day_with_an_anomaly_breaks_the_whole_run_streak(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "140000", DAILY_RUN_STATUS_SUCCESS, broker_anomaly_accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["ready_for_live"] is False
+
+    def test_an_anomaly_breaks_only_the_streak_of_the_account_it_hit(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "140000",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["sim", "ibkr"],
+            broker_anomaly_accounts=["ibkr"],
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr", "--min-consecutive-days", "10"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["sim"]["consecutive_successes"] == 10
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_a_clean_catch_up_run_the_same_day_does_not_erase_the_anomaly(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["ready_for_live"] is False
+
+    def test_a_catch_up_for_one_account_does_not_unseat_the_account_that_traded_cleanly(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130500",
+            DAILY_RUN_STATUS_SUCCESS,
+            accounts=["sim", "ibkr"],
+            **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]},
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "sim,ibkr", "--min-consecutive-days", "10"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["sim"]["consecutive_successes"] == 10
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_an_anomaly_reads_as_an_anomaly_even_when_it_also_tripped_a_kill_switch(self) -> None:
+        entries = [
+            {
+                "date": "2026-05-20",
+                "status": "broker_anomaly",
+                "accounts": ["ibkr"],
+                "kill_switch_accounts": ["ibkr"],
+                BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"],
+            }
+        ]
+
+        assert _mod().account_entries(entries, "ibkr")[0]["status"] == "broker_anomaly"
+
+    def test_an_anomaly_in_an_earlier_artifact_survives_a_failed_latest_one(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert entries[-1]["status"] == DAILY_RUN_STATUS_FAILED
+        assert entries[-1][BROKER_ANOMALY_ACCOUNTS_KEY] == ["ibkr"]
+
+    def test_a_corrupt_or_non_object_artifact_counts_as_failed_without_crashing(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        (export_dir / "daily_paper_trading_20260519_120000.json").write_text("[]", encoding="utf-8")
+        (export_dir / "daily_paper_trading_20260520_120000.json").write_text("null", encoding="utf-8")
+        (export_dir / "daily_paper_trading_20260520_110000.json").write_text("{not json", encoding="utf-8")
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == ["failed", "failed"]
+
+    def test_a_failure_at_the_trading_step_or_later_keeps_the_day_failed_after_a_catch_up(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="08_reconcile_fills_update_ledgers"
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 0
+        assert data["failed_runs"] == 1
+
+    def test_a_failure_before_the_trading_step_is_forgiven_by_a_later_success(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="00_ingest_market_and_account"
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["consecutive_successes"] == 10
+        assert data["failed_runs"] == 0
+
+    def test_an_anomaly_day_counts_as_a_failed_run(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["failed_runs"] == 1 and data["failure_rate_pct"] == 10.0
+
+    def test_an_undecodable_artifact_counts_as_failed_without_crashing(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        (export_dir / "daily_paper_trading_20260520_120000.json").write_bytes(b"\xff\xfe\x00bad")
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == ["failed"]
+
+    def test_a_failure_at_the_trading_step_itself_keeps_the_day_failed(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step=FIRST_ORDER_STEP_ID)
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", "ibkr"])
+
+        data = _load_single_burn_in_artifact(tmp_path)
+        assert data["accounts"]["ibkr"]["consecutive_successes"] == 0
+
+    def test_a_failure_outside_any_step_is_read_from_the_step_results(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130000",
+            DAILY_RUN_STATUS_FAILED,
+            failed_step=None,
+            step_results=[{"step": FIRST_ORDER_STEP_ID, "status": "ok"}],
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert entries[-1]["status"] == DAILY_RUN_STATUS_FAILED
+
+    def test_the_log_line_counts_anomaly_days(self, monkeypatch, tmp_path: Path, capsys) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_SUCCESS, **{BROKER_ANOMALY_ACCOUNTS_KEY: ["ibkr"]}
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        assert "anomaly_days=1" in capsys.readouterr().out
+
+    def test_the_first_order_step_id_is_a_dag_step_and_sorts_before_the_steps_after_it(self) -> None:
+        from trading.interfaces.runtime.jobs.daily.paper_trading.dag import DAILY_DAG_STEPS
+
+        step_ids = [step_id for step_id, _name in DAILY_DAG_STEPS]
+
+        assert step_ids == sorted(step_ids)
+        assert FIRST_ORDER_STEP_ID in step_ids
+
+    def test_a_failure_just_before_the_trading_step_is_forgiven_by_a_later_success(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="04_rotation_decision")
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        assert _load_single_burn_in_artifact(tmp_path)["consecutive_successes"] == 10
+
+    def test_a_malformed_step_results_falls_back_to_the_failed_step(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir, "20260519", "130000", DAILY_RUN_STATUS_FAILED, failed_step="08_x", step_results="oops"
+        )
+        _write_artifact(export_dir, "20260519", "150000", DAILY_RUN_STATUS_SUCCESS)
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step="00_x", step_results=["oops", 3]
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert [entry["status"] for entry in entries] == [DAILY_RUN_STATUS_FAILED, DAILY_RUN_STATUS_SUCCESS]
+
+    def test_each_trading_step_status_that_means_it_started_keeps_the_day_failed(self, tmp_path: Path) -> None:
+        for status, expected in (
+            ("running", "failed"),
+            ("ok", "failed"),
+            ("failed", "failed"),
+            ("pending", "success"),
+        ):
+            export_dir = tmp_path / status
+            export_dir.mkdir()
+            _write_artifact(
+                export_dir,
+                "20260520",
+                "130000",
+                DAILY_RUN_STATUS_FAILED,
+                failed_step=None,
+                step_results=[{"step": FIRST_ORDER_STEP_ID, "status": status}],
+            )
+            _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS)
+
+            entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+            assert entries[-1]["status"] == expected, status
+
+
+class TestPerAccountFailures:
+    STEP_5 = FIRST_ORDER_STEP_ID
+
+    def _days(self, export_dir: Path, accounts: list[str]) -> None:
+        _write_days(export_dir, 10, accounts=accounts)
+
+    def _run(self, monkeypatch, tmp_path: Path, accounts: str = "sim,ibkr") -> dict:
+        _run_main_at_now(monkeypatch, tmp_path, extra_args=["--accounts", accounts, "--min-consecutive-days", "10"])
+        return _load_single_burn_in_artifact(tmp_path)["accounts"]
+
+    def test_a_failed_catch_up_for_one_account_resets_only_that_account(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        self._days(export_dir, ["sim", "ibkr"])
+        _write_artifact(export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["ibkr"]
+        )
+
+        accounts = self._run(monkeypatch, tmp_path)
+
+        assert accounts["sim"]["consecutive_successes"] == 10
+        assert accounts["ibkr"]["consecutive_successes"] == 0
+
+    def test_the_whole_run_view_still_fails_the_date(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        _write_days(export_dir, 10)
+        _write_artifact(export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["ibkr"]
+        )
+
+        _run_main_at_now(monkeypatch, tmp_path)
+
+        assert _load_single_burn_in_artifact(tmp_path)["consecutive_successes"] == 0
+
+    def test_a_failed_run_that_lists_no_accounts_fails_every_account(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        self._days(export_dir, ["sim", "ibkr"])
+        _write_artifact(export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, accounts=["sim", "ibkr"])
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5)
+
+        accounts = self._run(monkeypatch, tmp_path)
+
+        assert accounts["sim"]["consecutive_successes"] == 0 and accounts["ibkr"]["consecutive_successes"] == 0
+
+    def test_a_failed_full_run_fails_each_account_it_covered_even_after_a_catch_up(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        self._days(export_dir, ["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "130000",
+            DAILY_RUN_STATUS_FAILED,
+            failed_step="08_reconcile_fills_update_ledgers",
+            accounts=["sim", "ibkr"],
+        )
+        _write_artifact(export_dir, "20260520", "150000", DAILY_RUN_STATUS_SUCCESS, accounts=["ibkr"])
+
+        accounts = self._run(monkeypatch, tmp_path)
+
+        assert accounts["sim"]["consecutive_successes"] == 0
+        assert accounts["ibkr"]["consecutive_successes"] == 0
+
+    def test_an_account_outside_a_failed_run_is_judged_from_the_other_runs(self, monkeypatch, tmp_path: Path) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        self._days(export_dir, ["sim", "ibkr", "other"])
+        _write_artifact(export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, accounts=["sim", "ibkr", "other"])
+        _write_artifact(
+            export_dir, "20260520", "150000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["ibkr"]
+        )
+
+        accounts = self._run(monkeypatch, tmp_path, "sim,ibkr,other")
+
+        assert [accounts[name]["consecutive_successes"] for name in ("sim", "ibkr", "other")] == [10, 0, 10]
+
+    def test_the_entry_lists_the_accounts_the_failed_runs_covered(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["b", "a"]
+        )
+        _write_artifact(
+            export_dir, "20260520", "140000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["c"]
+        )
+        _write_artifact(export_dir, "20260519", "130000", DAILY_RUN_STATUS_SUCCESS, accounts=["a"])
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert "failed_accounts" not in entries[0] and entries[0]["status"] == DAILY_RUN_STATUS_SUCCESS
+        assert entries[1]["failed_accounts"] == ["a", "b", "c"]
+        assert entries[1]["status"] == DAILY_RUN_STATUS_FAILED and entries[1]["base_status"] == DAILY_RUN_STATUS_FAILED
+
+    def test_one_failed_run_without_accounts_makes_the_whole_list_every_account(self, tmp_path: Path) -> None:
+        export_dir = tmp_path / "exports"
+        export_dir.mkdir()
+        _write_artifact(
+            export_dir, "20260520", "130000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5, accounts=["a"]
+        )
+        _write_artifact(export_dir, "20260520", "140000", DAILY_RUN_STATUS_FAILED, failed_step=self.STEP_5)
+
+        entries = _mod().scan_artifacts(export_dir, 3, _real_dt.date(2026, 5, 20))
+
+        assert entries[0]["failed_accounts"] is None
+
+    def test_a_failure_before_the_trading_step_still_fails_the_date_as_the_latest_run(
+        self, monkeypatch, tmp_path: Path
+    ) -> None:
+        export_dir = tmp_path / "local" / "exports" / "daily_paper_trading"
+        self._days(export_dir, ["sim", "ibkr"])
+        _write_artifact(export_dir, "20260520", "130500", DAILY_RUN_STATUS_SUCCESS, accounts=["sim", "ibkr"])
+        _write_artifact(
+            export_dir,
+            "20260520",
+            "150000",
+            DAILY_RUN_STATUS_FAILED,
+            failed_step="00_ingest_market_and_account",
+            accounts=["ibkr"],
+        )
+
+        accounts = self._run(monkeypatch, tmp_path)
+
+        assert accounts["sim"]["consecutive_successes"] == 0 and accounts["ibkr"]["consecutive_successes"] == 0

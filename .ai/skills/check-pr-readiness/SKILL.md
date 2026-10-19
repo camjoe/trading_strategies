@@ -31,6 +31,10 @@ Run it on committed work. The reviewers and the gate's suite targeting read `<ba
 check `git status --short` first: if tracked files are modified, say so and stop, because the
 reviewers would be reviewing code that differs from the working tree.
 
+Run it locally before the first push of a branch, so the unattended pass confirms a branch that is already
+clean and the author does not discover findings one pushed pass at a time. A local pass needs no pull request;
+it prints the comment text.
+
 When a pull request exists, fetch its context once:
 
 ```
@@ -96,7 +100,8 @@ findings are routed to `/security-review` and never posted. Each reviewer is a s
 subagent; reading the diff yourself does not stand in for one, and an unattended session spawns them
 the same way.
 
-**Later passes.** First re-verify every open finding by hand against the new HEAD; that alone can
+**Later passes.** First re-verify every open BLOCKER and CONCERN by hand against the new HEAD, and every open
+note whose code or text changed; that alone can
 clear a finding, and READY does not require a fresh reviewer run. Then run the same command on the
 incremental diff, `--base <previous reviewed SHA> --head HEAD` (the SHA is in the comment header). Run
 the reviewers it suggests only if its list includes the Simplifier, which means the increment changes
@@ -105,6 +110,7 @@ Review details. This shortcut applies only after a pass in which the reviewers r
 against the base; if no earlier pass did (for example pass 1 stopped at the gate), run the full-diff
 command and its reviewers. This is the accepted trade-off: a small increment is read by the orchestrator while
 re-verifying the findings it touches, but no reviewer sees it.
+A note that stays open and unchanged is carried forward as written: same number, title, line, and fix hint.
 
 **Fixer lines.** A finding with `*Fix attempted: <sha>, awaiting verification*` is re-verified at the new
 HEAD: if the fix holds, tick the box and write `Fixed in <sha>`; if not, leave it open with "still open at
@@ -123,7 +129,7 @@ does that). Never blocks.
 One comment per PR, created by the first pass and edited in place by every later one, found by its
 hidden marker line `<!-- pr-readiness -->`. Authorization to create and edit it is in `AGENTS.md`
 ("Standing authorizations"); it covers nothing else. With no PR yet, print the same text to the
-terminal and do not save a file. Open the PR as a draft early so the comment has a home.
+terminal and do not save a file. Open the PR as a draft after a local pass, so the comment has a home.
 
 Write the body to a file outside the repo's tracked paths, then:
 
@@ -146,7 +152,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <n> blockers · <n> concerns · <n> notes · <n> tests open · <n> closed. <what is unmet, or the security sentence below>
 
 #### 🔴 Blockers
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem and the scenario that breaks it, in up to three lines>. → <one-line fix, and the test to add when it is a defect> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in plain words, and the steps of the scenario only when the title does not show them>. → <fix|decision|info>: <one-line fix, and the test to add when it is a defect> [<reviewers> · <kind> · pass <n>]
 
 #### 🟠 Concerns
 (the same form; "None." when there are none)
@@ -155,7 +161,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>🟡 Notes (<n> open, optional): one line each</summary>
 
 #### 🟡 Notes (<n>)
-- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in one line>. → <one-line fix> [<reviewers>]
+- [ ] **<n>. <Title>.** `<path>:<line>`: <the problem in one line>. → <fix|decision|info>: <one-line fix> [<reviewers> · <kind> · pass <n>]
 
 </details>
 
@@ -163,8 +169,8 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>🧪 Tests (<n> open, optional): gaps and extras. The code is not wrong; the tests could say more</summary>
 
 #### 🧪 Tests (<n>)
-- [ ] **<n>. Gap: <what is not tested>.** `<path>:<line>`: <what a test would pin>. → <the test to add> [<reviewers>]
-- [ ] **<n>. Extra: <what is redundant or brittle>.** `<path>:<line>`: <why>. → <what to remove or merge> [<reviewers>]
+- [ ] **<n>. Gap: <what is not tested>.** `<path>:<line>`: <what a test would pin>. → <fix|decision|info>: <the test to add> [<reviewers> · test · pass <n>]
+- [ ] **<n>. Extra: <what is redundant or brittle>.** `<path>:<line>`: <why>. → <fix|decision|info>: <what to remove or merge> [<reviewers> · test · pass <n>]
 
 </details>
 
@@ -172,7 +178,7 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 <summary>✓ Closed (<n>)</summary>
 
 #### Closed (<n>)
-- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.
+- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · <fix|decision|info> · pass <n>]
 
 </details>
 
@@ -186,13 +192,37 @@ Reviewed `<sha>` against `<base>` (`<sha>`) · <date> · pass <n> · current | P
 </details>
 ```
 
-A note or a test item is one line, and a blocker or concern up to three; the fixer's `*Fix attempted*`,
+A note or a test item is one line, and a blocker or concern as long as it takes to understand it once: the defect
+and its `→` fix hint, in the plain voice below; the fixer's `*Fix attempted*`,
 `*Not fixed*`, and `*Left*` lines and the owner's `*Decision*` line each go on their own indented line
 directly under the finding. The text after `→` is the
 finding's *Pointer*. Leave out `<path>:<line>` for a finding about no one line (a design or a doc outside the
 diff). `[<reviewers>]` names who reported it. A severity lowered after verification stays on the finding, in
 the lowered tier, with the original and the reason in the tag: `[Break it, rated CONCERN; lowered to NOTE because
-CI is the backstop]`.
+CI is the backstop · bug · pass 2]`.
+
+Start the text after `→` with one word. `fix`: the author can resolve it alone. `decision`: the owner must choose
+between options. `info`: it cannot be resolved without a fact only the owner has. `<kind>` is the reviewer's `kind`,
+and `pass <n>` in the tag is the pass that first reported the finding; a later pass copies both unchanged.
+A Closed line copies that first word into its tag, after `<kind>`, so what the reviewer predicted can be compared
+with how the finding ended.
+
+**Plain voice.** Write each finding the way you would say it to the owner across a desk: common words, short
+sentences, one idea in each. Say what is wrong, where, and what to do. Leave out stacked clauses, anything the
+title or `path:line` already says, and hedges ("may", "could potentially") except to mark a finding unconfirmed. If a
+blocker or concern has a scenario with steps, list them as short bullets directly under the finding, above any fixer or Decision lines, not
+in one long sentence. If the owner would have to reread it, cut it
+down.
+
+Before: `A failed same-day catch-up can still change the burn-in result. burn_in_status.py:129-131: the day's
+status comes only from the latest artifact, while anomalies, kill switches and traded accounts are combined
+across the day. (a) The scheduled run fails at step 08 after orders went out, then --accounts x --force-run
+succeeds: the day counts as success. (b) Per-account sim,ibkr: sim traded cleanly, then the ibkr catch-up
+fails (status: failed); sim is judged failed and its streak resets. The new test covers only a catch-up that
+succeeds.`
+
+After: `A failed catch-up for ibkr also fails sim for the day, though sim traded fine. burn_in_status.py:129: the
+day takes its status from the newest artifact only. → Judge failure per account.`
 
 A finding about the tests alone goes under Tests, titled `Gap:` (a missing case, a mutation that would survive,
 a weak assertion) or `Extra:` (two tests that repeat each other, a redundant or brittle test). It is a NOTE at
@@ -200,8 +230,8 @@ most and never makes the title NOT READY. If the code is wrong today, whether or
 the defect in its usual tier and name the test to add after its `→`. Tests items are fixed and closed like notes.
 
 A closed finding (fixed, or covered by a *Decision*) keeps its number, goes under Closed, and shrinks to one
-line with its box checked: `- [x] **<n>. <Title>.** Fixed in `<sha>`: <how the fix was verified>.` A finding
-covered by a *Decision* says `Decided` instead of `Fixed`. When a *Decision* exists, it replaces the finding's
+line with its box checked, its `<path>:<line>`, and its reviewer tag kept: `- [x] **<n>. <Title>.** `<path>:<line>`: Fixed in `<sha>` (pass <n>, by <fixer|author>): <how the fix was verified>. [<reviewers> · <kind> · <fix|decision|info> · pass <n>]` A finding
+covered by a *Decision* says `Decided (pass <n>, by owner)` instead of `Fixed in <sha> (...)`. `by fixer` is a commit from the fixer loop and `by author` is any other fix; `pass` is the pass that closed it. When a *Decision* exists, it replaces the finding's
 `*Not fixed*` or `*Left*` line.
 
 Standard phrases for a step that did not run, in Review details: "not run: stopped at <step>" when the pass
@@ -227,7 +257,7 @@ A *Decision* is the owner's. The owner states it in the session; that pass write
 nowhere else, so it survives only if each pass copies it. No pass ever writes one on its own.
 
 Everything else is re-derived from the code. Each later pass re-reads the previous comment and
-re-verifies every open finding against the new HEAD. Finding numbers never change across passes: a
+re-verifies every open blocker and concern, and every open note whose code or text changed, against the new HEAD. Finding numbers never change across passes: a
 new finding takes the next number, and a fixed one keeps its number.
 
 A box is checked only by a pass that has verified the fix at HEAD (or that a *Decision* covers). An

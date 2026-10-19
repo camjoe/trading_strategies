@@ -80,7 +80,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
-| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass (no-op for `paper` accounts; also runnable standalone) |
+| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass and prints an `UNRESOLVED_ORDERS` line per account with orders it could not resolve (no-op for `paper` accounts; also runnable standalone) |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/paper_trading/run_context.py` | Resolves accounts, trade caps, artifact paths, and run metadata into the daily workflow context |
 | `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
@@ -199,7 +199,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
-| `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`); not yet wired into a job |
+| `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`, `check_account_freshness`); run by the daily trader health check |
 | `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
 | `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
