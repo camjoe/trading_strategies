@@ -95,7 +95,8 @@ answers in the private checklist. Merge only after the host account is switched,
 service will fail every 30 seconds.
 
 ### 4. Trial, then switch
-1. Smoke test on the host against IB Gateway paper, including one fractional-size order.
+1. Smoke test on the host against IB Gateway paper. `--fill-lookup-check` (built, tested with fakes only) fills a
+   small market order, reconnects, and checks `get_order`; give it a fractional `--fill-order-qty` to test that too.
 2. Suspend the host over a weekend, wake it, and record whether Gateway needs a login.
 3. Run one full week on a throwaway paper book using `interactive_brokers_socket_paper` and a market
    hours job; confirm fills reconcile and nothing double-posts.

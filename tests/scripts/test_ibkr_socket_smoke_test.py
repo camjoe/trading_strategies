@@ -6,7 +6,7 @@ from io import StringIO
 import pytest
 
 from scripts import ibkr_socket_smoke_test
-from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus
+from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
 
 
 class _FakeAdapter:
@@ -19,6 +19,8 @@ class _FakeAdapter:
         submitted_order_id: str = "77",
         report_submitted_order: bool = True,
         cancel_error: Exception | None = None,
+        market_order_status: OrderStatus = OrderStatus.FILLED,
+        lookup: BrokerOrder | None | str = "rebuilt",
     ) -> None:
         self.connect_error = connect_error
         self.read_error = read_error
@@ -26,6 +28,9 @@ class _FakeAdapter:
         self.submitted_order_id = submitted_order_id
         self.report_submitted_order = report_submitted_order
         self.cancel_error = cancel_error
+        self.market_order_status = market_order_status
+        self.lookup = lookup
+        self.connects = 0
         self.connected = False
         self.disconnected = False
         self.quoted: list[str] = []
@@ -37,6 +42,7 @@ class _FakeAdapter:
         if self.connect_error is not None:
             raise self.connect_error
         self.connected = True
+        self.connects += 1
 
     def disconnect(self) -> None:
         self.disconnected = True
@@ -71,6 +77,8 @@ class _FakeAdapter:
         placed = BrokerOrder.from_request(order)
         placed.broker_order_id = self.submitted_order_id
         placed.status = OrderStatus.SUBMITTED
+        is_market = order.order_type == OrderType.MARKET
+        status = self.market_order_status if is_market else OrderStatus.SUBMITTED
         if self.submitted_order_id and self.report_submitted_order:
             self.extra_open_trades.append(
                 BrokerOrder(
@@ -80,10 +88,29 @@ class _FakeAdapter:
                     qty=order.qty,
                     price=order.price,
                     broker_order_id=self.submitted_order_id,
-                    status=OrderStatus.SUBMITTED,
+                    status=status,
+                    filled_qty=order.qty if status == OrderStatus.FILLED else 0.0,
                 )
             )
+        self.last_placed = order
         return placed
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        if self.lookup != "rebuilt":
+            return self.lookup  # type: ignore[return-value]
+        order = self.last_placed
+        return BrokerOrder(
+            account_id=0,
+            ticker=order.ticker,
+            side=order.side,
+            qty=order.qty,
+            price=0.0,
+            broker_order_id=broker_order_id,
+            status=OrderStatus.FILLED,
+            filled_qty=order.qty,
+            avg_fill_price=100.0,
+            fills=[OrderFill(filled_qty=order.qty, fill_price=100.0, fill_time="t", commission=0.0, exec_id="e1")],
+        )
 
     def cancel_order(self, broker_order_id: str) -> None:
         if self.cancel_error is not None:
@@ -110,6 +137,11 @@ def _args(**overrides) -> argparse.Namespace:
         "paper_order_qty": 1.0,
         "paper_order_side": "buy",
         "skip_paper_order_cancel": False,
+        "fill_lookup_check": False,
+        "fill_order_symbol": "",
+        "fill_order_qty": None,
+        "fill_order_side": "buy",
+        "fill_wait_seconds": 0.05,
     }
     return argparse.Namespace(**{**defaults, **overrides})
 
@@ -320,3 +352,166 @@ def test_read_failure_still_disconnects(monkeypatch) -> None:
     assert "FAIL read" in output
     assert "no market data permissions" in output
     assert adapter.disconnected is True
+
+
+class TestFillLookupCheck:
+    """An order that fills while no job is connected must come back through get_order."""
+
+    @staticmethod
+    def _fill_args(**overrides) -> dict:
+        return {
+            "fill_lookup_check": True,
+            "fill_order_symbol": "aapl",
+            "fill_order_qty": 0.5,
+            **overrides,
+        }
+
+    @staticmethod
+    def _parts(*parts: tuple[float, float]) -> BrokerOrder:
+        total = sum(qty for qty, _ in parts)
+        return BrokerOrder(
+            account_id=0,
+            ticker="AAPL",
+            side="buy",
+            qty=total,
+            price=0.0,
+            broker_order_id="77",
+            status=OrderStatus.FILLED,
+            filled_qty=total,
+            avg_fill_price=100.5,
+            fills=[
+                OrderFill(filled_qty=qty, fill_price=price, fill_time="t", commission=0.0, exec_id=f"e{index}")
+                for index, (qty, price) in enumerate(parts, start=1)
+            ],
+        )
+
+    def test_fills_reconnects_and_looks_the_order_up(self, monkeypatch) -> None:
+        adapter = _FakeAdapter()
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 0
+        placed = adapter.placed[0]
+        assert (placed.ticker, placed.side, placed.qty, placed.order_type) == ("AAPL", "buy", 0.5, OrderType.MARKET)
+        # One connection for the reads, one for the reconnect.
+        assert adapter.connects == 2
+        assert "first connection : status filled filled 0.5/0.5" in output
+        assert "get_order        : status filled filled 0.5/0.5" in output
+        assert "fill 1           : 0.5 @ 100" in output
+        assert "fills sum        : 0.5" in output
+        assert "fill lookup after reconnect verified" in output
+
+    def test_a_fill_in_parts_prints_each_price_and_a_note(self, monkeypatch) -> None:
+        adapter = _FakeAdapter(lookup=self._parts((0.3, 100.0), (0.2, 101.25)))
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 0
+        assert "fill 1           : 0.3 @ 100" in output
+        assert "fill 2           : 0.2 @ 101.25" in output
+        assert "arrived in parts" in output
+
+    def test_a_lookup_that_returns_nothing_fails(self, monkeypatch) -> None:
+        adapter = _FakeAdapter(lookup=None)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "FAIL get_order   : returned None" in output
+        assert "could not rebuild it" in output
+        assert "PASS" not in output
+
+    def test_fills_that_do_not_add_up_fail(self, monkeypatch) -> None:
+        short = self._parts((0.3, 100.0))
+        short.filled_qty = 0.5
+        adapter = _FakeAdapter(lookup=short)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "do not add up" in output
+
+    def test_a_lookup_with_no_fills_fails(self, monkeypatch) -> None:
+        bare = self._parts((0.5, 100.0))
+        bare.fills = []
+        adapter = _FakeAdapter(lookup=bare)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "do not add up" in output
+
+    def test_a_lookup_that_is_not_filled_fails(self, monkeypatch) -> None:
+        partial = self._parts((0.5, 100.0))
+        partial.status = OrderStatus.SUBMITTED
+        adapter = _FakeAdapter(lookup=partial)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "expected filled" in output
+
+    def test_an_order_that_never_fills_is_inconclusive_and_cancelled(self, monkeypatch) -> None:
+        monkeypatch.setattr(ibkr_socket_smoke_test.time, "sleep", lambda _seconds: None)
+        adapter = _FakeAdapter(market_order_status=OrderStatus.SUBMITTED)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "INCONCLUSIVE" in output
+        assert adapter.cancelled == ["77"]
+        # Nothing was learned about the lookup, so there was no reconnect.
+        assert adapter.connects == 1
+        assert "PASS" not in output
+
+    def test_an_order_ibkr_refuses_is_a_failure_with_a_fractional_hint(self, monkeypatch) -> None:
+        adapter = _FakeAdapter(market_order_status=OrderStatus.REJECTED)
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "refused or cancelled" in output
+        assert "fractional" in output
+        assert adapter.cancelled == []
+
+    def test_refuses_to_submit_against_a_live_account(self, monkeypatch) -> None:
+        adapter = _FakeAdapter(accounts=["U1234567"])
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert adapter.placed == []
+        assert "Refusing --fill-lookup-check" in output
+
+    def test_a_missing_broker_order_id_is_an_error(self, monkeypatch) -> None:
+        adapter = _FakeAdapter(submitted_order_id="")
+
+        code, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert code == 1
+        assert "no broker order id" in output
+
+
+class TestFillLookupArgValidation:
+    @staticmethod
+    def _args(**overrides) -> argparse.Namespace:
+        return _args(**{"fill_lookup_check": True, "fill_order_symbol": "AAPL", "fill_order_qty": 0.5, **overrides})
+
+    def test_accepts_a_complete_request(self) -> None:
+        ibkr_socket_smoke_test.validate_fill_lookup_args(self._args())
+
+    def test_symbol_is_required(self) -> None:
+        with pytest.raises(ValueError, match="--fill-order-symbol"):
+            ibkr_socket_smoke_test.validate_fill_lookup_args(self._args(fill_order_symbol=" "))
+
+    @pytest.mark.parametrize("qty", [None, 0.0, -1.0])
+    def test_quantity_is_required_and_positive(self, qty) -> None:
+        with pytest.raises(ValueError, match="--fill-order-qty"):
+            ibkr_socket_smoke_test.validate_fill_lookup_args(self._args(fill_order_qty=qty))
+
+    def test_wait_must_be_positive(self) -> None:
+        with pytest.raises(ValueError, match="--fill-wait-seconds"):
+            ibkr_socket_smoke_test.validate_fill_lookup_args(self._args(fill_wait_seconds=0.0))
+
+    def test_nothing_is_validated_without_the_flag(self) -> None:
+        ibkr_socket_smoke_test.validate_fill_lookup_args(_args(fill_lookup_check=False))

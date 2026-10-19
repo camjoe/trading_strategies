@@ -21,6 +21,13 @@ By default nothing is submitted. `--paper-order-check` additionally places one
 non-marketable limit order, watches it come back through `get_open_trades()`,
 and cancels it — the round trip the fill-reconciliation path depends on. It
 refuses to run against anything but a paper account.
+
+`--fill-lookup-check` submits one MARKET order, waits for it to fill, disconnects,
+reconnects, and asks the new connection for that order by id. That is the case
+reconciliation meets when an order fills while no job is connected, and it is the
+only way to prove `get_order` rebuilds such an order. A fractional `--fill-order-qty`
+also shows whether IBKR accepts fractional sizes over the socket. It fills real
+paper positions, so use a small quantity, and run it while the market is open.
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from collections.abc import Callable
 from typing import TextIO
 
 from infrastructure.brokers.factory import IBKR_PAPER_ACCOUNT_PREFIX, is_ibkr_paper_account_id
@@ -52,6 +60,16 @@ _DEFAULT_PAPER_ORDER_SIDE = "buy"
 # plenty for a submitted order to surface.
 _ORDER_VISIBILITY_POLL_ATTEMPTS = 3
 _ORDER_VISIBILITY_POLL_DELAY_SECONDS = 2.0
+
+# How long --fill-lookup-check waits for its market order to fill before giving up, and how often it looks.
+_DEFAULT_FILL_WAIT_SECONDS = 30.0
+_FILL_POLL_INTERVAL_SECONDS = 1.0
+
+# A reported fill total and the sum of its fills may differ by float noise only.
+_FILL_SUM_TOLERANCE = 1e-6
+
+# Statuses after which an order will not fill any further.
+_TERMINAL_STATUSES = frozenset({OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED})
 
 # Statuses worth sending a cancel for. A filled or already-cancelled order is
 # not, and IBKR answers a pointless cancel with an error.
@@ -119,7 +137,47 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Leave the test order resting instead of cancelling it (it will expire at the close).",
     )
+    parser.add_argument(
+        "--fill-lookup-check",
+        action="store_true",
+        help=(
+            "Submit one MARKET order, wait for the fill, reconnect, and look the order up by id with get_order(). "
+            "Paper accounts only. Run it while the market is open."
+        ),
+    )
+    parser.add_argument("--fill-order-symbol", default="", help="Ticker for --fill-lookup-check")
+    parser.add_argument(
+        "--fill-order-qty",
+        type=float,
+        default=None,
+        help="Quantity for --fill-lookup-check; a fractional size also tests fractional support. No default.",
+    )
+    parser.add_argument(
+        "--fill-order-side",
+        default=_DEFAULT_PAPER_ORDER_SIDE,
+        choices=("buy", "sell"),
+        help=f"Side for --fill-lookup-check (default: {_DEFAULT_PAPER_ORDER_SIDE})",
+    )
+    parser.add_argument(
+        "--fill-wait-seconds",
+        type=float,
+        default=_DEFAULT_FILL_WAIT_SECONDS,
+        help=f"How long to wait for the fill (default: {_DEFAULT_FILL_WAIT_SECONDS:g})",
+    )
     return parser.parse_args()
+
+
+def validate_fill_lookup_args(args: argparse.Namespace) -> None:
+    """Reject an incomplete fill-lookup request before anything connects."""
+    if not args.fill_lookup_check:
+        return
+    if not str(args.fill_order_symbol).strip():
+        raise ValueError("--fill-lookup-check requires --fill-order-symbol.")
+    if args.fill_order_qty is None or float(args.fill_order_qty) <= 0:
+        # No default: the quantity decides whether this also tests fractional sizes.
+        raise ValueError("--fill-lookup-check requires a positive --fill-order-qty.")
+    if float(args.fill_wait_seconds) <= 0:
+        raise ValueError("--fill-wait-seconds must be greater than zero.")
 
 
 def validate_paper_order_args(args: argparse.Namespace) -> None:
@@ -263,6 +321,159 @@ def run_paper_order_check(
     return read_back_ok
 
 
+def _require_paper_session(managed_accounts: list[str], *, flag: str) -> None:
+    non_paper = [account for account in managed_accounts if not is_ibkr_paper_account_id(account)]
+    if non_paper or not managed_accounts:
+        raise RuntimeError(
+            f"Refusing {flag}: this session is not a paper session "
+            f"({', '.join(managed_accounts) if managed_accounts else 'no account reported'}). "
+            f"Only {IBKR_PAPER_ACCOUNT_PREFIX!r} accounts may be used."
+        )
+
+
+def _describe_order(order: BrokerOrder) -> str:
+    average = f" avg {order.avg_fill_price:g}" if order.avg_fill_price else ""
+    reason = f" reason {order.status_reason}" if order.status_reason else ""
+    return f"status {order.status.value} filled {order.filled_qty:g}/{order.qty:g}{average}{reason}"
+
+
+def _submit_market_order(
+    adapter: IbkrSocketAdapter, *, out: TextIO, symbol: str, side: str, qty: float, wait_seconds: float
+) -> tuple[str, BrokerOrder | None]:
+    """Place the market order and poll until it is terminal or the wait ends; return (id, last view)."""
+    normalized_symbol = symbol.strip().upper()
+    print(f"\nfill lookup check  : {side.upper()} {qty:g} {normalized_symbol} MKT DAY", file=out)
+    submitted = adapter.place_order(
+        OrderRequest(
+            account_id=0,
+            ticker=normalized_symbol,
+            side=side,
+            qty=qty,
+            price=0.0,
+            order_type=OrderType.MARKET,
+            time_in_force=TimeInForce.DAY,
+        )
+    )
+    broker_order_id = str(submitted.broker_order_id or "")
+    if not broker_order_id:
+        raise RuntimeError("Fill-lookup order was submitted but IBKR returned no broker order id.")
+    print(f"  submitted        : id {broker_order_id} status {submitted.status.value}", file=out)
+
+    deadline = time.monotonic() + wait_seconds
+    observed = _find_trade(adapter.get_open_trades(), broker_order_id)
+    while (observed is None or observed.status not in _TERMINAL_STATUSES) and time.monotonic() < deadline:
+        time.sleep(_FILL_POLL_INTERVAL_SECONDS)
+        observed = _find_trade(adapter.get_open_trades(), broker_order_id)
+    return broker_order_id, observed
+
+
+def _report_unfilled(
+    adapter: IbkrSocketAdapter, broker_order_id: str, observed: BrokerOrder | None, *, out: TextIO, wait_seconds: float
+) -> str:
+    """Report an order that did not fill; return "fail" if IBKR ended it, else "inconclusive"."""
+    detail = _describe_order(observed) if observed is not None else "never reported by get_open_trades()"
+    print(f"  first connection : {detail}", file=out)
+    if observed is not None and observed.status in _TERMINAL_STATUSES:
+        print(
+            "  FAIL             : IBKR refused or cancelled the order. "
+            "If the size was fractional, the socket path may not accept it.",
+            file=out,
+        )
+        return "fail"
+    try:
+        adapter.cancel_order(broker_order_id)
+        print("  cancel           : requested", file=out)
+    except Exception as exc:
+        print(f"  cancel           : best-effort failed ({type(exc).__name__}: {exc})", file=out)
+    print(f"  INCONCLUSIVE     : no fill within {wait_seconds:g} s. Run this while the market is open.", file=out)
+    return "inconclusive"
+
+
+def _judge_lookup(looked_up: BrokerOrder | None, *, out: TextIO) -> str:
+    """Print what get_order rebuilt after the reconnect and return "pass" or "fail"."""
+    if looked_up is None:
+        print("  FAIL get_order   : returned None for an order that filled on the first connection", file=out)
+        return "fail"
+    print(f"  get_order        : {_describe_order(looked_up)}", file=out)
+    for index, fill in enumerate(looked_up.fills, start=1):
+        print(f"  fill {index}           : {fill.filled_qty:g} @ {fill.fill_price:g} exec {fill.exec_id}", file=out)
+    filled_from_fills = sum(fill.filled_qty for fill in looked_up.fills)
+    print(f"  fills sum        : {filled_from_fills:g}", file=out)
+    if len(looked_up.fills) > 1:
+        print(
+            "  note             : the fill arrived in parts; compare each price with IBKR's statement "
+            "(the average above is not any one fill's price)",
+            file=out,
+        )
+    if looked_up.status != OrderStatus.FILLED:
+        print(f"  FAIL get_order   : status {looked_up.status.value}, expected filled", file=out)
+        return "fail"
+    if abs(filled_from_fills - looked_up.filled_qty) > _FILL_SUM_TOLERANCE or not looked_up.fills:
+        print("  FAIL get_order   : the fills do not add up to the filled quantity", file=out)
+        return "fail"
+    return "pass"
+
+
+def run_fill_lookup_check(
+    adapter: IbkrSocketAdapter,
+    *,
+    reconnect: Callable[[], IbkrSocketAdapter],
+    out: TextIO,
+    symbol: str,
+    side: str,
+    qty: float,
+    wait_seconds: float,
+    managed_accounts: list[str],
+) -> str:
+    """Fill a market order, reconnect, and look it up by id. Returns "pass", "fail" or "inconclusive".
+
+    "inconclusive" means the order did not fill in time (the market is probably closed), so
+    nothing about the lookup was learned; the order is cancelled on a best-effort basis.
+    """
+    _require_paper_session(managed_accounts, flag="--fill-lookup-check")
+    broker_order_id, observed = _submit_market_order(
+        adapter, out=out, symbol=symbol, side=side, qty=qty, wait_seconds=wait_seconds
+    )
+    if observed is None or observed.status != OrderStatus.FILLED:
+        return _report_unfilled(adapter, broker_order_id, observed, out=out, wait_seconds=wait_seconds)
+    print(f"  first connection : {_describe_order(observed)}", file=out)
+
+    adapter.disconnect()
+    print("  reconnecting     : new connection, same client id", file=out)
+    second = reconnect()
+    try:
+        listed = _find_trade(second.get_open_trades(), broker_order_id) is not None
+        print(f"  open trades      : id {broker_order_id} {'listed' if listed else 'omitted'}", file=out)
+        looked_up = second.get_order(broker_order_id)
+    finally:
+        second.disconnect()
+    return _judge_lookup(looked_up, out=out)
+
+
+def _report_verdict(args: argparse.Namespace, out: TextIO, *, round_trip_ok: bool, fill_lookup_result: str) -> int:
+    if not round_trip_ok:
+        # An order the adapter cannot read back is an order whose fills would be
+        # stranded by reconciliation. Reporting PASS here would hand an operator
+        # a green light for the one thing this check exists to disprove.
+        print("\nFAIL: socket path reachable, but the order round trip could not be verified.", file=out)
+        return 1
+
+    if fill_lookup_result == "fail":
+        print("\nFAIL: the order filled or was refused, but get_order() could not rebuild it.", file=out)
+        return 1
+    if fill_lookup_result == "inconclusive":
+        print("\nINCONCLUSIVE: the order did not fill, so get_order() was not exercised.", file=out)
+        return 1
+
+    summary = (
+        "reachable, reads succeeded"
+        + (", order round trip exercised" if args.paper_order_check else "")
+        + (", fill lookup after reconnect verified" if args.fill_lookup_check else "")
+    )
+    print(f"\nPASS: socket path {summary}.", file=out)
+    return 0
+
+
 def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
     backend = resolve_ibkr_socket_client_backend()
     print(f"backend            : {backend}", file=out)
@@ -270,6 +481,7 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
 
     # True unless --paper-order-check runs and cannot read its order back.
     round_trip_ok = True
+    fill_lookup_result = "pass"
     adapter = build_adapter(args.host, args.port, args.client_id)
     try:
         adapter.connect()
@@ -320,6 +532,18 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
                 cancel=not bool(args.skip_paper_order_cancel),
                 managed_accounts=managed_accounts,
             )
+
+        if args.fill_lookup_check:
+            fill_lookup_result = run_fill_lookup_check(
+                adapter,
+                reconnect=lambda: _reconnect(args),
+                out=out,
+                symbol=args.fill_order_symbol,
+                side=str(args.fill_order_side).strip().lower(),
+                qty=float(args.fill_order_qty),
+                wait_seconds=float(args.fill_wait_seconds),
+                managed_accounts=managed_accounts,
+            )
     except Exception as exc:
         print(f"FAIL read          : {type(exc).__name__}: {exc}", file=out)
         return 1
@@ -327,22 +551,20 @@ def run_smoke_test(args: argparse.Namespace, out: TextIO = sys.stdout) -> int:
         adapter.disconnect()
         print("disconnect         : ok", file=out)
 
-    if not round_trip_ok:
-        # An order the adapter cannot read back is an order whose fills would be
-        # stranded by reconciliation. Reporting PASS here would hand an operator
-        # a green light for the one thing this check exists to disprove.
-        print("\nFAIL: socket path reachable, but the order round trip could not be verified.", file=out)
-        return 1
+    return _report_verdict(args, out, round_trip_ok=round_trip_ok, fill_lookup_result=fill_lookup_result)
 
-    summary = "reachable, reads succeeded" + (", order round trip exercised" if args.paper_order_check else "")
-    print(f"\nPASS: socket path {summary}.", file=out)
-    return 0
+
+def _reconnect(args: argparse.Namespace) -> IbkrSocketAdapter:
+    adapter = build_adapter(args.host, args.port, args.client_id)
+    adapter.connect()
+    return adapter
 
 
 def main() -> int:
     args = parse_args()
     try:
         validate_paper_order_args(args)
+        validate_fill_lookup_args(args)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
