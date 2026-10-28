@@ -24,7 +24,7 @@ gates need at least 20 trades in the lookback window (default 30 days) before th
 | Consider raising the per-run trade caps | Possibly. Decide after the universe change shows whether caps bind. |
 | Leave strategy signals as they are | Decided. Signals are likely fine. |
 | Trade more than once per day | Decided 2026-10-19: design B, a periodic intraday job (not extra scheduled daily runs). Built as B1 below: the scheduler learns a repeat interval. |
-| What an intraday run acts on | Decided 2026-10-19: partial-day bars. An intraday run evaluates strategies on today's unfinished bar. Whether the data provider returns one is UNVERIFIED and is step 1. |
+| What an intraday run acts on | Decided 2026-10-19: partial-day bars. An intraday run evaluates strategies on today's unfinished bar. Verified 2026-10-28: the data provider returns one and it moves during the session (see the risks below). |
 | Address the consequences of intraday trading | Required as part of this work. See the list below. |
 
 ## Work items
