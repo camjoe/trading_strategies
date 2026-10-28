@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 
+from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from scripts.data_ops import probe_intraday_bars as probe
 from scripts.data_ops.probe_intraday_bars import LastBar, TickerProbe
 
@@ -194,3 +195,39 @@ class TestMarketHours:
         out = self.run(capsys, datetime(2026, 10, 28, 18, 0, tzinfo=timezone.utc))  # Wednesday, 14:00 Eastern
 
         assert "WARNING" not in out
+
+
+class PerTickerProvider:
+    def __init__(self, closes: dict[str, float]) -> None:
+        self.closes = closes
+
+    def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        return frame(TODAY, self.closes[ticker])
+
+
+class TestPerTicker:
+    def test_each_result_carries_its_own_ticker_bars(self) -> None:
+        provider = PerTickerProvider({"AAA": 10.0, "BBB": 20.0})
+
+        results = probe.probe_tickers(provider, ["AAA", "BBB"], "3mo", 1, sleep=lambda _s: None, say=lambda _l: None)  # type: ignore[arg-type]
+
+        assert {r.ticker: (r.first.close, r.fresh.close, r.later.close) for r in results if r.later} == {
+            "AAA": (10.0, 10.0, 10.0),
+            "BBB": (20.0, 20.0, 20.0),
+        }
+
+
+class TestDemoProvider:
+    def test_a_demo_provider_is_flagged(self, capsys) -> None:
+        class Demo(DemoMarketDataProvider):
+            def fetch_ohlcv(self, ticker, period, interval):
+                return frame(TODAY, 1.0)
+
+        probe.main(["--tickers", "AAA", "--wait-seconds", "0"], Demo())
+
+        assert "the demo provider generated these bars" in capsys.readouterr().out
+
+    def test_a_real_provider_is_not_flagged(self, capsys) -> None:
+        probe.main(["--tickers", "AAA", "--wait-seconds", "0"], LiveLikeProvider([1.0]))  # type: ignore[arg-type]
+
+        assert "demo provider" not in capsys.readouterr().out

@@ -19,6 +19,7 @@ from datetime import date, datetime, timezone
 
 import pandas as pd
 
+from infrastructure.market_data.demo_provider import DemoMarketDataProvider
 from trading.domain.market.hours import US_EQUITY_MARKET_TIMEZONE, is_regular_us_equity_market_open
 from trading.services.market_data.protocols import MarketDataProvider
 from trading.services.universe import resolve_named_universes
@@ -191,6 +192,8 @@ def main(
     ended = now()
     market_open = is_regular_us_equity_market_open(started) and is_regular_us_equity_market_open(ended)
     today = started.astimezone(US_EQUITY_MARKET_TIMEZONE).date()
+    if isinstance(provider, DemoMarketDataProvider):
+        print("WARNING: the demo provider generated these bars, so none of the conclusions describe the vendor.")
     print("\n".join(verdicts(probes, today, market_open)))
     return 0
 
