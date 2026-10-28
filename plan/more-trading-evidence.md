@@ -87,14 +87,16 @@ sell within a day. Risks to settle before shipping:
 - Whipsaw and same-day round trips. Consider a minimum hold or hysteresis, and confirm whether a signal that
   flips back should be acted on at all.
 - IBKR day-trading rules for small margin accounts: UNVERIFIED whether they apply to this paper account.
-- What the data provider returns for today before the close: UNVERIFIED. If it returns no partial bar, intraday
-  runs re-evaluate the same signal and add no evidence; this is step 1 below. A read-only probe script (its own
-  pull request, under `scripts/data_ops/`) is run on the host while the market is open.
+- What the data provider returns for today before the close (verified 2026-10-28, 14:06 Eastern, probe on the
+  host, AAPL/MSFT/NVDA): yfinance returns a bar dated today at the `1d` interval, and a fresh fetch a couple of
+  minutes later shows a different close and a higher volume for all three. Intraday runs can therefore see new
+  data; the bar is unfinished, so signals must tolerate a partial day. Checked once, in one session.
 - The market-data cache (verified in the code): signals read `fetch_ohlcv(ticker, period, "1d")`, which goes
   through a 24-hour on-disk cache keyed by ticker, period, and interval. A second run in the same day reads the
   first run's bars from disk, so intraday runs see no new data unless the cache is disabled
   (`TRADING_MARKET_DATA_CACHE_DISABLED`) or its lifetime is cut for the intraday job. This must change with the
-  intraday job; the probe shows the cached and fresh bars side by side.
+  intraday job. The probe confirmed it: the cached bar equalled the first fetch while a fresh fetch differed for
+  two of three tickers.
 - Backtests and the evidence the advisor reads assume daily-bar decisions. Intraday trades are a different
   kind of evidence; label them so the scorecards and promotion review can separate them.
 
@@ -107,8 +109,8 @@ sell within a day. Risks to settle before shipping:
   contract types likely, which that plan exists to handle.
 
 ## Suggested order
-1. Find out what the data provider returns for today's bar before the close: run the probe script on the host
-   in session. This decides whether intraday runs can produce new signals at all.
+1. Done: what the data provider returns for today's bar before the close (see the risks above). Intraday runs
+   can produce new signals if they bypass the cache.
 2. Run the daily job as is for a few weeks to build a baseline. Record trades per account per day.
 3. Universe change on one account, then the rest.
 4. Decide on caps from the logs.
