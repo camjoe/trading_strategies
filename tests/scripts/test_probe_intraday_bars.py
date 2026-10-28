@@ -67,7 +67,7 @@ class TestProbeTicker:
         provider = LiveLikeProvider([100.0, 101.0, 102.0])
         slept: list[float] = []
 
-        result = probe.probe_ticker(provider, "AAA", "3mo", 60, sleep=slept.append)  # type: ignore[arg-type]
+        result = probe.probe_tickers(provider, ["AAA"], "3mo", 60, sleep=slept.append, say=lambda _line: None)[0]  # type: ignore[arg-type]
 
         assert slept == [60]
         assert result.first.close == 100.0  # the first network fetch
@@ -78,16 +78,16 @@ class TestProbeTicker:
     def test_the_cache_setting_is_restored_afterwards(self, monkeypatch) -> None:
         monkeypatch.delenv("TRADING_MARKET_DATA_CACHE_DISABLED", raising=False)
 
-        probe.probe_ticker(LiveLikeProvider([1.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+        probe.probe_tickers(LiveLikeProvider([1.0]), ["AAA"], "3mo", 0, say=lambda _line: None)  # type: ignore[arg-type]
 
         assert "TRADING_MARKET_DATA_CACHE_DISABLED" not in os.environ
 
         monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DISABLED", "0")
-        probe.probe_ticker(LiveLikeProvider([1.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+        probe.probe_tickers(LiveLikeProvider([1.0]), ["AAA"], "3mo", 0, say=lambda _line: None)  # type: ignore[arg-type]
         assert os.environ["TRADING_MARKET_DATA_CACHE_DISABLED"] == "0"
 
     def test_a_zero_wait_skips_the_last_fetch(self) -> None:
-        result = probe.probe_ticker(LiveLikeProvider([1.0, 2.0]), "AAA", "3mo", 0)  # type: ignore[arg-type]
+        result = probe.probe_tickers(LiveLikeProvider([1.0, 2.0]), ["AAA"], "3mo", 0, say=lambda _line: None)[0]  # type: ignore[arg-type]
 
         assert result.later is None
 
@@ -160,3 +160,34 @@ class TestMain:
 
         assert probe.main(["--wait-seconds", "0"], LiveLikeProvider([1.0])) == 1  # type: ignore[arg-type]
         assert "No tickers" in capsys.readouterr().err
+
+
+class TestWaitsOnce:
+    def test_several_tickers_share_one_wait_and_each_gets_a_later_fetch(self) -> None:
+        slept: list[float] = []
+        said: list[str] = []
+
+        results = probe.probe_tickers(
+            LiveLikeProvider([1.0, 2.0, 3.0, 4.0]),
+            ["AAA", "BBB", "CCC"],
+            "3mo",
+            90,
+            sleep=slept.append,
+            say=said.append,  # type: ignore[arg-type]
+        )
+
+        assert slept == [90]
+        assert [r.ticker for r in results] == ["AAA", "BBB", "CCC"] and all(r.later is not None for r in results)
+        assert [line for line in said if line.startswith("Fetching")] == [
+            "Fetching AAA ...",
+            "Fetching BBB ...",
+            "Fetching CCC ...",
+        ]
+        assert sum("Waiting 90 seconds, once" in line for line in said) == 1
+
+    def test_no_wait_means_no_wait_message_and_no_later_fetch(self) -> None:
+        said: list[str] = []
+
+        results = probe.probe_tickers(LiveLikeProvider([1.0]), ["AAA", "BBB"], "3mo", 0, say=said.append)  # type: ignore[arg-type]
+
+        assert all(r.later is None for r in results) and not any("Waiting" in line for line in said)

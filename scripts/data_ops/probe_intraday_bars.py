@@ -18,7 +18,8 @@ import os
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, time as clock
 from pathlib import Path
@@ -99,30 +100,46 @@ def verdicts(probes: Sequence[TickerProbe], today: date, market_open: bool) -> l
     return lines
 
 
-def probe_ticker(
+def probe_tickers(
     provider: MarketDataProvider,
-    ticker: str,
+    tickers: Sequence[str],
     period: str,
     wait_seconds: float,
     sleep: Callable[[float], None] = time.sleep,
-) -> TickerProbe:
-    """Fetch *ticker* four ways: first (fills the cache), cached, fresh (cache off), and fresh again after a wait."""
-    first = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
-    cached = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+    say: Callable[[str], None] = print,
+) -> list[TickerProbe]:
+    """Fetch every ticker three ways, wait once, then fetch each again: first (fills the cache), cached, fresh, later."""
+    firsts: dict[str, LastBar] = {}
+    cacheds: dict[str, LastBar] = {}
+    freshes: dict[str, LastBar] = {}
+    for ticker in tickers:
+        say(f"Fetching {ticker} ...")
+        firsts[ticker] = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+        cacheds[ticker] = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+        with _cache_disabled():
+            freshes[ticker] = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+    laters: dict[str, LastBar | None] = dict.fromkeys(tickers)
+    if wait_seconds > 0:
+        say(f"Waiting {wait_seconds:.0f} seconds, once, before fetching again (Ctrl+C to stop) ...")
+        sleep(wait_seconds)
+        with _cache_disabled():
+            for ticker in tickers:
+                laters[ticker] = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+    return [TickerProbe(t, firsts[t], cacheds[t], freshes[t], laters[t]) for t in tickers]
+
+
+@contextmanager
+def _cache_disabled() -> Iterator[None]:
+    """Turn the provider's disk cache off for the block and put the setting back afterwards."""
     previous = os.environ.get(_CACHE_DISABLED_ENV)
     os.environ[_CACHE_DISABLED_ENV] = "1"
     try:
-        fresh = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
-        later = None
-        if wait_seconds > 0:
-            sleep(wait_seconds)
-            later = last_bar(provider.fetch_ohlcv(ticker, period, "1d"))
+        yield
     finally:
         if previous is None:
             os.environ.pop(_CACHE_DISABLED_ENV, None)
         else:
             os.environ[_CACHE_DISABLED_ENV] = previous
-    return TickerProbe(ticker, first, cached, fresh, later)
 
 
 def render(probes: Sequence[TickerProbe]) -> str:
@@ -173,7 +190,7 @@ def main(argv: Sequence[str] | None = None, provider: MarketDataProvider | None 
             print(
                 f"Probing {', '.join(tickers)} at {now:%Y-%m-%d %H:%M} Eastern (provider: {type(provider).__name__})."
             )
-            probes = [probe_ticker(provider, ticker, args.period, args.wait_seconds) for ticker in tickers]
+            probes = probe_tickers(provider, tickers, args.period, args.wait_seconds)
     finally:
         if previous_dir is None:
             os.environ.pop(_CACHE_DIR_ENV, None)
