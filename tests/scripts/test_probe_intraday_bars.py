@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
-import pytest
 
 from scripts.data_ops import probe_intraday_bars as probe
 from scripts.data_ops.probe_intraday_bars import LastBar, TickerProbe
@@ -15,7 +14,7 @@ TODAY = date(2026, 10, 19)
 def frame(day: date, close: float, volume: float = 1000.0) -> pd.DataFrame:
     return pd.DataFrame(
         {"close": [close - 1, close], "volume": [900.0, volume]},
-        index=pd.to_datetime([day.replace(day=day.day - 1), day]),
+        index=pd.to_datetime([day - timedelta(days=1), day]),
     )
 
 
@@ -26,35 +25,23 @@ class LiveLikeProvider:
         self.closes = closes
         self.day = day
         self.network_calls = 0
-        self.stored: pd.DataFrame | None = None
+        self.stored: dict[str, pd.DataFrame] = {}
 
     def fetch_ohlcv(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
         cache_off = os.environ.get("TRADING_MARKET_DATA_CACHE_DISABLED") == "1"
-        if self.stored is not None and not cache_off:
-            return self.stored
+        if ticker in self.stored and not cache_off:
+            return self.stored[ticker]
         close = self.closes[min(self.network_calls, len(self.closes) - 1)]
         self.network_calls += 1
         result = frame(self.day, close)
         if not cache_off:
-            self.stored = result
+            self.stored[ticker] = result
         return result
 
 
 class TestParts:
     def test_last_bar_reads_the_final_row(self) -> None:
         assert probe.last_bar(frame(TODAY, 101.5, 1234)) == LastBar(TODAY, 101.5, 1234.0)
-
-    @pytest.mark.parametrize(
-        ("moment", "expected"),
-        [
-            (datetime(2026, 10, 19, 15, 0, tzinfo=timezone.utc), True),  # Monday 11:00 Eastern
-            (datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc), False),  # Monday 08:00 Eastern
-            (datetime(2026, 10, 19, 21, 0, tzinfo=timezone.utc), False),  # Monday 17:00 Eastern
-            (datetime(2026, 10, 17, 15, 0, tzinfo=timezone.utc), False),  # Saturday
-        ],
-    )
-    def test_market_is_open_only_in_a_weekday_session(self, moment: datetime, expected: bool) -> None:
-        assert probe.market_is_open(moment) is expected
 
     def test_default_tickers_come_from_the_default_universe(self) -> None:
         tickers = probe.default_tickers(3)
@@ -71,7 +58,7 @@ class TestProbeTicker:
 
         assert slept == [60]
         assert result.first.close == 100.0  # the first network fetch
-        assert result.cached == result.first  # the cache returns the stored bar
+        assert result.cached == result.first
         assert result.fresh.close == 101.0  # cache off: a new network fetch
         assert result.later is not None and result.later.close == 102.0
 
@@ -105,7 +92,7 @@ class TestVerdicts:
 
         text = "\n".join(lines)
         assert "unfinished bar" in text
-        assert "cache returned a different last bar than a fresh fetch for AAA" in text
+        assert "changed between two back-to-back fetches for AAA" in text
         assert "changed the last bar for 1 of 1" in text
         assert not any(line.startswith("WARNING") for line in lines)
 
@@ -120,7 +107,7 @@ class TestVerdicts:
     def test_agreeing_cache_and_a_bar_that_did_not_move(self) -> None:
         text = "\n".join(probe.verdicts([a_probe(cached=101.0, fresh=101.0, later=101.0)], TODAY, market_open=True))
 
-        assert "no ticker (cache and fresh agree)" in text
+        assert "no ticker (a quiet moment" in text
         assert "changed the last bar for 0 of 1" in text
 
     def test_without_a_wait_there_is_no_movement_line(self) -> None:
@@ -138,7 +125,7 @@ class TestMain:
         out = capsys.readouterr().out
         assert code == 0
         assert "Probing AAA, BBB" in out and "AAA" in out and "BBB" in out
-        assert "Today's bar in a fresh fetch" in out and "cache returned" in out
+        assert "Today's bar in a fresh fetch" in out and "back-to-back fetches" in out
 
     def test_it_uses_a_temporary_cache_directory(self, monkeypatch) -> None:
         seen: list[str] = []
@@ -191,3 +178,19 @@ class TestWaitsOnce:
         results = probe.probe_tickers(LiveLikeProvider([1.0]), ["AAA", "BBB"], "3mo", 0, say=said.append)  # type: ignore[arg-type]
 
         assert all(r.later is None for r in results) and not any("Waiting" in line for line in said)
+
+
+class TestMarketHours:
+    def run(self, capsys, moment: datetime) -> str:
+        probe.main(["--tickers", "AAA", "--wait-seconds", "0"], LiveLikeProvider([1.0, 2.0]), now=lambda: moment)  # type: ignore[arg-type]
+        return capsys.readouterr().out
+
+    def test_a_holiday_midday_gets_the_closed_warning(self, capsys) -> None:
+        out = self.run(capsys, datetime(2026, 11, 26, 15, 0, tzinfo=timezone.utc))  # Thanksgiving, 10:00 Eastern
+
+        assert "WARNING: the market is closed" in out
+
+    def test_a_session_midday_gets_no_warning(self, capsys) -> None:
+        out = self.run(capsys, datetime(2026, 10, 28, 18, 0, tzinfo=timezone.utc))  # Wednesday, 14:00 Eastern
+
+        assert "WARNING" not in out

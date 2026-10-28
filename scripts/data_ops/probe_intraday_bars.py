@@ -1,14 +1,8 @@
 """Probe what the market-data provider returns for today's bar while the market is open.
 
-Intraday trading runs only help if a run sees today's unfinished daily bar and if that bar changes during the
-session. This probe fetches the bars the way the auto-trader does (``fetch_ohlcv`` at ``1d``) and reports:
-
-- whether the last bar is dated today (US Eastern),
-- whether the provider's on-disk cache returns the same bar as a fresh fetch, and
-- whether a fresh fetch after a wait returns a different last bar.
-
-Read-only: it touches no trading data and uses a temporary cache directory, so the real market-data cache is
-left alone. It does make network calls to the data vendor, so run it from the host while the market is open.
+Fetches bars the way the auto-trader does (``fetch_ohlcv`` at ``1d``) and reports whether the last bar is dated
+today (US Eastern), whether two back-to-back fetches differ, and whether a fresh fetch after a wait differs.
+Read-only, uses a temporary cache directory, and makes network calls to the data vendor.
 """
 
 from __future__ import annotations
@@ -21,22 +15,16 @@ import time
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import date, datetime, time as clock
-from pathlib import Path
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timezone
 
 import pandas as pd
 
+from trading.domain.market.hours import US_EQUITY_MARKET_TIMEZONE, is_regular_us_equity_market_open
 from trading.services.market_data.protocols import MarketDataProvider
+from trading.services.universe import resolve_named_universes
 
-NEW_YORK = ZoneInfo("America/New_York")
-_MARKET_OPEN = clock(9, 30)
-_MARKET_CLOSE = clock(16, 0)
 _CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
 _CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
-_DEFAULT_UNIVERSE = (
-    Path(__file__).resolve().parents[2] / "src" / "infrastructure" / "config" / "trade_universes" / "default.txt"
-)
 
 
 @dataclass(frozen=True)
@@ -63,12 +51,6 @@ def last_bar(frame: pd.DataFrame) -> LastBar:
     return LastBar(day=pd.Timestamp(frame.index[-1]).date(), close=float(row["close"]), volume=float(row["volume"]))
 
 
-def market_is_open(now: datetime) -> bool:
-    """Whether *now* falls in a regular US session (weekday, 09:30 to 16:00 Eastern; holidays are not known)."""
-    local = now.astimezone(NEW_YORK)
-    return local.weekday() < 5 and _MARKET_OPEN <= local.time() < _MARKET_CLOSE
-
-
 def verdicts(probes: Sequence[TickerProbe], today: date, market_open: bool) -> list[str]:
     """Plain-language conclusions from *probes*; each line answers one question."""
     lines: list[str] = []
@@ -81,10 +63,14 @@ def verdicts(probes: Sequence[TickerProbe], today: date, market_open: bool) -> l
         f"Today's bar in a fresh fetch: {len(has_today)} of {len(probes)} tickers"
         + (" (the provider returns the unfinished bar)." if has_today else " (no unfinished bar was returned).")
     )
-    stale = [p.ticker for p in probes if p.cached != p.fresh]
+    moved = [p.ticker for p in probes if p.cached != p.fresh]
     lines.append(
-        "The cache returned a different last bar than a fresh fetch for "
-        + (f"{', '.join(stale)}." if stale else "no ticker (cache and fresh agree).")
+        "The last bar changed between two back-to-back fetches for "
+        + (
+            f"{', '.join(moved)} (a cached copy would serve the older bar)."
+            if moved
+            else "no ticker (a quiet moment; this does not test an old cache entry)."
+        )
     )
     waited = [p for p in probes if p.later is not None]
     if waited:
@@ -156,11 +142,14 @@ def render(probes: Sequence[TickerProbe]) -> str:
 
 def default_tickers(count: int) -> list[str]:
     """The first *count* tickers of the default trade universe."""
-    names = [line.strip() for line in _DEFAULT_UNIVERSE.read_text(encoding="utf-8").splitlines()]
-    return [name for name in names if name and not name.startswith("#")][:count]
+    return resolve_named_universes(["default"])[:count]
 
 
-def main(argv: Sequence[str] | None = None, provider: MarketDataProvider | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    provider: MarketDataProvider | None = None,
+    now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--tickers", default="", help="Comma-separated tickers (default: the first three of the default universe)."
@@ -186,9 +175,10 @@ def main(argv: Sequence[str] | None = None, provider: MarketDataProvider | None 
                 from infrastructure.market_data.factory import build_provider
 
                 provider = build_provider()
-            now = datetime.now(NEW_YORK)
+            started = now()
             print(
-                f"Probing {', '.join(tickers)} at {now:%Y-%m-%d %H:%M} Eastern (provider: {type(provider).__name__})."
+                f"Probing {', '.join(tickers)} at {started.astimezone(US_EQUITY_MARKET_TIMEZONE):%Y-%m-%d %H:%M} Eastern "
+                f"(provider: {type(provider).__name__})."
             )
             probes = probe_tickers(provider, tickers, args.period, args.wait_seconds)
     finally:
@@ -198,7 +188,10 @@ def main(argv: Sequence[str] | None = None, provider: MarketDataProvider | None 
             os.environ[_CACHE_DIR_ENV] = previous_dir
     print(render(probes))
     print()
-    print("\n".join(verdicts(probes, now.date(), market_is_open(now))))
+    ended = now()
+    market_open = is_regular_us_equity_market_open(started) and is_regular_us_equity_market_open(ended)
+    today = started.astimezone(US_EQUITY_MARKET_TIMEZONE).date()
+    print("\n".join(verdicts(probes, today, market_open)))
     return 0
 
 
