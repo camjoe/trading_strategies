@@ -36,8 +36,12 @@ def add_account_commands(
     add_book_arg(p_assign)
     p_assign.add_argument("--strategy", required=True, help="Catalog strategy key to assign")
 
-    p_configure = sub.add_parser("configure-account", help="Update per-account metadata and goals.")
+    p_configure = sub.add_parser(
+        "configure-account",
+        help="Update per-account metadata and goals, or one book's settings with --book.",
+    )
     add_account_arg(p_configure)
+    add_book_arg(p_configure)
     add_option_args(p_configure, configure_mode=True)
 
     p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")

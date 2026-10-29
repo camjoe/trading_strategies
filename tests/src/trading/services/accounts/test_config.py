@@ -4,6 +4,7 @@ from trading.models import AccountConfig
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.mutations import configure_account, create_account, get_account, set_account_strategy
 from trading.services.books.book_assignments import get_default_book
+from trading.services.universe import resolve_named_universes
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
 
@@ -285,6 +286,17 @@ class TestConfigureAccountOptionFields:
         book = get_default_book(conn, account_id=account.id)
         assert book is not None
         assert book.max_trades_per_run == 3
+
+    def test_configure_account_rejects_max_trades_per_run_below_one(self, conn, base_account) -> None:
+        with pytest.raises(ValueError, match="max_trades_per_run must be at least 1"):
+            configure_account(conn, account_name=base_account, config=AccountConfig(max_trades_per_run=0))
+
+    def test_configure_account_replaces_trade_symbols_from_named_universe(self, conn, base_account) -> None:
+        configure_account(conn, account_name=base_account, config=AccountConfig(trade_universes=["growth"]))
+
+        book = get_default_book(conn, account_id=get_account(conn, base_account).id)
+        assert book is not None
+        assert book.trade_symbol_list() == resolve_named_universes(["growth"])
 
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):

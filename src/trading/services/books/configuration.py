@@ -30,6 +30,7 @@ from trading.services.books.rotation.engine import (
 from trading.services.books.settings_validation import (
     book_settings_update_from_config,
     validate_goal_range_from_inputs,
+    validate_max_trades_per_run,
     validate_option_settings_from_inputs,
     validate_position_sizing_from_inputs,
 )
@@ -88,6 +89,7 @@ def apply_book_config(conn: sqlite3.Connection, *, book: BookRecord, config: Acc
         config.trade_size_pct,
         config.max_position_pct,
     )
+    validate_max_trades_per_run(config.max_trades_per_run)
     validate_option_settings_from_inputs(
         book,
         config.option_type,

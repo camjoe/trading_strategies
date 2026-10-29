@@ -25,9 +25,8 @@ them. It does not cover more runs per day or a bigger universe in general; see `
 - Universe history is recorded (`book_universe_history`) on every change.
 
 ## What is missing
-1. UNVERIFIED: whether any CLI command exposes `trade_universes` or `max_trades_per_run` for an existing
-   book. A search of `src/trading/interfaces/cli` found no flag for either. Read the settings handlers and
-   `configure-account` / the book command before assuming; the likely answer is two new options.
+1. Verified 2026-10-28: no CLI flag reached `trade_universes` or `max_trades_per_run`, and `configure-account`
+   edited only the default book. Item 1 below adds them.
 2. The IBKR accounts are provisioned as clones (same strategy per account, same 12-ticker universe, 10% size,
    20% max position, no risk policy). Nothing says why each differs.
 3. The account budget is shared. With several books per account, or with intraday runs, the date seed gives
@@ -35,7 +34,7 @@ them. It does not cover more runs per day or a bigger universe in general; see `
 
 ## Work items
 
-### 1. CLI: edit a book's universe and per-run limit (small, unblocks the rest)
+### 1. CLI: edit a book's universe and per-run limit (small, unblocks the rest) — done on `feature/distinct-books`
 - Add `--trade-universes` (names or tickers; whichever `resolve_trade_symbols` accepts) and
   `--max-trades-per-run` to the book edit path that reaches `configure_book`. Validate through the
   existing settings validation. No migration: both columns exist.

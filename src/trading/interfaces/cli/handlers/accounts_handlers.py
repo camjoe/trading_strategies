@@ -4,7 +4,7 @@ from trading.interfaces.cli.handlers.context import CliContext
 from trading.interfaces.cli.handlers.shared import common_account_config_kwargs
 from trading.services.accounts.listing import fetch_account_listing_lines
 from trading.services.accounts.mutations import configure_account, create_account, set_benchmark
-from trading.services.books.configuration import assign_catalog_strategy
+from trading.services.books.configuration import assign_catalog_strategy, configure_book
 from trading.services.execution.ledger.mutations import record_trade
 
 
@@ -35,12 +35,29 @@ def handle_configure_account(conn, args, parser, *, ctx: CliContext) -> None:
         parser.error(str(error))
         return
 
-    configure_account(
+    book_name = getattr(args, "book", None)
+    if book_name is None:
+        configure_account(
+            conn,
+            account_name=args.account,
+            config=config,
+        )
+        print(f"Updated account configuration for '{args.account}'.")
+        return
+
+    if config.descriptive_name is not None:
+        parser.error("--display-name is an account setting; omit --book to change it.")
+        return
+    configure_book(
         conn,
         account_name=args.account,
+        book_name=book_name,
+        strategy=None,
         config=config,
+        rotation_scheduling={},
+        rotation_policy={},
     )
-    print(f"Updated account configuration for '{args.account}'.")
+    print(f"Updated book '{book_name}' of '{args.account}'.")
 
 
 def handle_assign_strategy(conn, args, parser, *, ctx: CliContext) -> None:
