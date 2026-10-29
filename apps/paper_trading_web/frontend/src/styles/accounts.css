@@ -76,7 +76,7 @@
   align-items: end;
   margin-bottom: 1.1rem;
   padding: 0.95rem 1rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface-subtle);
 }
@@ -87,11 +87,11 @@
 
 .account-browser-panel {
   margin-bottom: 1.1rem;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--panel-2);
   padding: 1rem;
-  box-shadow: inset 0 1px 0 #ffffff80;
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 #tab-accounts .account-browser-grid {
@@ -107,13 +107,13 @@
   text-align: left;
   color: var(--ink);
   background: var(--panel-2);
-  border: 1px solid var(--panel-border);
-  box-shadow: inset 0 1px 0 #ffffff80;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 var(--inset-highlight);
 }
 
 .account-card.active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px #2563eb16;
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 .account-card .row {
@@ -136,9 +136,9 @@
   font-weight: 600;
 }
 
-.chip--option  { background: #fff0d4; border-color: #e8b84b; }
-.chip--auto    { background: #e4f0ff; border-color: #7ab3e8; }
-.chip--manual  { background: #e8fbe8; border-color: #72c472; }
+.chip--option  { background: var(--warn-bg); border-color: var(--warn-border); }
+.chip--auto    { background: var(--info-bg); border-color: var(--info-border); }
+.chip--manual  { background: var(--ok-bg); border-color: var(--ok-border); }
 .chip--equity  { background: var(--chip-bg); border-color: var(--chip-border); }
 
 .row.slim {
@@ -147,19 +147,19 @@
 }
 
 .up {
-  color: var(--up);
+  color: var(--ok);
 }
 
 .down {
-  color: var(--down);
+  color: var(--bad);
 }
 
 .empty {
   color: var(--ink-soft);
   padding: 0.95rem 1rem;
-  border: 1px dashed var(--border-action-hover);
+  border: 1px dashed var(--line-hover);
   border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f7fbff);
+  background: linear-gradient(180deg, var(--surface-white), var(--panel-2));
 }
 
 .detail-head {
@@ -179,7 +179,7 @@
 .edit-params-panel {
   margin: 0 0 1rem;
   padding: 0.95rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface-subtle);
   display: flex;
@@ -205,7 +205,7 @@
 }
 
 .config-summary-card {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface-subtle);
   padding: 1.05rem;
@@ -229,7 +229,7 @@
 }
 
 .summary-overview-card {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface-subtle);
   padding: 1.05rem;
@@ -264,9 +264,9 @@
 }
 
 .detail-section-tab {
-  background: var(--surface-action);
+  background: var(--surface-subtle);
   color: var(--ink-soft);
-  border: 1px solid var(--border-action);
+  border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0.5rem 0.95rem;
   font-size: 0.84rem;
@@ -276,9 +276,9 @@
 .detail-section-tab.active,
 .detail-section-tab:hover,
 .detail-section-tab:focus-visible {
-  background: var(--surface-action-hover);
+  background: var(--surface-hover);
   color: var(--accent);
-  border-color: var(--border-action-hover);
+  border-color: var(--line-hover);
   transform: none;
   filter: none;
 }
@@ -322,7 +322,7 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid var(--line-table);
+  border-bottom: 1px solid var(--line);
   text-align: left;
   padding: 0.7rem 0.75rem;
 }
@@ -337,25 +337,25 @@ td {
 }
 
 .recent-trades-table thead th {
-  border-bottom: 1px solid var(--line-table);
+  border-bottom: 1px solid var(--line);
 }
 
 .recent-trades-table tbody td {
   background: var(--surface-white);
-  border-top: 1px solid var(--line-table);
-  border-bottom: 1px solid var(--line-table);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   border-left: none;
   border-right: none;
 }
 
 .recent-trades-table tbody tr td:first-child {
-  border-left: 1px solid var(--line-table);
+  border-left: 1px solid var(--line);
   border-top-left-radius: 12px;
   border-bottom-left-radius: 12px;
 }
 
 .recent-trades-table tbody tr td:last-child {
-  border-right: 1px solid var(--line-table);
+  border-right: 1px solid var(--line);
   border-top-right-radius: 12px;
   border-bottom-right-radius: 12px;
 }
@@ -375,16 +375,16 @@ td {
 
 .recent-trades-table tbody td.up {
   background: linear-gradient(180deg, var(--trade-buy-start), var(--trade-buy-end));
-  color: var(--trade-buy-ink);
-  border-top: 1px solid var(--trade-buy-border);
-  border-bottom: 1px solid var(--trade-buy-border);
+  color: var(--ok);
+  border-top: 1px solid var(--ok-border);
+  border-bottom: 1px solid var(--ok-border);
 }
 
 .recent-trades-table tbody td.down {
   background: linear-gradient(180deg, var(--trade-sell-start), var(--trade-sell-end));
-  color: var(--trade-sell-ink);
-  border-top: 1px solid var(--trade-sell-border);
-  border-bottom: 1px solid var(--trade-sell-border);
+  color: var(--bad);
+  border-top: 1px solid var(--bad-border);
+  border-bottom: 1px solid var(--bad-border);
 }
 
 @media (max-width: 1080px) {

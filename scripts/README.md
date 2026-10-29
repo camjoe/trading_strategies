@@ -59,12 +59,22 @@ Software (`scripts/documentation_ui/software/`):
 
 API Reference (`scripts/documentation_ui/api/`):
 
-- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/api.json` from FastAPI route decorators while preserving curated endpoint descriptions.
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/api.json` from FastAPI route decorators. Curated endpoint descriptions are kept; an endpoint's group always comes from its route module, so a rebuild fixes a stale group.
+
+Commands (`scripts/documentation_ui/commands/`):
+
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/commands.json`, the catalog of every CLI command, runtime job, script, and check. It reads each `argparse` parser without running the entrypoint. Each CLI command is listed as read-only or writes-local in `registry.py`; jobs and tools are listed with a risk (read-only, writes-local, broker) in `entrypoints.py`. An entry is `runnable` (the web UI may run it) only if it is read-only and finishes in seconds; `NOT_RUNNABLE_FROM_UI` and `RUNNABLE_TOOLS` hold those choices. The registry never records the repo root or the interpreter path: both become `<repo-root>` and `<python>`, so the file is the same on every host. Each argument has a `scope` (`global` options go before a subcommand), and each row stores its `subcommand` apart from `argv`.
+- `check.py`: standalone sync check that validates the command asset matches the code. It also fails when a module that defines `main` has no catalog entry.
+
+Overview (`scripts/documentation_ui/overview/`):
+
+- `build_registry.py`: rebuilds `apps/paper_trading_web/frontend/src/assets/overview.json`, the repository facts on the About page. The Python test count is floored to a step of 100 so one new test does not cause drift.
+- `check.py`: standalone sync check that validates the facts asset matches the repository.
 
 Reference orchestration (`scripts/documentation_ui/`):
 
 - `check.py`: runs Finance, Software, and API reference checks together.
-- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, and assets/software.json from requirements.
+- `sync.py`: syncs assets/finance.json from the reference doc, assets/api.json from FastAPI routes, assets/commands.json from the CLI parser, jobs, and scripts, assets/overview.json from repository facts, and assets/software.json from requirements.
 
 Docs drift fixers (`scripts/fixes/`):
 

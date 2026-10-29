@@ -32,6 +32,7 @@ FastAPI routers. One file per logical domain. Routes call backend services; they
 | `admin.py` | Admin operations (deletions, job trigger, artifact listing) |
 | `analysis.py` | Portfolio analysis data |
 | `backtests.py` | Backtest run submission and result retrieval |
+| `catalog.py` | Command catalog run endpoint (`POST /api/catalog/run`) |
 | `features.py` | Feature/signal data for alternative strategies |
 | `health.py` | Health check (`GET /health`) |
 | `autonomy_monitor.py` | Autonomy monitor status and artifacts |
@@ -48,6 +49,7 @@ Pydantic request/response models. These define the API contract with the fronten
 | `accounts.py` | Account listing, detail, snapshot responses |
 | `admin.py` | Admin request/response shapes |
 | `backtests.py` | Backtest run request and result shapes |
+| `catalog.py` | Catalog run request shape |
 | `features.py` | Feature/signal response shapes |
 | `strategy_lab.py` | Strategy variant creation/configuration, optimization run, and winner-promotion request shapes |
 
@@ -63,6 +65,7 @@ Backend service layer — bridges routes to `src/trading/` package calls.
 | `analysis.py` | Account performance-analysis endpoint response shaping (snake_case to camelCase mapping) |
 | `backtests.py` | Backtesting service (delegates to `src/backtesting/`) |
 | `evaluation.py` | Evaluation payload builders shared by account and promotion responses |
+| `catalog_runner.py` | Runs one read-only catalog entry as a subprocess: validates values, builds arguments, applies the time and output limits |
 | `features/` | Feature/signal data service |
 | `autonomy_monitor.py` | Autonomy monitor artifact assembly |
 | `operations/` | Runtime operation services (job triggers, etc.) |
@@ -102,6 +105,8 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `backtesting/` | Backtest run submission, result display, constants, payloads, types |
 | `alt-strategies.ts` | Alternative strategies feature |
 | `compare.ts` | Account comparison feature |
+| `about.ts` | About page: builds the stat tiles from the generated assets and opens linked tabs |
+| `catalog.ts` | Command catalog view: search, a kind filter, and expandable entries read from `assets/commands.json`; a family of related tools shows as one row that opens to its members |
 | `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
 | `docs/` | In-app documentation viewer: accordion, menu, helpers, constants |
 | `logs.ts` | Log viewer feature |
@@ -130,6 +135,7 @@ Shared utilities. No feature logic.
 | `format.ts` | Number/date/currency formatters |
 | `parse.ts` | Response parsing helpers |
 | `dom.ts` | DOM manipulation utilities |
+| `nav.ts` | Navigation group state: active group, sub-row visibility, last tab per group |
 | `timing.ts` | Debounce, polling, timing helpers |
 | `logs.ts` | Log parsing and display utilities |
 | `form-parse.ts` | Form input parsing helpers |
@@ -147,6 +153,8 @@ TypeScript type definitions for API response shapes. One file per backend domain
 | `backtesting.ts` | Backtest run and result shapes |
 | `compare.ts` | Account comparison shapes |
 | `autonomy-monitor.ts` | Autonomy monitor response shapes |
+| `about.ts` | About page stat and overview-facts shapes |
+| `catalog.ts` | Command catalog entry and filter shapes |
 | `portfolio.ts` | Portfolio rollup response shapes |
 | `signals.ts` | Feature/signal response shapes |
 
@@ -166,11 +174,13 @@ HTML view templates. One file per page/section. JavaScript features are bootstra
 | `alt-strategies.html` | Alternative strategies page |
 | `backtesting.html` | Backtesting page |
 | `compare.html` | Account comparison page |
+| `about.html` | About page: summary, workflow, architecture diagram, and safety rules |
+| `catalog.html` | Command catalog page |
 | `portfolio.html` | Cross-account portfolio rollup page |
 | `autonomy-monitor.html` | Autonomy monitor page |
 | `trades.html` | Trades view |
 | `app-layout.html` | Shared app layout shell |
-| `nav.html` | Navigation component |
+| `nav.html` | Navigation component: group buttons, direct system tabs, and one sub-row of tabs per group |
 
 ### Styles (`styles/`)
 
@@ -187,6 +197,8 @@ Per-feature CSS files and design tokens. Import order controlled via `styles.css
 | `alt-strategies.css` | Alternative strategies |
 | `analysis.css` | Analysis view |
 | `compare.css` | Comparison view |
+| `about.css` | About page |
+| `catalog.css` | Command catalog view |
 | `portfolio.css` | Portfolio rollup view |
 | `docs.css` | In-app docs |
 | `autonomy-monitor.css` | Autonomy monitor view |
