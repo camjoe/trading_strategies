@@ -120,6 +120,11 @@ def validate_option_settings(
     validate_range(iv_rank_min, iv_rank_max, "iv_rank")
 
 
+def validate_max_trades_per_run(max_trades_per_run: int | None) -> None:
+    if max_trades_per_run is not None and max_trades_per_run < 1:
+        raise ValidationError("max_trades_per_run must be at least 1.")
+
+
 def validate_position_sizing(
     trade_size_pct: float | None,
     max_position_pct: float | None,

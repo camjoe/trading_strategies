@@ -91,6 +91,48 @@ def test_handle_configure_account_calls_configure_account_dep(monkeypatch) -> No
     assert calls[0]["account_name"] == "bob"
 
 
+def test_handle_configure_account_with_book_edits_only_that_book(capsys, monkeypatch) -> None:
+    book_calls: list = []
+    account_calls: list = []
+    patch_services(
+        monkeypatch,
+        module,
+        configure_book=lambda *a, **kw: book_calls.append(kw),
+        configure_account=lambda *a, **kw: account_calls.append(kw),
+    )
+    args = _config_args(account="bob", book="momentum", max_trades_per_run=2, trade_universes=["growth"])
+
+    handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
+
+    assert account_calls == []
+    assert book_calls[0]["book_name"] == "momentum"
+    assert book_calls[0]["config"].max_trades_per_run == 2
+    assert book_calls[0]["config"].trade_universes == ["growth"]
+    assert "Updated book 'momentum' of 'bob'." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("book", [None, "momentum"])
+def test_handle_configure_account_routes_service_errors_to_parser_error(monkeypatch, capsys, book) -> None:
+    def _reject(*_a, **_kw):
+        raise ValueError("Book not found")
+
+    patch_services(monkeypatch, module, configure_book=_reject, configure_account=_reject)
+    args = _config_args(account="bob", book=book)
+
+    with pytest.raises(SystemExit, match="Book not found"):
+        handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
+
+    assert "Updated" not in capsys.readouterr().out
+
+
+def test_handle_configure_account_with_book_rejects_display_name(monkeypatch) -> None:
+    patch_services(monkeypatch, module, configure_book=lambda *a, **kw: None)
+    args = _config_args(account="bob", book="momentum", display_name="New")
+
+    with pytest.raises(SystemExit, match="--display-name is an account setting"):
+        handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
+
+
 def test_handle_configure_account_routes_value_error_to_parser_error() -> None:
     # Both flags set triggers ValueError from resolve_learning_enabled
     args = _config_args(account="bob", learning_enabled=True, learning_disabled=True)

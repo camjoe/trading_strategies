@@ -57,6 +57,19 @@ def test_resolve_raises_for_unknown_name(tmp_path: Path, monkeypatch: pytest.Mon
         resolve_named_universes(["large_cap", "bogus"])
 
 
+@pytest.mark.parametrize("name", ["../outside", "sub/dir", "..\\outside", "a.b", "", " growth"])
+def test_resolve_rejects_a_name_that_is_not_a_bare_identifier(
+    name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    universes = tmp_path / "universes"
+    universes.mkdir()
+    _write_universe(tmp_path, "outside", ["AAPL"])
+    monkeypatch.setattr("trading.services.universe.TRADE_UNIVERSES_DIR", universes)
+
+    with pytest.raises(ValueError, match="may contain only"):
+        resolve_named_universes([name])
+
+
 def test_resolve_raises_for_empty_names() -> None:
     with pytest.raises(ValueError, match="At least one universe name"):
         resolve_named_universes([])
