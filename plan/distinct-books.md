@@ -55,15 +55,11 @@ Candidates, from least to most invasive. Record the chosen ones in the PR, not h
 - Open: do all accounts keep sharing one IBKR cash pool? More differing books means more claims on the same
   cash; see "Other consequences" in `more-trading-evidence.md`.
 
-### 3. Fair budget sharing across books (done: the cap is split one trade at a time, `split_trade_budget`)
-- Today: one account budget, a claim order fixed for the date.
-- Options: (a) rely on per-book `max_trades_per_run` and leave the order alone; (b) seed the order from the
-  run timestamp so each run rotates (matters mainly once intraday runs exist); (c) split the budget evenly
-  by book first, then give the remainder to whoever still has signals. (a) needs no code.
-- Decide only after item 2, and after checking logs for a book that was starved. UNVERIFIED that any book
-  has been starved today.
-- The risk gate consumes its own account caps "in intent order" (a comment in `book_intents.py`), so any
-  change to the order has to be checked there too.
+### 3. Fair budget sharing across books (done: each book gets an even share of the cap)
+- Each book gets `cap // books` trades, and the first `cap % books` books in claim order get one more. The
+  claim order is seeded by run date. A book's own `max_trades_per_run` only lowers its share, and an unused
+  share is not passed on. Stop-loss and take-profit exits are not counted against a share.
+- Intents keep claim order, which the risk gate relies on when it consumes its own account caps.
 
 ### 4. Label the evidence (done)
 The advisor is book-keyed. The account-level evaluation reports not isolated when an account has several books. Intraday labels wait for the intraday job.
@@ -88,6 +84,15 @@ account, before relying on this. UNVERIFIED.
 ## Developer verification (fill in when the work ships)
 - `parameters` and `list-accounts` show the per-book universe and limit.
 - A run log shows each book's trades, and a book with a limit stops at it.
+
+### 5. Check book cash against the broker (not started)
+Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
+only equity check (`reconcile_book_equity`) compares the books with the account's own snapshot, and
+`BrokerConnection.get_account_info` (cash, buying power) and `get_positions` have no production caller.
+With several books on accounts that share one IBKR paper account, the ledgers can promise more cash than
+the broker holds; an order then fails and the account's run stops (`broker_api_anomaly`). Decide whether to
+read broker cash before submitting and what to do on a shortfall. UNVERIFIED: what `get_account_info`
+returns on the IBKR web adapter.
 
 ## Out of scope
 Intraday runs, caps for the daily job (see `more-trading-evidence.md`), enabling rotation, changing strategy

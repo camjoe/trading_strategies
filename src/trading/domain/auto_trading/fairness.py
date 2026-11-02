@@ -1,4 +1,4 @@
-"""Deterministic fair ordering of equally-signalled tickers and capacity claimants.
+"""Deterministic fair ordering of equally-signalled tickers and capacity claimants, and their even budget split.
 
 The signal says only "buy", equally, for every candidate, so the engine has no
 basis to rank them and must not let universe/file order decide. Hashing each name
@@ -7,7 +7,7 @@ reproducible within a run.
 """
 
 import hashlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 
 
 def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str]:
@@ -49,24 +49,14 @@ def order_capacity_claimants(book_ids: Sequence[int], *, seed: str) -> list[int]
     return sorted(book_ids, key=lambda book_id: hashlib.sha256(f"{seed}:book:{book_id}".encode()).hexdigest())
 
 
-def split_trade_budget(demands: Mapping[int, int], *, budget: int) -> dict[int, int]:
-    """Share an account's trade budget across its books one trade at a time.
+def split_trade_budget_evenly(book_ids: Sequence[int], *, budget: int) -> dict[int, int]:
+    """Give each book an even share of an account's trade budget.
 
-    *demands* maps each book id to the trades it wants, in claim order. Each pass
-    gives every book that still wants a trade one more, until the budget or the
-    demand runs out. A book that wants fewer than an even share leaves the rest
-    to the others, and with one book the result is ``min(demand, budget)``.
+    *book_ids* are in claim order, so the first ``budget % len(book_ids)`` books
+    take one extra trade. Shares sum to ``budget`` (or to zero for a non-positive
+    budget), and a book that does not use its share does not pass it on.
     """
-    shares = dict.fromkeys(demands, 0)
-    remaining = max(budget, 0)
-    progressed = True
-    while remaining > 0 and progressed:
-        progressed = False
-        for book_id, demand in demands.items():
-            if remaining <= 0:
-                break
-            if shares[book_id] < demand:
-                shares[book_id] += 1
-                remaining -= 1
-                progressed = True
-    return shares
+    if not book_ids:
+        return {}
+    base, extra = divmod(max(budget, 0), len(book_ids))
+    return {book_id: base + (1 if rank < extra else 0) for rank, book_id in enumerate(book_ids)}
