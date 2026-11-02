@@ -25,6 +25,7 @@ from trading.models.evaluation import (
     EvaluationPaperLiveEvidence,
     EvaluationWalkForwardEvidence,
 )
+from trading.repositories.books import BookRepository
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.books.book_assignments import (
@@ -170,8 +171,9 @@ def _book_strategy_evidence(
     account_id: int,
     requested_strategy: str,
     latest_snapshot: EquitySnapshotRecord | None,
+    isolated: bool,
 ) -> EvaluationPaperLiveEvidence:
-    """Strategy-isolated paper-live evidence sliced from book snapshots + rotation decisions.
+    """Paper-live evidence sliced from book snapshots + rotation decisions.
 
     Replaces the retired ``rotation_episodes`` store: the account's default-book
     equity snapshots are windowed at the strategy boundaries recorded in
@@ -216,7 +218,7 @@ def _book_strategy_evidence(
     return EvaluationPaperLiveEvidence(
         available=True,
         source_level=source_level,
-        strategy_isolated=True,
+        strategy_isolated=isolated,
         latest_snapshot_time=end_time,
         snapshot_count=snapshots.fetch_count_between(account_id=account_id, start_iso=window_start, end_iso=end_time),
         starting_equity=float(starting_equity),
@@ -231,6 +233,22 @@ def _book_strategy_evidence(
     )
 
 
+def _account_has_one_strategy_record(conn: sqlite3.Connection, account_id: int) -> bool:
+    """Whether the account's snapshots belong to at most one book.
+
+    Account snapshots sum every book that ever held equity, so a book that has
+    stopped trading still counts once it has a snapshot.
+    """
+    snapshots = EquitySnapshotRepository(conn)
+    contributing = {trading_book.book.id for trading_book in enumerate_trading_books(conn, account_id=account_id)}
+    contributing.update(
+        book.id
+        for book in BookRepository(conn).fetch_for_account(account_id=account_id)
+        if snapshots.fetch_latest_for_book(book_id=book.id) is not None
+    )
+    return len(contributing) <= 1
+
+
 def build_paper_live_evidence(
     conn: sqlite3.Connection,
     *,
@@ -239,9 +257,7 @@ def build_paper_live_evidence(
     active_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = account.id
-    # Snapshots here are the account's, summed over its books. With several books
-    # trading, no one strategy owns them.
-    isolated = len(enumerate_trading_books(conn, account_id=account_id)) <= 1
+    isolated = _account_has_one_strategy_record(conn, account_id)
     rotation_enabled = _default_book_rotation_enabled(conn, account_id)
     initial_cash = account.initial_cash
     latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
@@ -252,14 +268,13 @@ def build_paper_live_evidence(
             account_id=account_id,
             requested_strategy=requested_strategy,
             latest_snapshot=latest_snapshot,
+            isolated=isolated,
         )
         if rotation_enabled
         else EvaluationPaperLiveEvidence()
     )
     if evidence.available:
-        return replace(
-            evidence, mode=_evidence_mode(account), strategy_isolated=evidence.strategy_isolated and isolated
-        )
+        return replace(evidence, mode=_evidence_mode(account))
 
     if latest_snapshot is None or rotation_enabled:
         return EvaluationPaperLiveEvidence(mode=_evidence_mode(account))
