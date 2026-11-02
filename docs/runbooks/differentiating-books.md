@@ -55,8 +55,10 @@ python -m trading.interfaces.cli.main configure-account --account <account> [--b
 
 The account has a per-run trade cap, set by the daily job's `--primary-max-trades` and
 `--other-max-trades` arguments (and per-account overrides). When an account
-trades several books, the cap is shared across them one trade at a time: with a cap of 4 and two
-books that both have signals, each gets 2, and a book with fewer signals leaves the rest to the other.
+trades several books, stop-loss and take-profit exits go first, then the cap is shared one trade at a
+time: with a cap of 4 and two books that each have at least 2 signals, each gets 2, and a book with
+fewer signals leaves the rest to the other. The odd trade rotates by day, so a cap of 3 gives 2 and 1
+one day and 1 and 2 the next. A trade the cap cuts is logged at INFO.
 A book's `--max-trades-per-run` also keeps it from using more than that many trades:
 
 ```bash
