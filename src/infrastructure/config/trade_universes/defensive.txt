@@ -1,0 +1,24 @@
+# Defensive universe — consumer staples, healthcare, utilities, and real estate
+# Source: synthetic example. Tickers are chosen from the sectors tagged in
+# symbol_sectors.json, with no index or screen behind them. Treat membership as
+# fixture seed data only; re-derive against a named source before a real book trades it.
+# Consumer Staples
+CL
+COST
+KO
+PEP
+PG
+WMT
+# Healthcare
+ABBV
+JNJ
+LLY
+MRK
+UNH
+# Utilities
+D
+NEE
+SO
+# Real Estate
+AMT
+PLD

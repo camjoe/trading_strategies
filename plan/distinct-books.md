@@ -41,7 +41,8 @@ them. It does not cover more runs per day or a bigger universe in general; see `
 - Tests: the edit writes the book, records universe history, and a NULL limit can be restored.
 - Docs: `docs/reference` command table; `README` of the CLI if it lists options.
 
-### 2. Decide the differences (owner decision, not code)
+### 2. Decide the differences (owner decision) — tooling done on `feature/distinct-books-universes`
+Shipped: two public example universes (`defensive`, `cyclical`) and `docs/runbooks/differentiating-books.md`. Which accounts get what stays the owner's call, kept out of tracked files.
 Candidates, from least to most invasive. Record the chosen ones in the PR, not here.
 - **Different universes per account.** Slices of `growth.txt` plus `default.txt`, with overlap. Large caps
   move together, so more names add trades but less independent evidence than the count suggests; prefer

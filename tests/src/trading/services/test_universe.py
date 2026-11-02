@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from trading.domain.exceptions import ValidationError
+from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.universe import (
     default_trade_symbols,
     list_available_universes,
@@ -126,3 +127,13 @@ def test_default_trade_symbols_expands_the_default_universe(tmp_path: Path, monk
     monkeypatch.setattr("trading.services.universe.TRADE_UNIVERSES_DIR", tmp_path)
 
     assert default_trade_symbols() == ["AAPL", "MSFT"]
+
+
+@pytest.mark.parametrize("name", list_available_universes())
+def test_shipped_universe_is_nonempty_unique_and_sector_tagged(name: str) -> None:
+    tickers = resolve_named_universes([name])
+    sectors = load_symbol_sector_map()
+
+    assert tickers
+    assert len(tickers) == len(set(tickers))
+    assert [ticker for ticker in tickers if ticker not in sectors] == []
