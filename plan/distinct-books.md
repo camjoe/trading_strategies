@@ -65,7 +65,8 @@ Candidates, from least to most invasive. Record the chosen ones in the PR, not h
 - The risk gate consumes its own account caps "in intent order" (a comment in `book_intents.py`), so any
   change to the order has to be checked there too.
 
-### 4. Label the evidence (done: verified the advisor is book-keyed; the account-level evaluation now reports not isolated when an account trades several books; intraday labels wait for the intraday job)
+### 4. Label the evidence (done)
+The advisor is book-keyed. The account-level evaluation reports not isolated when an account has several books. Intraday labels wait for the intraday job.
 Trades from differing books are only useful if the advisor and scorecards can tell them apart. Books are
 already the unit the advisor decides on (`strategy-advisor`). Confirm that scorecards are keyed by book, not
 account, before relying on this. UNVERIFIED.
