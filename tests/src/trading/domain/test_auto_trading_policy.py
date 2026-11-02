@@ -4,7 +4,11 @@ import pytest
 
 from common.constants import QUANTITY_MINOR_UNITS_PER_SHARE
 from trading.domain.auto_trading.exits import order_risk_breaches
-from trading.domain.auto_trading.fairness import order_capacity_claimants, order_signal_candidates
+from trading.domain.auto_trading.fairness import (
+    order_capacity_claimants,
+    order_signal_candidates,
+    split_trade_budget_evenly,
+)
 from trading.domain.auto_trading.options import (
     apply_leaps_buy_qty_limits,
     estimate_delta,
@@ -382,3 +386,21 @@ def test_order_capacity_claimants_does_not_share_an_order_with_tickers() -> None
 
 def test_order_capacity_claimants_handles_an_empty_list() -> None:
     assert order_capacity_claimants([], seed="2026-07-30") == []
+
+
+def test_split_trade_budget_evenly_gives_each_book_the_same_share() -> None:
+    assert split_trade_budget_evenly([1, 2], budget=4) == {1: 2, 2: 2}
+
+
+def test_split_trade_budget_evenly_gives_the_odd_trades_to_the_first_claimants() -> None:
+    assert split_trade_budget_evenly([7, 3, 5], budget=5) == {7: 2, 3: 2, 5: 1}
+
+
+def test_split_trade_budget_evenly_leaves_later_books_nothing_when_budget_is_short() -> None:
+    assert split_trade_budget_evenly([1, 2, 3], budget=2) == {1: 1, 2: 1, 3: 0}
+
+
+def test_split_trade_budget_evenly_handles_no_books_and_no_budget() -> None:
+    assert split_trade_budget_evenly([], budget=4) == {}
+    assert split_trade_budget_evenly([1, 2], budget=0) == {1: 0, 2: 0}
+    assert split_trade_budget_evenly([1], budget=-3) == {1: 0}

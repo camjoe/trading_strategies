@@ -55,14 +55,19 @@ python -m trading.interfaces.cli.main configure-account --account <account> [--b
 
 The account has a per-run trade cap, set by the daily job's `--primary-max-trades` and
 `--other-max-trades` arguments (and per-account overrides). When an account
-trades several books, a book's `--max-trades-per-run` keeps it from using more than that many trades:
+trades several books, each book gets an even share of it: with a cap of 4 and two books, each may make
+2 trades. A book that uses less than its share does not pass the rest on, so a slot can go unused. The
+odd trade of an odd cap rotates by day, so a cap of 3 gives 2 and 1 one day and 1 and 2 the next. When
+the cap is smaller than the number of books, only the first books in that day's order get a share.
+Stop-loss and take-profit exits are not counted against a share and always go out.
+A book's `--max-trades-per-run` lowers its share further:
 
 ```bash
 python -m trading.interfaces.cli.main configure-account --account <account> --book <book> \
     --max-trades-per-run 2
 ```
 
-A value above the account cap has no effect, and the limit cannot be cleared back to none from the CLI.
+A value above the book's share has no effect, and the limit cannot be cleared back to none from the CLI.
 
 ## Pick differences that add evidence
 
@@ -70,8 +75,9 @@ A value above the account cap has no effect, and the limit cannot be cleared bac
   the ticker count suggests; prefer books that differ by sector or by strategy.
 - Change one thing per book first (universe, or sizing), so a difference in results has one cause.
 - Try it on one account and read its trades after a few weeks before changing the rest.
-- Accounts that trade through one IBKR paper account draw on one cash pool. More differing books
-  means more claims on that cash.
+- Each book spends only its own cash balance. At the broker, accounts that trade through one IBKR
+  paper account share one real cash pool, and nothing compares the books' balances with it, so the
+  books' balances together should not exceed what the broker holds.
 - A universe wider than large caps may include contracts that reject fractional sizes; see
   `plan/contract-trading-rules.md` before widening it a lot.
 

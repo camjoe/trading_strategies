@@ -1,4 +1,4 @@
-"""Deterministic fair ordering of equally-signalled tickers and capacity claimants.
+"""Deterministic fair ordering of equally-signalled tickers and capacity claimants, and their even budget split.
 
 The signal says only "buy", equally, for every candidate, so the engine has no
 basis to rank them and must not let universe/file order decide. Hashing each name
@@ -47,3 +47,16 @@ def order_capacity_claimants(book_ids: Sequence[int], *, seed: str) -> list[int]
     tickers of the same spelling cannot collide into a shared order.
     """
     return sorted(book_ids, key=lambda book_id: hashlib.sha256(f"{seed}:book:{book_id}".encode()).hexdigest())
+
+
+def split_trade_budget_evenly(book_ids: Sequence[int], *, budget: int) -> dict[int, int]:
+    """Give each book an even share of an account's trade budget.
+
+    *book_ids* are in claim order, so the first ``budget % len(book_ids)`` books
+    take one extra trade. Shares sum to ``budget`` (or to zero for a non-positive
+    budget), and a book that does not use its share does not pass it on.
+    """
+    if not book_ids:
+        return {}
+    base, extra = divmod(max(budget, 0), len(book_ids))
+    return {book_id: base + (1 if rank < extra else 0) for rank, book_id in enumerate(book_ids)}
