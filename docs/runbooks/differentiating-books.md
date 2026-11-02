@@ -9,8 +9,8 @@ Related: [Strategies Reference](../reference/strategies.md), [Runtime Operations
 
 Accounts created from one profile start identical: same strategy, same tickers, same sizing. Their
 trades then repeat each other, which adds volume but little evidence. This runbook changes what a book
-trades without touching code. Real assignments are private: keep them in the database or under the
-gitignored `local/strategies/`, never in a tracked file.
+trades without touching code. Real assignments are private: keep them in the database, never in a
+tracked file.
 
 ## Before you change anything
 
@@ -20,7 +20,8 @@ python -m trading.interfaces.cli.main parameters --account <account>
 ```
 
 `parameters` shows a book's tickers, trade size, max position, and per-run limit. Note the current
-values so you can restore them.
+values so you can restore them. A universe can be restored only if the old tickers equal a named
+universe file that has not changed; `--trade-universes` takes names, not tickers.
 
 ## Change a book's universe
 
@@ -36,6 +37,12 @@ python -m trading.interfaces.cli.main configure-account --account <account> [--b
 Several names are joined: `--trade-universes default,growth`. Without `--book` the account's default
 book is edited. A name may contain only letters, digits, `_` and `-`.
 
+**Check open positions first.** The switch replaces the book's tickers outright. The daily run prices
+only the tickers the books carry, and a book sells or exits only tickers in its own list. A position
+in a ticker the book no longer carries is not priced and gets no signal sell, stop-loss, or
+take-profit exit until a book carrying that ticker is in the run. Close such positions, or keep the
+ticker in the new list, before you switch.
+
 ## Change sizing or a risk policy
 
 ```bash
@@ -46,7 +53,8 @@ python -m trading.interfaces.cli.main configure-account --account <account> [--b
 
 ## Limit one book's share of the account budget
 
-The account has a per-run trade cap (`--primary-max-trades` / `--other-max-trades`). When an account
+The account has a per-run trade cap, set by the daily job's `--primary-max-trades` and
+`--other-max-trades` arguments (and per-account overrides). When an account
 trades several books, a book's `--max-trades-per-run` keeps it from using more than that many trades:
 
 ```bash
@@ -62,7 +70,8 @@ A value above the account cap has no effect, and the limit cannot be cleared bac
   the ticker count suggests; prefer books that differ by sector or by strategy.
 - Change one thing per book first (universe, or sizing), so a difference in results has one cause.
 - Try it on one account and read its trades after a few weeks before changing the rest.
-- All IBKR paper accounts share one cash pool. More differing books means more claims on that cash.
+- Accounts that trade through one IBKR paper account draw on one cash pool. More differing books
+  means more claims on that cash.
 - A universe wider than large caps may include contracts that reject fractional sizes; see
   `plan/contract-trading-rules.md` before widening it a lot.
 
