@@ -1,6 +1,11 @@
 import pytest
 
-from tests.support.books import ensure_default_book_id, set_test_book_rotation_scheduling
+from tests.support.books import (
+    assign_test_book_strategy,
+    ensure_default_book_id,
+    insert_test_book,
+    set_test_book_rotation_scheduling,
+)
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts.mutations import create_account, get_account
@@ -107,3 +112,20 @@ def test_fetch_strategy_evaluation_reports_data_gaps_when_evidence_missing(conn)
         "missing_paper_live_evidence",
         "missing_walk_forward_evidence",
     ]
+
+
+def test_account_snapshot_evidence_is_not_isolated_when_the_account_trades_several_books(conn) -> None:
+    create_account(conn, "acct_two_books", "trend_v1", 1000.0, "SPY")
+    account_id = int(get_account(conn, "acct_two_books")["id"])
+    _snapshot(conn, account_id, at="2026-02-01T00:00:00Z", equity=1000.0)
+
+    single = fetch_strategy_evaluation(conn, account_name="acct_two_books")
+    assert single.paper_live.available is True
+    assert single.paper_live.strategy_isolated is True
+
+    second = insert_test_book(conn, account_id=account_id, name="second")
+    assign_test_book_strategy(conn, book_id=second, strategy_name="mean_reversion")
+
+    several = fetch_strategy_evaluation(conn, account_name="acct_two_books")
+    assert several.paper_live.available is True
+    assert several.paper_live.strategy_isolated is False

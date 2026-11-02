@@ -79,6 +79,14 @@ A value above the account cap has no effect, and the limit cannot be cleared bac
 - A universe wider than large caps may include contracts that reject fractional sizes; see
   `plan/contract-trading-rules.md` before widening it a lot.
 
+## Reading the evidence
+
+The advisor digest reviews every book on its own: its strategy, its paper return since that strategy
+was assigned, and its decisions. The evaluation artifact and promotion review read the account's
+snapshots, which sum all of its books. With more than one trading book on an account, that paper
+evidence is marked not isolated, so promotion review reports it as a blocker instead of treating the
+account's return as one strategy's. Judge each book from the digest.
+
 ## Confirm
 
 ```bash

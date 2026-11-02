@@ -27,7 +27,11 @@ from trading.models.evaluation import (
 )
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
-from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
+from trading.services.books.book_assignments import (
+    active_strategy_for_account,
+    enumerate_trading_books,
+    get_default_book,
+)
 from trading.services.books.default_book import default_book_id
 from trading.services.books.rotation.engine import resolve_default_book_rotation_schedule
 
@@ -235,6 +239,9 @@ def build_paper_live_evidence(
     active_strategy: str,
 ) -> EvaluationPaperLiveEvidence:
     account_id = account.id
+    # Snapshots here are the account's, summed over its books. With several books
+    # trading, no one strategy owns them.
+    isolated = len(enumerate_trading_books(conn, account_id=account_id)) <= 1
     rotation_enabled = _default_book_rotation_enabled(conn, account_id)
     initial_cash = account.initial_cash
     latest_snapshot = EquitySnapshotRepository(conn).fetch_latest(account_id=account_id)
@@ -250,7 +257,9 @@ def build_paper_live_evidence(
         else EvaluationPaperLiveEvidence()
     )
     if evidence.available:
-        return replace(evidence, mode=_evidence_mode(account))
+        return replace(
+            evidence, mode=_evidence_mode(account), strategy_isolated=evidence.strategy_isolated and isolated
+        )
 
     if latest_snapshot is None or rotation_enabled:
         return EvaluationPaperLiveEvidence(mode=_evidence_mode(account))
@@ -260,7 +269,7 @@ def build_paper_live_evidence(
         available=True,
         mode=_evidence_mode(account),
         source_level=ACCOUNT_SNAPSHOT_SOURCE_LEVEL,
-        strategy_isolated=True,
+        strategy_isolated=isolated,
         latest_snapshot_time=latest_snapshot.snapshot_time,
         snapshot_count=EquitySnapshotRepository(conn).fetch_count(account_id=account_id),
         starting_equity=float(initial_cash),
