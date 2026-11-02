@@ -149,9 +149,8 @@ sell. A book trickling out of one position at a few shares a day does nothing el
 
 **Fixed.** `prepare_book_trades` returns a list, so a book emits up to its own budget. The account
 cap counts trades rather than books, and `books.max_trades_per_run` narrows that within a book
-(`NULL` = no book-level limit). Across an account's books, stop-loss and take-profit exits are served
-first, then the cap is shared one trade at a time (`split_trade_budget`), so an early book cannot take
-the whole cap. Within a book sells still run first, and their proceeds fund the same run's buys.
+(`NULL` = no book-level limit). Across an account's books the cap is shared evenly (`split_trade_budget_evenly`), so an early book
+cannot take the whole cap. Within a book sells still run first, and their proceeds fund the same run's buys.
 
 Two things follow, both live now:
 
