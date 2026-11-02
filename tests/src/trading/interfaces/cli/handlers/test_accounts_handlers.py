@@ -111,6 +111,20 @@ def test_handle_configure_account_with_book_edits_only_that_book(capsys, monkeyp
     assert "Updated book 'momentum' of 'bob'." in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("book", [None, "momentum"])
+def test_handle_configure_account_routes_service_errors_to_parser_error(monkeypatch, capsys, book) -> None:
+    def _reject(*_a, **_kw):
+        raise ValueError("Book not found")
+
+    patch_services(monkeypatch, module, configure_book=_reject, configure_account=_reject)
+    args = _config_args(account="bob", book=book)
+
+    with pytest.raises(SystemExit, match="Book not found"):
+        handle_configure_account(object(), args, fake_parser(), ctx=make_ctx())
+
+    assert "Updated" not in capsys.readouterr().out
+
+
 def test_handle_configure_account_with_book_rejects_display_name(monkeypatch) -> None:
     patch_services(monkeypatch, module, configure_book=lambda *a, **kw: None)
     args = _config_args(account="bob", book="momentum", display_name="New")

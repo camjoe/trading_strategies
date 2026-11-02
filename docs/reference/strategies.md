@@ -43,7 +43,7 @@ Operators edit the catalog through the CLI (`trading.services.strategy_catalog.m
 - `configure-account --account <name> [--book <book>] [--max-trades-per-run N] [--trade-universes a,b]` —
   with `--book`, edit that book's settings; without it, the default book. `--trade-universes` replaces the
   book's tickers with the union of the named files under `trade_universes/`; `--max-trades-per-run` limits
-  the book within the account's cap (it cannot be cleared back to no limit from here).
+  the book within the account's cap (a value above the cap has no effect, and the limit cannot be cleared back to none from here).
 
 ## Strategy Families
 

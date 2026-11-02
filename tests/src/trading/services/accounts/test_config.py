@@ -1,9 +1,12 @@
 import pytest
 
+from tests.support.books import insert_test_book
 from trading.models import AccountConfig
 from trading.repositories.accounts import AccountRepository
 from trading.services.accounts.mutations import configure_account, create_account, get_account, set_account_strategy
 from trading.services.books.book_assignments import get_default_book
+from trading.services.books.configuration import configure_book
+from trading.services.books.default_book import fetch_account_book
 from trading.services.universe import resolve_named_universes
 
 _IDENTITY_KEYS = frozenset({"name", "strategy", "initial_cash", "benchmark_ticker"})
@@ -297,6 +300,44 @@ class TestConfigureAccountOptionFields:
         book = get_default_book(conn, account_id=get_account(conn, base_account).id)
         assert book is not None
         assert book.trade_symbol_list() == resolve_named_universes(["growth"])
+
+    def test_configure_book_edits_only_the_named_book_and_rolls_back_a_bad_universe(self, conn, base_account) -> None:
+        account_id = get_account(conn, base_account).id
+        insert_test_book(conn, account_id=account_id, name="momentum")
+        default_book = get_default_book(conn, account_id=account_id)
+        assert default_book is not None
+        before = default_book.trade_symbol_list()
+
+        configure_book(
+            conn,
+            account_name=base_account,
+            book_name="momentum",
+            strategy=None,
+            config=AccountConfig(max_trades_per_run=2, trade_universes=["growth"]),
+            rotation_scheduling={},
+            rotation_policy={},
+        )
+        named = fetch_account_book(conn, account_name=base_account, book_name="momentum")
+        assert named.max_trades_per_run == 2
+        assert named.trade_symbol_list() == resolve_named_universes(["growth"])
+
+        with pytest.raises(ValueError, match="nosuch"):
+            configure_book(
+                conn,
+                account_name=base_account,
+                book_name="momentum",
+                strategy=None,
+                config=AccountConfig(max_trades_per_run=5, trade_universes=["nosuch"]),
+                rotation_scheduling={},
+                rotation_policy={},
+            )
+        rolled_back = fetch_account_book(conn, account_name=base_account, book_name="momentum")
+        assert rolled_back.max_trades_per_run == 2
+
+        unchanged = get_default_book(conn, account_id=account_id)
+        assert unchanged is not None
+        assert unchanged.max_trades_per_run is None
+        assert unchanged.trade_symbol_list() == before
 
     def test_create_account_rejects_invalid_option_dte_range(self, conn) -> None:
         with pytest.raises(ValueError, match="option_min_dte cannot be greater than option_max_dte"):

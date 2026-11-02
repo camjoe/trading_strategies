@@ -37,26 +37,34 @@ def handle_configure_account(conn, args, parser, *, ctx: CliContext) -> None:
 
     book_name = getattr(args, "book", None)
     if book_name is None:
-        configure_account(
-            conn,
-            account_name=args.account,
-            config=config,
-        )
+        try:
+            configure_account(
+                conn,
+                account_name=args.account,
+                config=config,
+            )
+        except ValueError as error:
+            parser.error(str(error))
+            return
         print(f"Updated account configuration for '{args.account}'.")
         return
 
     if config.descriptive_name is not None:
         parser.error("--display-name is an account setting; omit --book to change it.")
         return
-    configure_book(
-        conn,
-        account_name=args.account,
-        book_name=book_name,
-        strategy=None,
-        config=config,
-        rotation_scheduling={},
-        rotation_policy={},
-    )
+    try:
+        configure_book(
+            conn,
+            account_name=args.account,
+            book_name=book_name,
+            strategy=None,
+            config=config,
+            rotation_scheduling={},
+            rotation_policy={},
+        )
+    except ValueError as error:
+        parser.error(str(error))
+        return
     print(f"Updated book '{book_name}' of '{args.account}'.")
 
 
