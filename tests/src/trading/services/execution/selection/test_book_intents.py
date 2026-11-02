@@ -377,3 +377,45 @@ def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
     )
 
     assert len(intents) == 1
+
+
+def _two_multi_signal_books(conn, *, account_name: str, second_symbols: list[str]) -> object:
+    account_id = insert_repository_account(conn, name=account_name)
+    for name, symbols in (("first", ["AAPL", "MSFT", "NVDA"]), ("second", second_symbols)):
+        book_id = _insert_book(conn, account_id=account_id, name=name, current_cash=100_000.0)
+        BookRepository(conn).update_trade_symbols(
+            book_id=book_id,
+            trade_symbols=json.dumps(symbols),
+            updated_at="2026-05-03T00:00:00Z",
+        )
+        _assign(conn, book_id=book_id, strategy_name="trend")
+    return get_account(conn, account_name)
+
+
+def _intents_per_book(conn, account, *, max_trades: int) -> list[int]:
+    intents = book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        market=MarketInputs(
+            universe=["AAPL", "MSFT", "NVDA"],
+            prices={"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0},
+            histories=_rising_histories(),
+        ),
+        max_trades=max_trades,
+        fee=0.0,
+    )
+    return sorted(
+        sum(1 for intent in intents if intent.book_id == book_id) for book_id in {i.book_id for i in intents}
+    )
+
+
+def test_account_budget_is_shared_across_books_not_taken_by_the_first(conn) -> None:
+    account = _two_multi_signal_books(conn, account_name="acct_budget_shared", second_symbols=["AAPL", "MSFT", "NVDA"])
+
+    assert _intents_per_book(conn, account, max_trades=4) == [2, 2]
+
+
+def test_a_book_with_fewer_signals_leaves_its_share_to_the_other(conn) -> None:
+    account = _two_multi_signal_books(conn, account_name="acct_budget_unused", second_symbols=["AAPL"])
+
+    assert _intents_per_book(conn, account, max_trades=4) == [1, 3]

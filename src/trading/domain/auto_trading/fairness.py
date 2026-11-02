@@ -7,7 +7,7 @@ reproducible within a run.
 """
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 
 def order_signal_candidates(candidates: Sequence[str], *, seed: str) -> list[str]:
@@ -47,3 +47,26 @@ def order_capacity_claimants(book_ids: Sequence[int], *, seed: str) -> list[int]
     tickers of the same spelling cannot collide into a shared order.
     """
     return sorted(book_ids, key=lambda book_id: hashlib.sha256(f"{seed}:book:{book_id}".encode()).hexdigest())
+
+
+def split_trade_budget(demands: Mapping[int, int], *, budget: int) -> dict[int, int]:
+    """Share an account's trade budget across its books one trade at a time.
+
+    *demands* maps each book id to the trades it wants, in claim order. Each pass
+    gives every book that still wants a trade one more, until the budget or the
+    demand runs out. A book that wants fewer than an even share leaves the rest
+    to the others, and with one book the result is ``min(demand, budget)``.
+    """
+    shares = dict.fromkeys(demands, 0)
+    remaining = max(budget, 0)
+    progressed = True
+    while remaining > 0 and progressed:
+        progressed = False
+        for book_id, demand in demands.items():
+            if remaining <= 0:
+                break
+            if shares[book_id] < demand:
+                shares[book_id] += 1
+                remaining -= 1
+                progressed = True
+    return shares

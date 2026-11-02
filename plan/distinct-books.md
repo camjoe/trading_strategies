@@ -55,7 +55,7 @@ Candidates, from least to most invasive. Record the chosen ones in the PR, not h
 - Open: do all accounts keep sharing one IBKR cash pool? More differing books means more claims on the same
   cash; see "Other consequences" in `more-trading-evidence.md`.
 
-### 3. Fair budget sharing across books (only if item 2 puts several books in one account)
+### 3. Fair budget sharing across books (done: the cap is split one trade at a time, `split_trade_budget`)
 - Today: one account budget, a claim order fixed for the date.
 - Options: (a) rely on per-book `max_trades_per_run` and leave the order alone; (b) seed the order from the
   run timestamp so each run rotates (matters mainly once intraday runs exist); (c) split the budget evenly

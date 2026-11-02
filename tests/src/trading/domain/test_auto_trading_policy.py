@@ -4,7 +4,11 @@ import pytest
 
 from common.constants import QUANTITY_MINOR_UNITS_PER_SHARE
 from trading.domain.auto_trading.exits import order_risk_breaches
-from trading.domain.auto_trading.fairness import order_capacity_claimants, order_signal_candidates
+from trading.domain.auto_trading.fairness import (
+    order_capacity_claimants,
+    order_signal_candidates,
+    split_trade_budget,
+)
 from trading.domain.auto_trading.options import (
     apply_leaps_buy_qty_limits,
     estimate_delta,
@@ -382,3 +386,21 @@ def test_order_capacity_claimants_does_not_share_an_order_with_tickers() -> None
 
 def test_order_capacity_claimants_handles_an_empty_list() -> None:
     assert order_capacity_claimants([], seed="2026-07-30") == []
+
+
+def test_split_trade_budget_shares_evenly_when_every_book_wants_more() -> None:
+    assert split_trade_budget({1: 5, 2: 5}, budget=4) == {1: 2, 2: 2}
+
+
+def test_split_trade_budget_gives_the_odd_trade_to_the_first_claimant() -> None:
+    assert split_trade_budget({7: 5, 3: 5}, budget=3) == {7: 2, 3: 1}
+
+
+def test_split_trade_budget_passes_unused_share_to_books_that_want_more() -> None:
+    assert split_trade_budget({1: 1, 2: 5}, budget=4) == {1: 1, 2: 3}
+
+
+def test_split_trade_budget_never_exceeds_demand_or_budget() -> None:
+    assert split_trade_budget({1: 1, 2: 2}, budget=10) == {1: 1, 2: 2}
+    assert split_trade_budget({1: 3}, budget=2) == {1: 2}
+    assert split_trade_budget({1: 3, 2: 3}, budget=0) == {1: 0, 2: 0}

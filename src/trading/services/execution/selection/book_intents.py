@@ -4,14 +4,14 @@ import logging
 import sqlite3
 
 from trading.domain.auto_trading.exits import order_risk_breaches
-from trading.domain.auto_trading.fairness import order_capacity_claimants
+from trading.domain.auto_trading.fairness import order_capacity_claimants, split_trade_budget
 from trading.models import AccountRecord
 from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
-from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_book_trades
+from trading.services.execution.selection.selection import FeatureHistoryFn, TradeSelection, prepare_book_trades
 from trading.services.strategy_catalog.resolution import (
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
@@ -61,17 +61,16 @@ def generate_book_trade_intents(
     if not trading_books:
         return []
 
-    # `max_trades` caps trades for the account, not books. Book order therefore
-    # decides who gets that budget — and again downstream, where the risk gate
-    # consumes its account caps in intent order — so it is rotated per run.
+    # `max_trades` caps trades for the account, not books. Each book selects up to
+    # its own limit, then the budget is shared across books one trade at a time
+    # (`split_trade_budget`), so a book is not starved by the books before it.
+    # Claim order, rotated per run, decides who gets any odd trade — and, downstream,
+    # the order in which the risk gate consumes its account caps.
     books_by_id = {trading_book.book.id: trading_book for trading_book in trading_books}
     claim_order = order_capacity_claimants(list(books_by_id), seed=selection_seed)
 
-    intents: list[BookTradeCandidate] = []
+    selected_by_book: dict[int, tuple[str, set[str], list[TradeSelection]]] = {}
     for trading_book in (books_by_id[book_id] for book_id in claim_order):
-        remaining = max_trades - len(intents)
-        if remaining <= 0:
-            break
         book = trading_book.book
         book_id = book.id
         strategy_name = trading_book.assignment.strategy_name.strip()
@@ -105,9 +104,9 @@ def generate_book_trade_intents(
             book.stop_loss_pct,
             book.take_profit_pct,
         )
-        # A book's own limit binds within whatever the account has left;
-        # NULL means the book adds no limit of its own.
-        book_budget = remaining if book.max_trades_per_run is None else min(remaining, book.max_trades_per_run)
+        # A book's own limit binds within the account cap; NULL means the book
+        # adds no limit of its own.
+        book_budget = max_trades if book.max_trades_per_run is None else min(max_trades, book.max_trades_per_run)
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
         selections = prepare_book_trades(
@@ -128,8 +127,15 @@ def generate_book_trade_intents(
             feature_history_fn=feature_history_fn,
             selection_seed=selection_seed,
         )
-        forced_sell_set = set(forced_sells)
-        for side, symbol, qty, requested_price, delta_est, iv_est in selections:
+        selected_by_book[book_id] = (strategy_name, set(forced_sells), list(selections))
+
+    shares = split_trade_budget(
+        {book_id: len(selected[2]) for book_id, selected in selected_by_book.items()},
+        budget=max_trades,
+    )
+    intents: list[BookTradeCandidate] = []
+    for book_id, (strategy_name, forced_sell_set, selections) in selected_by_book.items():
+        for side, symbol, qty, requested_price, delta_est, iv_est in selections[: shares[book_id]]:
             intents.append(
                 BookTradeCandidate(
                     account_id=account_id,
