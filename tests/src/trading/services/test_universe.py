@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from common.paths import TRADE_UNIVERSES_DIR
 from trading.domain.exceptions import ValidationError
+from trading.services.books.sector_config import load_symbol_sector_map
 from trading.services.universe import (
     default_trade_symbols,
     list_available_universes,
@@ -126,3 +128,24 @@ def test_default_trade_symbols_expands_the_default_universe(tmp_path: Path, monk
     monkeypatch.setattr("trading.services.universe.TRADE_UNIVERSES_DIR", tmp_path)
 
     assert default_trade_symbols() == ["AAPL", "MSFT"]
+
+
+SHIPPED_UNIVERSES = ("default", "growth", "defensive", "cyclical")
+
+
+def test_the_shipped_universes_are_all_present() -> None:
+    assert set(SHIPPED_UNIVERSES) <= set(list_available_universes())
+
+
+@pytest.mark.parametrize("name", SHIPPED_UNIVERSES)
+def test_shipped_universe_is_nonempty_unique_and_sector_tagged(name: str) -> None:
+    listed = [
+        line.strip()
+        for line in (TRADE_UNIVERSES_DIR / f"{name}.txt").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    sectors = load_symbol_sector_map()
+
+    assert listed
+    assert len(listed) == len(set(listed))
+    assert [ticker for ticker in listed if ticker not in sectors] == []

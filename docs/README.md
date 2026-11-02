@@ -96,6 +96,7 @@ Full listing: [`reference/`](reference/). Key entries:
 - [`runbooks/runtime-operations.md`](runbooks/runtime-operations.md) — daily + weekly-backup job monitoring and recovery
 - [`runbooks/burn-in-protocol.md`](runbooks/burn-in-protocol.md) — burn-in protocol for new strategies
 - [`runbooks/governance-review.md`](runbooks/governance-review.md) — weekly/monthly governance review
+- [`runbooks/differentiating-books.md`](runbooks/differentiating-books.md) — change a book's universe, sizing, and trade limit
 - [`runbooks/pr-readiness-workflow.md`](runbooks/pr-readiness-workflow.md) — PR readiness workflow setup, variables, and failures
 
 ## Keeping Docs Fresh

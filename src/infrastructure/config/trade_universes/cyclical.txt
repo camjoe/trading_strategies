@@ -1,0 +1,24 @@
+# Cyclical universe — industrials, financials, energy, materials, and consumer discretionary
+# Source: synthetic example. Tickers are chosen from the sectors tagged in
+# symbol_sectors.json, with no index or screen behind them. Treat membership as
+# fixture seed data only; re-derive against a named source before a real book trades it.
+# Industrials
+CAT
+HON
+RTX
+UNP
+# Financials
+BAC
+GS
+JPM
+V
+# Energy
+CVX
+XOM
+# Materials
+APD
+LIN
+# Consumer Discretionary
+HD
+MCD
+TSLA

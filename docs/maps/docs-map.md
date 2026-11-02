@@ -135,6 +135,7 @@ Operational procedures. Go stale when workflows, job names, scripts, or DB opera
 
 | File | What it covers | Goes stale when |
 |---|---|---|
+| `docs/runbooks/differentiating-books.md` | Changing a book's universe, sizing, and trade limit with `configure-account` | The `configure-account` book flags, the named universe files, or the sizing options change |
 | `docs/runbooks/production-runtime-host.md` | Recommended dedicated Linux host setup + test-and-deploy workflow | Host setup steps, deploy workflow, or branch/promotion model change |
 | `docs/runbooks/runtime-operations.md` | Daily + weekly-backup job monitoring, failure recovery, log inspection | Runtime job scripts or their schedule change |
 | `docs/runbooks/burn-in-protocol.md` | Burn-in protocol steps for new strategies | Burn-in maintenance scripts or burn-in rules change |
