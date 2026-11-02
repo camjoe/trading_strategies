@@ -58,7 +58,7 @@ def test_resolve_raises_for_unknown_name(tmp_path: Path, monkeypatch: pytest.Mon
         resolve_named_universes(["large_cap", "bogus"])
 
 
-@pytest.mark.parametrize("name", ["../outside", "sub/dir", "..\outside", "a.b", "", " growth"])
+@pytest.mark.parametrize("name", ["../outside", "sub/dir", "..\\outside", "a.b", "", " growth"])
 def test_resolve_rejects_a_name_that_is_not_a_bare_identifier(
     name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
