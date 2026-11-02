@@ -58,12 +58,8 @@ Candidates, from least to most invasive. Record the chosen ones in the PR, not h
 ### 3. Fair budget sharing across books (done: each book gets an even share of the cap)
 - Each book gets `cap // books` trades, and the first `cap % books` books in claim order get one more. The
   claim order is seeded by run date. A book's own `max_trades_per_run` only lowers its share, and an unused
-  share is not passed on (a redistributing split was tried and dropped: it needed a second selection pass
-  to size buys correctly).
-- Decide only after item 2, and after checking logs for a book that was starved. UNVERIFIED that any book
-  has been starved today.
-- The risk gate consumes its own account caps "in intent order" (a comment in `book_intents.py`), so any
-  change to the order has to be checked there too.
+  share is not passed on. Stop-loss and take-profit exits are not counted against a share.
+- Intents keep claim order, which the risk gate relies on when it consumes its own account caps.
 
 ### 4. Label the evidence
 Trades from differing books are only useful if the advisor and scorecards can tell them apart. Books are
@@ -88,10 +84,6 @@ account, before relying on this. UNVERIFIED.
 - `parameters` and `list-accounts` show the per-book universe and limit.
 - A run log shows each book's trades, and a book with a limit stops at it.
 
-## Out of scope
-Intraday runs, caps for the daily job (see `more-trading-evidence.md`), enabling rotation, changing strategy
-signal logic, renaming accounts.
-
 ### 5. Check book cash against the broker (not started)
 Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
 only equity check (`reconcile_book_equity`) compares the books with the account's own snapshot, and
@@ -100,3 +92,7 @@ With several books on accounts that share one IBKR paper account, the ledgers ca
 the broker holds; an order then fails and the account's run stops (`broker_api_anomaly`). Decide whether to
 read broker cash before submitting and what to do on a shortfall. UNVERIFIED: what `get_account_info`
 returns on the IBKR web adapter.
+
+## Out of scope
+Intraday runs, caps for the daily job (see `more-trading-evidence.md`), enabling rotation, changing strategy
+signal logic, renaming accounts.

@@ -1,4 +1,4 @@
-"""Deterministic fair ordering of equally-signalled tickers and capacity claimants.
+"""Deterministic fair ordering of equally-signalled tickers and capacity claimants, and their even budget split.
 
 The signal says only "buy", equally, for every candidate, so the engine has no
 basis to rank them and must not let universe/file order decide. Hashing each name

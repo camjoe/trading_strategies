@@ -56,8 +56,10 @@ python -m trading.interfaces.cli.main configure-account --account <account> [--b
 The account has a per-run trade cap, set by the daily job's `--primary-max-trades` and
 `--other-max-trades` arguments (and per-account overrides). When an account
 trades several books, each book gets an even share of it: with a cap of 4 and two books, each may make
-2 trades. A book that uses less than its share does not pass the rest on. The odd trade of an odd cap
-rotates by day, so a cap of 3 gives 2 and 1 one day and 1 and 2 the next.
+2 trades. A book that uses less than its share does not pass the rest on, so a slot can go unused. The
+odd trade of an odd cap rotates by day, so a cap of 3 gives 2 and 1 one day and 1 and 2 the next. When
+the cap is smaller than the number of books, only the first books in that day's order get a share.
+Stop-loss and take-profit exits are not counted against a share and always go out.
 A book's `--max-trades-per-run` lowers its share further:
 
 ```bash
@@ -65,7 +67,7 @@ python -m trading.interfaces.cli.main configure-account --account <account> --bo
     --max-trades-per-run 2
 ```
 
-A value above the account cap has no effect, and the limit cannot be cleared back to none from the CLI.
+A value above the book's share has no effect, and the limit cannot be cleared back to none from the CLI.
 
 ## Pick differences that add evidence
 

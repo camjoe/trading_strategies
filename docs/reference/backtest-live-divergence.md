@@ -148,9 +148,10 @@ Combined with the exit defects above, this is also what makes sell-starvation se
 sell. A book trickling out of one position at a few shares a day does nothing else for weeks.
 
 **Fixed.** `prepare_book_trades` returns a list, so a book emits up to its own budget. The account
-cap counts trades rather than books, and `books.max_trades_per_run` narrows that within a book
-(`NULL` = no book-level limit). Across an account's books the cap is shared evenly (`split_trade_budget_evenly`), so an early book
-cannot take the whole cap. Within a book sells still run first, and their proceeds fund the same run's buys.
+cap counts trades. Across an account's books it is shared evenly (`split_trade_budget_evenly`), so an
+early book cannot take the whole cap, and `books.max_trades_per_run` lowers a book's share (`NULL` = no
+book-level limit). Stop-loss and take-profit exits are not counted against a share. Within a book sells
+still run first, and their proceeds fund the same run's buys.
 
 Two things follow, both live now:
 

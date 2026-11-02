@@ -488,3 +488,60 @@ def test_buys_are_sized_for_the_books_share_of_the_cap(conn) -> None:
 
     for book_id in ids.values():
         assert sorted(intent.qty for intent in shared if intent.book_id == book_id) == expected
+
+
+def _breached_book(conn, *, account_name: str):
+    """One book holding two positions past a 10% stop, beside a book with buy signals."""
+    account, ids = _books_on_one_account(
+        conn, account_name=account_name, symbols_by_book={"exiting": ["AAPL", "MSFT"], "buying": ALL_SYMBOLS}
+    )
+    BookRepository(conn).update(
+        book_id=ids["exiting"],
+        values={"risk_policy": "fixed_stop", "stop_loss_pct": 10.0},
+        updated_at=utc_now_iso(),
+    )
+    for symbol in ("AAPL", "MSFT"):
+        PositionRepository(conn).upsert(
+            book_id=ids["exiting"],
+            symbol=symbol,
+            qty=5.0,
+            avg_cost=100.0,
+            market_value=50.0,
+            unrealized_pnl=-450.0,
+            updated_at="2026-05-03T00:00:00Z",
+        )
+    return account, ids
+
+
+def test_risk_exits_are_not_limited_by_the_books_share(conn) -> None:
+    account, ids = _breached_book(conn, account_name="acct_budget_exits")
+
+    for day in range(1, 15):
+        intents = _generate(conn, account, max_trades=1, seed=f"2026-07-{day:02d}")
+        exits = [intent for intent in intents if intent.book_id == ids["exiting"]]
+        assert sorted(intent.symbol for intent in exits) == ["AAPL", "MSFT"]
+        assert all(intent.side == "sell" and intent.forced_sell for intent in exits)
+        assert sum(1 for intent in intents if intent.book_id == ids["buying"]) <= 1
+
+
+def test_a_zero_cap_trades_nothing_even_with_a_risk_exit_due(conn) -> None:
+    account, _ = _breached_book(conn, account_name="acct_budget_zero_exits")
+
+    assert _generate(conn, account, max_trades=0) == []
+
+
+def test_a_book_whose_strategy_does_not_resolve_takes_no_share(conn, monkeypatch) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_unresolved", symbols_by_book={"good": ALL_SYMBOLS, "broken": ALL_SYMBOLS}
+    )
+    assign_test_book_strategy(conn, book_id=ids["broken"], strategy_name="mean_reversion")
+    real_resolve = book_intents.resolve_catalog_strategy
+
+    def resolve(connection, strategy_name):
+        if strategy_name == "mean_reversion":
+            raise book_intents.UnknownCatalogStrategyError(strategy_name)
+        return real_resolve(connection, strategy_name)
+
+    monkeypatch.setattr(book_intents, "resolve_catalog_strategy", resolve)
+
+    assert _counts(_generate(conn, account, max_trades=3), ids) == {"good": 3, "broken": 0}
