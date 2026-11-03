@@ -1,7 +1,24 @@
 # Plan: make accounts and books trade differently
 
-Status: drafted 2026-10-28. Not started. Nothing below has been run against the IBKR host.
-Branch to use: `feature/distinct-books`, off `develop`.
+Status: items 1, 3 and 4 built and 2's tooling built as a stack of four pull requests (2026-11-02); item 5
+is decided but not built. Nothing below has been run against the IBKR host.
+Branches: `feature/distinct-books` (item 1), `-universes` (item 2), `-budget` (item 3), `-evidence`
+(item 4), each off the previous one. Keep this file until the "Left to do" list is empty.
+
+## Left to do
+Check these off in the pull request that does each one; delete this file when none remain.
+1. **Item 5, broker cash check.** Decided, not built (below).
+2. **Item 2, the choice.** Pick each account's universe and sizing with `docs/runbooks/differentiating-books.md`
+   and record it in the pull request or under `local/strategies/`, not in tracked files.
+3. **Run it on the host.** Apply the choice to `ibkr_momentum_5k` first, then confirm in a run log that each
+   book stops at its share (Developer verification, below).
+4. **Item 1 gap.** `configure-account --book` cannot set a book's `max_trades_per_run` back to NULL, and
+   `create-account` does not take `--max-trades-per-run` or `--trade-universes`.
+5. **Stale doc.** The table row in `docs/reference/backtest-live-divergence.md` still says
+   `max_trades_per_run` is never read; it is read in `book_intents.py`.
+6. **Known limits, not planned.** An unused share is lost (item 3). Positions in tickers a universe switch
+   drops are not managed by selection (runbook, "Check open positions first"). Promotion review has no
+   per-book path (item 4).
 
 ## Goal
 Today the seven IBKR paper accounts are clones, so their trades are largely the same evidence repeated.
@@ -61,7 +78,8 @@ Candidates, from least to most invasive. Record the chosen ones in the PR, not h
   share is not passed on. Stop-loss and take-profit exits are not counted against a share.
 - Intents keep claim order, which the risk gate relies on when it consumes its own account caps.
 
-### 4. Label the evidence
+### 4. Label the evidence (done)
+The advisor is book-keyed. The account-level evaluation reports not isolated when an account has several books. Intraday labels wait for the intraday job.
 Trades from differing books are only useful if the advisor and scorecards can tell them apart. Books are
 already the unit the advisor decides on (`strategy-advisor`). Confirm that scorecards are keyed by book, not
 account, before relying on this. UNVERIFIED.
@@ -84,8 +102,14 @@ account, before relying on this. UNVERIFIED.
 - `parameters` and `list-accounts` show the per-book universe and limit.
 - A run log shows each book's trades, and a book with a limit stops at it.
 
-### 5. Check book cash against the broker (not started)
-Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
+### 5. Check book cash against the broker (decided 2026-11-02, not started)
+Decision (owner): on a shortfall, raise an alert and skip that day's orders for the account. Do not shrink
+the buys and do not trade through. Still to design: where the check sits relative to the broker preflight
+and the order submission, which alert fires, what the sentinel and operator runbook say, and what a skipped
+day looks like to the freshness and health checks. Read the broker figure first and record what it returns;
+this touches the broker path, so review it in Aggressive mode and against the Live Trading Safety Guard.
+
+Background. Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
 only equity check (`reconcile_book_equity`) compares the books with the account's own snapshot, and
 `BrokerConnection.get_account_info` (cash, buying power) and `get_positions` have no production caller.
 With several books on accounts that share one IBKR paper account, the ledgers can promise more cash than
