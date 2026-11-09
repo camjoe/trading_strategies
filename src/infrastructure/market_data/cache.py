@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.paths import data_home
+from common.paths import data_home, env_path
 
 _MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60
 _MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
@@ -32,10 +32,7 @@ def market_data_cache_disabled() -> bool:
 
 
 def market_data_cache_dir() -> Path:
-    raw = str(os.getenv(_MARKET_DATA_CACHE_DIR_ENV, "")).strip()
-    if raw:
-        return Path(raw).expanduser().resolve()
-    return data_home() / "cache" / "market_data"
+    return env_path(_MARKET_DATA_CACHE_DIR_ENV) or data_home() / "cache" / "market_data"
 
 
 def market_data_cache_key(kind: str, **parts: object) -> str:
