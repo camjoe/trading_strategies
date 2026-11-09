@@ -107,20 +107,24 @@ account, before relying on this. UNVERIFIED.
   divisible by the book count, the IBKR host.
 
 ### 5. Check book cash against the broker (built on `feature/broker-cash-check`, 2026-11-09)
-Each book spends from its own ledger cash, and every account of one broker type trades through one IBKR
-account, so the books together can promise more cash than the broker holds. Before trading, the daily
-preflight (`daily/paper_trading/broker_preflight.py`) reads the broker's `TotalCashValue` through
-`get_account_info`, adds up every book's cash across all accounts of that broker type, and when the books hold
-more (beyond a $1.00 tolerance) skips each run account of that type for the day with a `warn` alert and the
-existing catch-up command. When that leaves no account to trade the run fails with `BrokerCashShortfallError`.
-A summary with no cash figure counts as an unavailable session. Simulator accounts are not checked.
-Operator text: `docs/runbooks/ibkr-paper-trading.md` ("Books hold more cash than the broker").
+Each book spends from its own ledger cash, and accounts that reach one IBKR account share its real cash
+balance, so the books together can promise more cash than the broker holds. In the daily run's pre-trade
+step, after the reconcile has posted outstanding fills, `check_broker_cash`
+(`daily/paper_trading/broker_preflight.py`) reads the broker's `TotalCashValue` through `get_account_info`
+once per cash pool (every Web API account; socket accounts by host and port), adds up every book's cash across
+the pool's accounts, and when the books hold more (beyond a $1.00 tolerance) skips each run account in the
+pool for the day with a `warn` alert and the existing catch-up command. When that leaves no account to trade
+the run fails with `BrokerCashShortfallError`. A broker answer with no usable cash figure skips the pool with
+the reason (the Web adapter now raises on a ledger with no `cashbalance` or `settledcash` instead of
+returning 0.0). Simulator accounts are not checked. Operator text: `docs/runbooks/ibkr-paper-trading.md`
+("Books hold more cash than the broker") and the tables in `docs/runbooks/ibkr-operations.md`.
 
-Not verified: what the IBKR Web API ledger returns as `cashbalance` on the real paper account. The adapter
-returns 0.0 when the field is missing, which would read as a shortfall and skip every IBKR account, so check
-one real run's log line (`the books hold X cash and the broker holds Y`) against the Client Portal first.
-Not covered: open orders that have reserved cash at the broker but are not yet filled, and positions
-(`get_positions` still has no caller).
+Not verified: what the IBKR Web API ledger returns as `cashbalance` on the real paper account. Check one real
+run's log line (`the books hold X cash and the broker holds Y`) against the Client Portal before relying on it.
+Not covered: open orders that have reserved cash at the broker but are not yet filled, positions
+(`get_positions` still has no caller), broker-side charges the books do not record (they build up past the
+tolerance and need a manual reconcile), and two accounts that reach one IBKR account through different
+settings (counted as two pools).
 
 ## Out of scope
 Intraday runs, caps for the daily job (see `more-trading-evidence.md`), enabling rotation, changing strategy
