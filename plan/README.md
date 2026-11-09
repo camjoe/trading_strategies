@@ -20,5 +20,5 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | Plan | Status | Depends on |
 |---|---|---|
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09; design B (a periodic intraday job, built as a scheduler repeat interval) chosen 2026-10-19. Nothing run on the host. | none (contract-trading-rules.md is related) |
-| [distinct-books.md](distinct-books.md) | Items 1, 3, 4 built (stack of four PRs, 2026-11-02); item 5 (broker cash check, skip and alert on shortfall) decided, not built. See its "Left to do". | none (more-trading-evidence.md is related) |
+| [distinct-books.md](distinct-books.md) | Items 1, 3, 4 built (stack of four PRs #332-#335, sandbox-verified 2026-11-09); item 5 (broker cash check, skip and alert on shortfall) decided, not built. See its "Left to do". | none (more-trading-evidence.md is related) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |

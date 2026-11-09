@@ -1,17 +1,26 @@
 # Plan: make accounts and books trade differently
 
-Status: items 1, 3 and 4 built and 2's tooling built as a stack of four pull requests (2026-11-02); item 5
-is decided but not built. Nothing below has been run against the IBKR host.
-Branches: `feature/distinct-books` (item 1), `-universes` (item 2), `-budget` (item 3), `-evidence`
-(item 4), each off the previous one. Keep this file until the "Left to do" list is empty.
+Status (2026-11-09): items 1, 3 and 4 are built, and item 2's tooling, as a stack of four pull requests,
+all reviewed, with passing checks as of #332-#334; item 5 is decided but not built. Verified on the dev PC
+sandbox (see Developer verification); nothing has been run against the IBKR host.
+
+Pull requests, merged in this order with merge commits (not squash), each retargeted to `develop` after
+the one below it merges:
+1. #332 `feature/distinct-books` — item 1, the CLI.
+2. #333 `feature/distinct-books-universes` — item 2's tooling: example universes and the runbook.
+3. #334 `feature/distinct-books-budget` — item 3, the even share of the cap.
+4. #335 `feature/distinct-books-evidence` — item 4, evidence labelling, and this file's progress notes.
+
+Keep this file until the "Left to do" list is empty.
 
 ## Left to do
 Check these off in the pull request that does each one; delete this file when none remain.
-1. **Item 5, broker cash check.** Decided, not built (below).
+0. **Merge the four pull requests** in the order above, after bringing each up to date with `develop`.
+1. **Item 5, broker cash check.** Decided, not built (below). Start it on its own branch off `develop`.
 2. **Item 2, the choice.** Pick each account's universe and sizing with `docs/runbooks/differentiating-books.md`
    and record it in the pull request or under `local/strategies/`, not in tracked files.
 3. **Run it on the host.** Apply the choice to `ibkr_momentum_5k` first, then confirm in a run log that each
-   book stops at its share (Developer verification, below).
+   book stops at its share, counting orders by `book_id` (the run log gives only the account total).
 4. **Item 1 gap.** `configure-account --book` cannot set a book's `max_trades_per_run` back to NULL, and
    `create-account` does not take `--max-trades-per-run` or `--trade-universes`.
 5. **Stale doc.** The table row in `docs/reference/backtest-live-divergence.md` still says
