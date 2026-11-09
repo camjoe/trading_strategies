@@ -21,11 +21,13 @@ def broker_cash_pool(broker_type: str | None, broker_host: str | None, broker_po
     """Name the broker cash balance an account's books draw on, or None when the broker keeps no cash.
 
     Accounts with the same pool name spend from one real balance. A simulator account has no pool.
-    An unset host and port name their own pool, which the socket factory resolves to its defaults.
+    The broker type is read as the broker factory reads it, trimmed and lower-cased. An unset host and port name
+    their own pool, which the socket factory resolves to its defaults.
     """
-    if broker_type in _WEB_BROKER_TYPES:
+    normalized = (broker_type or "").strip().lower()
+    if normalized in _WEB_BROKER_TYPES:
         return _WEB_POOL
-    if broker_type in _SOCKET_BROKER_TYPES:
+    if normalized in _SOCKET_BROKER_TYPES:
         return f"ibkr_socket:{broker_host or ''}:{broker_port or 0}"
     return None
 

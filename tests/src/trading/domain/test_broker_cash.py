@@ -49,3 +49,7 @@ def test_socket_accounts_with_no_host_and_port_share_the_default_pool() -> None:
 @pytest.mark.parametrize("broker_type", ["paper", None, ""])
 def test_an_account_whose_broker_keeps_no_cash_has_no_pool(broker_type: str | None) -> None:
     assert broker_cash_pool(broker_type, None, None) is None
+
+
+def test_the_broker_type_is_read_trimmed_and_lower_cased_as_the_factory_reads_it() -> None:
+    assert broker_cash_pool(" Interactive_Brokers_Web_Paper ", None, None) == "ibkr_web"
