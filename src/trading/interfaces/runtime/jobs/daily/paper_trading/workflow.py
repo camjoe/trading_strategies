@@ -27,6 +27,7 @@ from common.runtime_job_status import (
     UNRESOLVED_ORDERS_KEY,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
+    BrokerCashShortfallError,
     BrokerSessionUnavailableError,
     check_broker_sessions,
 )
@@ -401,7 +402,9 @@ def _finish_run(
         payload["error"] = str(error)
 
     skipped_accounts = (
-        error.unavailable if isinstance(error, BrokerSessionUnavailableError) else context.skipped_accounts
+        error.unavailable
+        if isinstance(error, (BrokerSessionUnavailableError, BrokerCashShortfallError))
+        else context.skipped_accounts
     )
     if skipped_accounts:
         payload["skipped_accounts"] = skipped_accounts
@@ -432,7 +435,8 @@ def _finish_run(
             notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
         if skipped_accounts:
             notes.append(
-                f"completed without accounts whose IBKR session was unavailable: {', '.join(skipped_accounts)}. "
+                f"completed without accounts that could not trade today (IBKR session unavailable, or the books hold more "
+                f"cash than the broker): {', '.join(skipped_accounts)}. "
                 f"Run them with: {context.catch_up_command}"
             )
         if broker_anomaly_accounts:
@@ -509,7 +513,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         )
         if skipped_accounts:
             for name, reason in skipped_accounts.items():
-                tee_line(log_path, f"[{ts()}] WARN: skipping {name}, broker session unavailable ({reason})")
+                tee_line(log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
             context = exclude_accounts(context, skipped_accounts, catch_up_command(args, context, skipped_accounts))
             accounts = context.accounts
             account_trade_caps = context.account_trade_caps

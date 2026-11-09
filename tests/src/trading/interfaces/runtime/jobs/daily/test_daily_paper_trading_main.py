@@ -21,7 +21,10 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
     set_runtime_eligible_accounts,
     write_completed_runtime_log,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import BrokerSessionUnavailableError
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
+    BrokerCashShortfallError,
+    BrokerSessionUnavailableError,
+)
 from trading.interfaces.runtime.jobs.job_helpers import CommandFailedError
 
 WORKFLOW_MODULE = f"{DAILY_PAPER_TRADING_MODULE}.workflow"
@@ -513,6 +516,37 @@ def _every_account_unavailable(monkeypatch) -> None:
         raise BrokerSessionUnavailableError({"acct_a": "interactive_brokers_web_paper: gateway down"})
 
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _raise)
+
+
+def test_a_cash_shortfall_on_every_account_fails_the_run_before_any_step_runs(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    reason = "interactive_brokers_web_paper: the books hold 80000.00 cash and the broker holds 70000.00"
+
+    def _raise(_accounts):
+        raise BrokerCashShortfallError({"acct_a": reason})
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _raise)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    assert not _runtime_harness.stream_calls
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["status"] == "failed"
+    assert payload["failed_step"] == "00_ingest_market_and_account"
+    assert payload["skipped_accounts"] == {"acct_a": reason}
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "fail"
+    assert "the books hold 80000.00 cash" in notification["message"]
 
 
 def test_every_account_unavailable_fails_the_run_before_any_step_runs(
@@ -1017,7 +1051,8 @@ def test_a_skipped_account_and_a_broker_anomaly_are_both_named_in_one_alert(
 
     assert code == 0
     [notification] = _runtime_harness.notifications
-    assert "completed without accounts whose IBKR session was unavailable: acct_c" in notification["message"]
+    assert "completed without accounts that could not trade today" in notification["message"]
+    assert "acct_c" in notification["message"]
     assert "completed with broker API anomalies on: acct_a" in notification["message"]
 
 

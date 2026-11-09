@@ -217,6 +217,29 @@ To apply fills that arrive after a run has finished, without a full run:
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
 ```
 
+## Books hold more cash than the broker
+
+Every account of one broker type trades through one IBKR account, so their books draw on one real
+cash balance. Before trading, the daily run adds up every book's cash across those accounts and
+compares it with the broker's `TotalCashValue`. When the books hold more than the broker (beyond a
+$1.00 tolerance), it skips each run account of that broker type for the day and sends a `warn` alert;
+when that leaves no account to trade it fails with `No run account can trade today`. No orders go out
+in either case.
+
+The log line gives both figures: `WARN: skipping <account> before trading (<broker type>: the books
+hold <books> cash and the broker holds <broker>)`.
+
+Find why they differ before you re-run:
+
+- Fills the books have not posted yet: run `reconcile_orders` (Step 3), then re-run.
+- Cash withdrawn or moved at the broker, or another system trading the same IBKR account.
+- A book funded with more starting cash than the account holds. Compare each book's cash with
+  `python -m trading.interfaces.cli.main report --account <account>`.
+
+The broker's figure is read from the Web API ledger (`cashbalance` of the `BASE` or `USD` row) or the
+socket account summary (`TotalCashValue`). A summary with no cash figure is reported as an unavailable
+session, so the run skips that account instead of trading blind.
+
 ## Rolling back
 
 ```sql

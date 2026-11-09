@@ -76,7 +76,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
 | `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
-| `daily/paper_trading/broker_preflight.py` | Connects every run account's broker in step 00 and returns the ones whose session is unavailable; raises `BrokerSessionUnavailableError` (failing the run) only when every account is |
+| `daily/paper_trading/broker_preflight.py` | Connects every run account's broker in step 00 and returns the ones that cannot trade today: session unavailable, or books holding more cash than the broker (`BrokerCashShortfallError`). Raises `BrokerSessionUnavailableError` or `BrokerCashShortfallError` (failing the run) only when every account is skipped |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
@@ -199,6 +199,7 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
+| `operations/broker_cash.py` | Read-only total of every book's cash per broker type (`fetch_book_cash_by_broker_type`); the daily preflight compares it with the broker's cash |
 | `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`, `check_account_freshness`); run by the daily trader health check |
 | `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
 | `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
@@ -287,6 +288,7 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
+| `broker_cash.py` | Whether the books' cash exceeds the broker's beyond a tolerance (`broker_cash_shortfall`) |
 | `incremental_fill.py` | Cumulative-to-incremental fill arithmetic: the shares, price and commission still to post from a broker's cumulative report |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |

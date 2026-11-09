@@ -1,31 +1,22 @@
 # Plan: make accounts and books trade differently
 
-Status (2026-11-09): items 1, 3 and 4 are built, and item 2's tooling, as a stack of four pull requests,
-all reviewed, with passing checks as of #332-#334; item 5 is decided but not built. Verified on the dev PC
-sandbox (see Developer verification); nothing has been run against the IBKR host.
-
-Pull requests, merged in this order with merge commits (not squash), each retargeted to `develop` after
-the one below it merges:
-1. #332 `feature/distinct-books` — item 1, the CLI.
-2. #333 `feature/distinct-books-universes` — item 2's tooling: example universes and the runbook.
-3. #334 `feature/distinct-books-budget` — item 3, the even share of the cap.
-4. #335 `feature/distinct-books-evidence` — item 4, evidence labelling, and this file's progress notes.
+Status (2026-11-09): items 1, 3 and 4 and item 2's tooling are merged to `develop` (#332-#335), verified on
+the dev PC sandbox (see Developer verification). Item 5 is built on `feature/broker-cash-check`. Nothing
+has been run against the IBKR host.
 
 Keep this file until the "Left to do" list is empty.
 
 ## Left to do
 Check these off in the pull request that does each one; delete this file when none remain.
-0. **Merge the four pull requests** in the order above, after bringing each up to date with `develop`.
-1. **Item 5, broker cash check.** Decided, not built (below). Start it on its own branch off `develop`.
+1. **Item 5, broker cash check.** Built on `feature/broker-cash-check`, not yet run on the host. Check the
+   `TotalCashValue` the IBKR Web API returns against the Client Portal before relying on it (below).
 2. **Item 2, the choice.** Pick each account's universe and sizing with `docs/runbooks/differentiating-books.md`
    and record it in the pull request or under `local/strategies/`, not in tracked files.
 3. **Run it on the host.** Apply the choice to `ibkr_momentum_5k` first, then confirm in a run log that each
    book stops at its share, counting orders by `book_id` (the run log gives only the account total).
 4. **Item 1 gap.** `configure-account --book` cannot set a book's `max_trades_per_run` back to NULL, and
    `create-account` does not take `--max-trades-per-run` or `--trade-universes`.
-5. **Stale doc.** The table row in `docs/reference/backtest-live-divergence.md` still says
-   `max_trades_per_run` is never read; it is read in `book_intents.py`.
-6. **Known limits, not planned.** An unused share is lost (item 3). Positions in tickers a universe switch
+5. **Known limits, not planned.** An unused share is lost (item 3). Positions in tickers a universe switch
    drops are not managed by selection (runbook, "Check open positions first"). Promotion review has no
    per-book path (item 4).
 
@@ -115,29 +106,21 @@ account, before relying on this. UNVERIFIED.
   growth 2, limited book 1; no book above its share of 2. Not checked: exits past a stop-loss, a cap not
   divisible by the book count, the IBKR host.
 
-### 5. Check book cash against the broker (decided 2026-11-02, not started)
-Decision (owner): on a shortfall, raise an alert and skip that day's orders for the account. Do not shrink
-the buys and do not trade through. Still to design: where the check sits relative to the broker preflight
-and the order submission, which alert fires, what the sentinel and operator runbook say, and what a skipped
-day looks like to the freshness and health checks. Read the broker figure first and record what it returns;
-this touches the broker path, so review it in Aggressive mode and against the Live Trading Safety Guard.
+### 5. Check book cash against the broker (built on `feature/broker-cash-check`, 2026-11-09)
+Each book spends from its own ledger cash, and every account of one broker type trades through one IBKR
+account, so the books together can promise more cash than the broker holds. Before trading, the daily
+preflight (`daily/paper_trading/broker_preflight.py`) reads the broker's `TotalCashValue` through
+`get_account_info`, adds up every book's cash across all accounts of that broker type, and when the books hold
+more (beyond a $1.00 tolerance) skips each run account of that type for the day with a `warn` alert and the
+existing catch-up command. When that leaves no account to trade the run fails with `BrokerCashShortfallError`.
+A summary with no cash figure counts as an unavailable session. Simulator accounts are not checked.
+Operator text: `docs/runbooks/ibkr-paper-trading.md` ("Books hold more cash than the broker").
 
-Background. Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
-only equity check (`reconcile_book_equity`) compares the books with the account's own snapshot, and
-`BrokerConnection.get_account_info` (cash, buying power) and `get_positions` have no production caller.
-With several books on accounts that share one IBKR paper account, the ledgers can promise more cash than
-the broker holds; an order then fails and the account's run stops (`broker_api_anomaly`). Decide whether to
-read broker cash before submitting and what to do on a shortfall. UNVERIFIED: what `get_account_info`
-returns on the IBKR web adapter.
-
-### 5. Check book cash against the broker (not started)
-Each book spends from its own ledger cash, but nothing compares the books' balances with the broker. The
-only equity check (`reconcile_book_equity`) compares the books with the account's own snapshot, and
-`BrokerConnection.get_account_info` (cash, buying power) and `get_positions` have no production caller.
-With several books on accounts that share one IBKR paper account, the ledgers can promise more cash than
-the broker holds; an order then fails and the account's run stops (`broker_api_anomaly`). Decide whether to
-read broker cash before submitting and what to do on a shortfall. UNVERIFIED: what `get_account_info`
-returns on the IBKR web adapter.
+Not verified: what the IBKR Web API ledger returns as `cashbalance` on the real paper account. The adapter
+returns 0.0 when the field is missing, which would read as a shortfall and skip every IBKR account, so check
+one real run's log line (`the books hold X cash and the broker holds Y`) against the Client Portal first.
+Not covered: open orders that have reserved cash at the broker but are not yet filled, and positions
+(`get_positions` still has no caller).
 
 ## Out of scope
 Intraday runs, caps for the daily job (see `more-trading-evidence.md`), enabling rotation, changing strategy
