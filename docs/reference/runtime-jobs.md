@@ -77,6 +77,25 @@ than depending on a separate job; and it skips a date that already succeeded. Pa
 deliberate re-run — that is a second full trading pass, not a retry. The reasoning behind the guard
 and the snapshot placement is in the `paper_trading` package docstring and `workflow.py`.
 
+### Development runs
+
+To check a change on a development machine, run the daily job against a fresh copy of the sandbox
+database. No broker, credentials, or network are needed:
+
+```sh
+python -m scripts.dev_run_daily
+python -m scripts.dev_run_daily --ignore-market-hours   # trade even when the market is closed
+```
+
+The script restores `local/sandbox.db`, uses the offline demo market data, turns off notifications,
+and runs the job with `--run-source dev-sandbox --force-run`. Any other arguments, such as
+`--accounts sandbox_core`, go to the daily job. Logs and artifacts are written to `local/` as usual.
+
+`--ignore-market-hours` sets `TRADING_DEV_IGNORE_MARKET_HOURS=1`. The auto trader refuses that
+variable when the database is the default `local/paper_trading.db`, or when any account in the run
+is not on the in-process simulator (`broker_type` `paper`). Testing against IBKR stays on the
+runtime host.
+
 ## When a reinstall is needed
 
 The scheduler runs `python -m <module>`. It loads the current code on every run. So a change to a
