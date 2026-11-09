@@ -43,3 +43,27 @@ def test_a_suffixed_backup_name_still_carries_its_stamp() -> None:
     assert backup_db._parse_stamp(Path("paper_trading_20260327_080910_2.db")) == datetime(2026, 3, 27, 8, 9, 10)
     assert backup_db._parse_stamp(Path("paper_trading_20260327_080910.db")) == datetime(2026, 3, 27, 8, 9, 10)
     assert backup_db._parse_stamp(Path("paper_trading_notastamp.db")) is None
+
+
+def test_retention_counts_every_checkouts_backups_in_a_shared_folder(
+    live_db: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shared = tmp_path / "shared" / "db_backups"
+    shared.mkdir(parents=True)
+    other_checkout = [
+        shared / f"paper_trading_20260301_{second:06d}.db" for second in range(backup_db.KEEP_RECENT + 5)
+    ]
+    for path in other_checkout:
+        path.write_bytes(b"x")
+    monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path / "shared"))
+
+    summary = backup_db.run_backup(verbose=False)
+
+    pruned_paths = summary["pruned"]
+    assert isinstance(pruned_paths, list)
+    pruned = {path.name for path in pruned_paths}
+    survivors = {path.name for path in shared.glob("paper_trading_*.db")}
+    assert len(survivors) == backup_db.KEEP_RECENT + 1
+    assert other_checkout[0].name in survivors
+    assert pruned == {path.name for path in other_checkout[1:6]}
+    assert Path(str(summary["backup"])).name in survivors
