@@ -12,6 +12,7 @@ from tests.src.trading.interfaces.runtime.jobs.loaders import (
 )
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
+from trading.services.auto_trading.runtime import MarketHoursOverrideRefusedError
 
 
 class FakeConn:
@@ -230,3 +231,43 @@ def test_main_stays_green_for_a_non_broker_kill_switch(monkeypatch, capsys) -> N
 
     assert module.main() == 0
     assert "acct1: executed 0 trades (halted: stale_price_data)" in capsys.readouterr().out
+
+
+def test_market_hours_override_is_off_unless_set_to_one(monkeypatch) -> None:
+    monkeypatch.delenv(module.DEV_IGNORE_MARKET_HOURS_ENV, raising=False)
+    assert module.resolve_ignore_market_hours() is False
+    monkeypatch.setenv(module.DEV_IGNORE_MARKET_HOURS_ENV, "true")
+    assert module.resolve_ignore_market_hours() is False
+
+
+def test_market_hours_override_is_refused_against_the_default_database(monkeypatch) -> None:
+    monkeypatch.setenv(module.DEV_IGNORE_MARKET_HOURS_ENV, "1")
+    monkeypatch.delenv("TRADING_DB_PATH", raising=False)
+
+    with pytest.raises(MarketHoursOverrideRefusedError, match="default database"):
+        module.resolve_ignore_market_hours()
+
+
+def test_market_hours_override_applies_to_another_database(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv(module.DEV_IGNORE_MARKET_HOURS_ENV, "1")
+    monkeypatch.setenv("TRADING_DB_PATH", str(tmp_path / "sandbox.db"))
+
+    assert module.resolve_ignore_market_hours() is True
+
+
+def test_main_forwards_the_market_hours_override(monkeypatch, capsys, tmp_path) -> None:
+    install_main_args(monkeypatch, accounts="acct1")
+    monkeypatch.setenv(module.DEV_IGNORE_MARKET_HOURS_ENV, "1")
+    monkeypatch.setenv("TRADING_DB_PATH", str(tmp_path / "sandbox.db"))
+    monkeypatch.setattr(
+        module, "resolve_market_inputs", lambda _p, **_kwargs: MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0})
+    )
+    monkeypatch.setattr(module, "resolve_run_universe", lambda _conn, _accounts: ["AAPL"])
+    monkeypatch.setattr(init_module, "ensure_db", lambda: FakeConn())
+    run_accounts_mock = Mock(return_value=[AccountRunResult(account_name="acct1", submitted_count=1)])
+    monkeypatch.setattr(module, "run_accounts", run_accounts_mock)
+
+    assert module.main() == 0
+
+    assert run_accounts_mock.call_args.kwargs["ignore_market_hours"] is True
+    assert "submitting regardless of market hours" in capsys.readouterr().out
