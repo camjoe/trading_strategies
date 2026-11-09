@@ -30,7 +30,9 @@ from scripts.forge.scorecard_store import ScoreStore
 from scripts.forge.service import resolve_authors, review_context
 
 SCORECARD_DB_ENV = "REVIEW_SCORECARD_DB"
-DEFAULT_SCORECARD_DB = "local/review_scorecard.db"
+DATA_HOME_ENV = "TRADING_DATA_HOME"
+SCORECARD_DB_NAME = "review_scorecard.db"
+DEFAULT_SCORECARD_DB = f"local/{SCORECARD_DB_NAME}"
 
 
 def _add_pr_argument(command: argparse.ArgumentParser) -> None:
@@ -102,7 +104,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scorecard.add_argument(
         "--db",
-        help=f"SQLite file for --save and --from-db (default: ${SCORECARD_DB_ENV} or {DEFAULT_SCORECARD_DB}).",
+        help=(
+            f"SQLite file for --save and --from-db (default: ${SCORECARD_DB_ENV}, "
+            f"else ${DATA_HOME_ENV}/{SCORECARD_DB_NAME}, else {DEFAULT_SCORECARD_DB})."
+        ),
     )
     scorecard.add_argument(
         "--repo",
@@ -215,7 +220,13 @@ def _inline_sync(args: argparse.Namespace, forge: Forge) -> None:
 
 
 def _scorecard_db(args: argparse.Namespace) -> Path:
-    return Path(args.db or os.environ.get(SCORECARD_DB_ENV) or DEFAULT_SCORECARD_DB)
+    explicit = args.db or os.environ.get(SCORECARD_DB_ENV, "").strip()
+    if explicit:
+        return Path(explicit).expanduser()
+    data_home = os.environ.get(DATA_HOME_ENV, "").strip()
+    if data_home:
+        return Path(data_home).expanduser() / SCORECARD_DB_NAME
+    return Path(DEFAULT_SCORECARD_DB)
 
 
 def _print_scorecard(

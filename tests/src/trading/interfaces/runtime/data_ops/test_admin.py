@@ -58,7 +58,7 @@ class TestBackupDatabase:
     ) -> None:
         build_db_at_head(configured_backend.db_path)
         monkeypatch.setattr(admin, "datetime", FixedDateTime)
-        monkeypatch.setattr(admin, "DB_BACKUPS_DIR", tmp_path / "db_backups")
+        monkeypatch.setenv("TRADING_DB_BACKUPS_DIR", str(tmp_path / "db_backups"))
 
         backup = admin.backup_database()
 

@@ -16,9 +16,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.paths import REPO_ROOT
+from common.paths import data_home
 
-_DEFAULT_MARKET_DATA_CACHE_DIR = REPO_ROOT / "local" / "cache" / "market_data"
 _MARKET_DATA_CACHE_TTL_SECONDS = 24 * 60 * 60
 _MARKET_DATA_CACHE_DIR_ENV = "TRADING_MARKET_DATA_CACHE_DIR"
 _MARKET_DATA_CACHE_DISABLED_ENV = "TRADING_MARKET_DATA_CACHE_DISABLED"
@@ -36,7 +35,7 @@ def market_data_cache_dir() -> Path:
     raw = str(os.getenv(_MARKET_DATA_CACHE_DIR_ENV, "")).strip()
     if raw:
         return Path(raw).expanduser().resolve()
-    return _DEFAULT_MARKET_DATA_CACHE_DIR
+    return data_home() / "cache" / "market_data"
 
 
 def market_data_cache_key(kind: str, **parts: object) -> str:

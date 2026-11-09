@@ -1,3 +1,4 @@
+import argparse
 import json
 from collections import Counter
 from collections.abc import Collection, Sequence
@@ -624,3 +625,29 @@ class TestPredictionOnClosedLines:
         )
 
         assert score_comment(body)[0].needs == "info"
+
+
+class TestScorecardLocation:
+    @staticmethod
+    def _args(db: str | None = None) -> argparse.Namespace:
+        return argparse.Namespace(db=db)
+
+    def test_the_default_is_this_checkouts_local_folder(self) -> None:
+        assert cli_module._scorecard_db(self._args()) == Path("local/review_scorecard.db")
+
+    def test_the_shared_data_folder_moves_the_default(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path / "review_scorecard.db"
+
+    def test_the_scorecard_setting_wins_over_the_shared_folder(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", str(tmp_path / "own.db"))
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path / "own.db"
+
+    def test_the_flag_wins_over_both(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", str(tmp_path / "own.db"))
+
+        assert cli_module._scorecard_db(self._args(str(tmp_path / "flag.db"))) == tmp_path / "flag.db"

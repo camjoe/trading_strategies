@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from common.paths import DB_BACKUPS_DIR
+from common.paths import db_backups_dir
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
 from trading.services.accounts.deletions import delete_account, preview_account_deletion
@@ -29,7 +29,7 @@ def backup_database(destination: str | None = None) -> Path:
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if destination is None:
-        backups_dir = DB_BACKUPS_DIR
+        backups_dir = db_backups_dir()
         backups_dir.mkdir(parents=True, exist_ok=True)
         target = backups_dir / f"{source.stem}_{stamp}.db"
     else:
