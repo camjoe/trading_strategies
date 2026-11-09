@@ -1,16 +1,19 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
 
 import trading.services.auto_trading.inputs as auto_trading_inputs
 import trading.services.auto_trading.market as auto_trading_market
+import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import make_feature_fetchers
 from tests.support.backtesting import bar_frame
 from trading.models.accounts import AccountConfig
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
 from trading.services.accounts.mutations import create_account
+from trading.services.auto_trading.runtime import MarketHoursOverrideRefusedError
 
 
 def test_build_iv_rank_proxy_handles_empty_and_single() -> None:
@@ -143,3 +146,27 @@ def test_run_accounts_forwards_every_argument_to_the_runtime(monkeypatch: pytest
     forwarded = captured["market"]
     assert isinstance(forwarded, MarketInputs)
     assert list(forwarded.histories) == ["AAPL"]
+
+
+def test_run_accounts_override_checks_every_account_before_trading_any(monkeypatch: pytest.MonkeyPatch) -> None:
+    accounts = {
+        "sim": SimpleNamespace(broker_type="paper"),
+        "ibkr": SimpleNamespace(broker_type="interactive_brokers_web_paper"),
+    }
+    monkeypatch.setattr(runtime_service, "get_account", lambda _conn, name: accounts[name])
+    runner = Mock()
+    monkeypatch.setattr(auto_trading_inputs, "run_for_account", runner)
+
+    with pytest.raises(MarketHoursOverrideRefusedError, match="ibkr"):
+        auto_trading_inputs.run_accounts(
+            object(),
+            account_names=["sim", "ibkr"],
+            market=MarketInputs(universe=["AAPL"], prices={"AAPL": 100.0}),
+            max_trades=5,
+            fee=0.0,
+            broker_factory=lambda _: None,
+            feature_fetchers=make_feature_fetchers(),
+            ignore_market_hours=True,
+        )
+
+    runner.assert_not_called()
