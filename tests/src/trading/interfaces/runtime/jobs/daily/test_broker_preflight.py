@@ -19,6 +19,22 @@ BROKER_PREFLIGHT_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.b
 module = load_runtime_job(BROKER_PREFLIGHT_MODULE)
 
 
+WEB_PAPER = "interactive_brokers_web_paper"
+SOCKET_PAPER = "interactive_brokers_socket_paper"
+ACCOUNTS: dict[str, SimpleNamespace] = {}
+
+
+def account(name: str, broker_type: str, host: str | None = None, port: int | None = None) -> None:
+    ACCOUNTS[name] = SimpleNamespace(name=name, broker_type=broker_type, broker_host=host, broker_port=port)
+
+
+@pytest.fixture(autouse=True)
+def _reset_accounts():
+    ACCOUNTS.clear()
+    yield
+    ACCOUNTS.clear()
+
+
 class FakeConn:
     def close(self) -> None:
         pass
@@ -62,10 +78,12 @@ def install(
     monkeypatch.setattr(
         module,
         "get_account",
-        lambda _conn, name: SimpleNamespace(name=name, broker_type="interactive_brokers_web_paper"),
+        lambda _conn, name: (
+            ACCOUNTS.get(name) or SimpleNamespace(name=name, broker_type=WEB_PAPER, broker_host=None, broker_port=None)
+        ),
     )
     monkeypatch.setattr(module, "get_broker_for_account", factory)
-    monkeypatch.setattr(module, "fetch_book_cash_by_broker_type", lambda _conn: book_cash or {})
+    monkeypatch.setattr(module, "fetch_book_cash_by_pool", lambda _conn: book_cash or {})
     return brokers
 
 
@@ -155,37 +173,42 @@ def test_the_failure_text_names_each_account_and_the_runbook(monkeypatch) -> Non
     assert "docs/runbooks/ibkr-paper-trading.md" in message
 
 
-WEB_PAPER = "interactive_brokers_web_paper"
-
-
-def test_books_holding_more_than_the_broker_skip_every_account_of_that_broker(monkeypatch) -> None:
+def test_books_holding_more_than_the_broker_skip_every_account_in_the_pool(monkeypatch) -> None:
     brokers = install(
         monkeypatch,
         {"acct_a": FakeBroker({"TotalCashValue": 70_000.0}), "acct_b": FakeBroker({"TotalCashValue": 70_000.0})},
-        book_cash={WEB_PAPER: Decimal("80000.00")},
+        book_cash={"ibkr_web": Decimal("80000.00")},
     )
 
     with pytest.raises(module.BrokerCashShortfallError) as raised:
-        module.check_broker_sessions(["acct_a", "acct_b"])
+        module.check_broker_cash(["acct_a", "acct_b"], already_skipped={})
 
-    assert set(raised.value.unavailable) == {"acct_a", "acct_b"}
-    assert "the books hold 80000.00 cash and the broker holds 70000.00" in raised.value.unavailable["acct_a"]
+    assert set(raised.value.skipped) == {"acct_a", "acct_b"}
+    assert "the books hold 80000.00 cash and the broker holds 70000.00" in raised.value.skipped["acct_a"]
     assert "docs/runbooks/ibkr-paper-trading.md" in str(raised.value)
-    assert all(broker.disconnected for broker in brokers.values())
+    assert [name for name, broker in brokers.items() if broker.disconnected] == ["acct_a"]
 
 
-def test_a_shortfall_skips_the_ibkr_accounts_and_lets_the_simulator_accounts_trade(monkeypatch) -> None:
-    def route(account):
-        return SimpleNamespace(name=account.name, broker_type="paper" if account.name == "sim" else WEB_PAPER)
+def test_the_cash_is_read_once_per_pool(monkeypatch) -> None:
+    brokers = install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": 100.0}), "acct_b": FakeBroker({"TotalCashValue": 5.0})},
+        book_cash={"ibkr_web": Decimal("50.00")},
+    )
 
+    assert module.check_broker_cash(["acct_a", "acct_b"], already_skipped={}) == {}
+    assert set(brokers) == {"acct_a"}
+
+
+def test_a_shortfall_skips_the_pool_and_leaves_the_simulator_accounts_alone(monkeypatch) -> None:
+    account("sim", "paper")
     install(
         monkeypatch,
         {"acct_a": FakeBroker({"TotalCashValue": 70_000.0}), "sim": None},
-        book_cash={WEB_PAPER: Decimal("80000.00"), "paper": Decimal("5000.00")},
+        book_cash={"ibkr_web": Decimal("80000.00")},
     )
-    monkeypatch.setattr(module, "get_account", lambda _conn, name: route(SimpleNamespace(name=name)))
 
-    skipped = module.check_broker_sessions(["acct_a", "sim"])
+    skipped = module.check_broker_cash(["acct_a", "sim"], already_skipped={})
 
     assert set(skipped) == {"acct_a"}
 
@@ -194,64 +217,128 @@ def test_books_within_the_broker_cash_are_not_skipped(monkeypatch) -> None:
     install(
         monkeypatch,
         {"acct_a": FakeBroker({"TotalCashValue": 80_000.0})},
-        book_cash={WEB_PAPER: Decimal("80000.50")},
+        book_cash={"ibkr_web": Decimal("80000.50")},
     )
 
-    assert module.check_broker_sessions(["acct_a"]) == {}
+    assert module.check_broker_cash(["acct_a"], already_skipped={}) == {}
 
 
-def test_a_just_over_the_tolerance_shortfall_is_skipped(monkeypatch) -> None:
+def test_a_shortfall_just_over_the_tolerance_is_skipped(monkeypatch) -> None:
     install(
         monkeypatch,
         {"acct_a": FakeBroker({"TotalCashValue": 80_000.0})},
-        book_cash={WEB_PAPER: Decimal("80001.01")},
+        book_cash={"ibkr_web": Decimal("80001.01")},
     )
 
     with pytest.raises(module.BrokerCashShortfallError):
-        module.check_broker_sessions(["acct_a"])
+        module.check_broker_cash(["acct_a"], already_skipped={})
 
 
-def test_books_of_accounts_outside_the_run_count_against_the_shared_broker_cash(monkeypatch) -> None:
+def test_books_of_accounts_outside_the_run_count_against_the_shared_cash(monkeypatch) -> None:
     install(
         monkeypatch,
         {"acct_a": FakeBroker({"TotalCashValue": 30_000.0})},
-        book_cash={WEB_PAPER: Decimal("90000.00")},
+        book_cash={"ibkr_web": Decimal("90000.00")},
     )
 
     with pytest.raises(module.BrokerCashShortfallError):
-        module.check_broker_sessions(["acct_a"])
+        module.check_broker_cash(["acct_a"], already_skipped={})
 
 
-def test_an_account_summary_without_cash_is_an_unavailable_session(monkeypatch) -> None:
-    install(
+@pytest.mark.parametrize(
+    "info",
+    [{"NetLiquidation": 1.0}, {"TotalCashValue": float("nan")}, {"TotalCashValue": float("inf")}],
+)
+def test_an_answer_without_a_usable_cash_figure_skips_the_pool_with_the_reason(monkeypatch, info) -> None:
+    brokers = install(
         monkeypatch,
-        {"acct_a": FakeBroker({"NetLiquidation": 1.0}), "acct_b": FakeBroker({"TotalCashValue": 1000.0})},
-        book_cash={WEB_PAPER: Decimal("10.00")},
-    )
-
-    skipped = module.check_broker_sessions(["acct_a", "acct_b"])
-
-    assert set(skipped) == {"acct_a"}
-    assert "no TotalCashValue" in skipped["acct_a"]
-
-
-def test_a_shortfall_beside_a_down_session_reports_both(monkeypatch) -> None:
-    install(
-        monkeypatch,
-        {
-            "acct_a": FakeBroker({"TotalCashValue": 70_000.0}),
-            "acct_b": httpx.ConnectError("gateway down"),
-        },
-        book_cash={WEB_PAPER: Decimal("80000.00")},
+        {"acct_a": FakeBroker(info), "acct_b": FakeBroker({"TotalCashValue": 1.0})},
+        book_cash={"ibkr_web": Decimal("10.00")},
     )
 
     with pytest.raises(module.BrokerCashShortfallError) as raised:
-        module.check_broker_sessions(["acct_a", "acct_b"])
+        module.check_broker_cash(["acct_a", "acct_b"], already_skipped={})
 
-    assert set(raised.value.unavailable) == {"acct_a", "acct_b"}
+    assert "could not read the broker's cash" in raised.value.skipped["acct_b"]
+    assert brokers["acct_a"].disconnected
+
+
+def test_a_cash_read_that_fails_to_parse_is_a_skip_not_a_crash(monkeypatch) -> None:
+    class Garbled(FakeBroker):
+        def get_account_info(self) -> dict[str, float]:
+            raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+    account("sim", "paper")
+    install(monkeypatch, {"acct_a": Garbled(), "sim": None}, book_cash={"ibkr_web": Decimal("10.00")})
+
+    skipped = module.check_broker_cash(["acct_a", "sim"], already_skipped={})
+
+    assert set(skipped) == {"acct_a"}
+    assert "Expecting value" in skipped["acct_a"]
+
+
+def test_a_failed_read_still_disconnects(monkeypatch) -> None:
+    account("sim", "paper")
+    broker = FakeBroker({"NetLiquidation": 1.0})
+    install(monkeypatch, {"acct_a": broker, "sim": None}, book_cash={"ibkr_web": Decimal("10.00")})
+
+    module.check_broker_cash(["acct_a", "sim"], already_skipped={})
+
+    assert broker.disconnected
+
+
+def test_socket_accounts_on_different_ports_are_different_pools(monkeypatch) -> None:
+    account("acct_a", SOCKET_PAPER, "127.0.0.1", 4002)
+    account("acct_b", SOCKET_PAPER, "127.0.0.1", 4003)
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": 50_000.0}), "acct_b": FakeBroker({"TotalCashValue": 50_000.0})},
+        book_cash={
+            "ibkr_socket:127.0.0.1:4002": Decimal("50000.00"),
+            "ibkr_socket:127.0.0.1:4003": Decimal("50000.00"),
+        },
+    )
+
+    assert module.check_broker_cash(["acct_a", "acct_b"], already_skipped={}) == {}
+
+
+def test_the_error_names_every_skipped_account_when_a_session_was_down_earlier(monkeypatch) -> None:
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": 1.0})},
+        book_cash={"ibkr_web": Decimal("100.00")},
+    )
+
+    with pytest.raises(module.BrokerCashShortfallError) as raised:
+        module.check_broker_cash(["acct_a"], already_skipped={"acct_z": f"{WEB_PAPER}: gateway down"})
+
+    assert set(raised.value.skipped) == {"acct_a", "acct_z"}
+
+
+def test_one_account_left_means_the_run_goes_on_with_it(monkeypatch) -> None:
+    account("sim", "paper")
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": 1.0}), "sim": None},
+        book_cash={"ibkr_web": Decimal("100.00")},
+    )
+
+    assert set(module.check_broker_cash(["acct_a", "sim"], already_skipped={})) == {"acct_a"}
+
+
+def test_broker_guard_errors_propagate_from_the_cash_check(monkeypatch) -> None:
+    guard = PaperBrokerAccountMismatchError("not a paper account")
+    install(monkeypatch, {"acct_a": guard}, book_cash={"ibkr_web": Decimal("1.00")})
+
+    with pytest.raises(PaperBrokerAccountMismatchError) as raised:
+        module.check_broker_cash(["acct_a"], already_skipped={})
+
+    assert raised.value is guard
 
 
 def test_a_simulator_only_run_reads_no_cash(monkeypatch) -> None:
-    install(monkeypatch, {"acct_a": None}, book_cash={WEB_PAPER: Decimal("10.00")})
+    account("sim", "paper")
+    brokers = install(monkeypatch, {"sim": None}, book_cash={"ibkr_web": Decimal("10.00")})
 
-    assert module.check_broker_sessions(["acct_a"]) == {}
+    assert module.check_broker_cash(["sim"], already_skipped={}) == {}
+    assert brokers == {}

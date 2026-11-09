@@ -219,26 +219,36 @@ python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders -
 
 ## Books hold more cash than the broker
 
-Every account of one broker type trades through one IBKR account, so their books draw on one real
-cash balance. Before trading, the daily run adds up every book's cash across those accounts and
-compares it with the broker's `TotalCashValue`. When the books hold more than the broker (beyond a
-$1.00 tolerance), it skips each run account of that broker type for the day and sends a `warn` alert;
-when that leaves no account to trade it fails with `No run account can trade today`. No orders go out
-in either case.
+Accounts that reach one IBKR account share its real cash balance: every Web API account does, and
+every socket account that connects to the same host and port. After the pre-trade reconcile has
+posted outstanding fills, the daily run adds up every book's cash, paused or not, across the accounts
+in each such pool and compares it with the broker's cash balance (`TotalCashValue`). When the books
+hold more than the broker (beyond a $1.00 tolerance), it skips every run account in that pool for
+the day and sends a `warn` alert; when that leaves no account to trade, the run fails with `No run
+account can trade today`. No orders go out in either case. Simulator accounts are not checked.
 
-The log line gives both figures: `WARN: skipping <account> before trading (<broker type>: the books
-hold <books> cash and the broker holds <broker>)`.
+The log line gives both figures: `WARN: skipping <account> before trading (the books hold <books>
+cash and the broker holds <broker>)`.
 
-Find why they differ before you re-run:
+Find why they differ before you re-run. Fills the books have not posted are already applied by the
+pre-trade reconcile, so a remaining gap is one of these:
 
-- Fills the books have not posted yet: run `reconcile_orders` (Step 3), then re-run.
 - Cash withdrawn or moved at the broker, or another system trading the same IBKR account.
 - A book funded with more starting cash than the account holds. Compare each book's cash with
   `python -m trading.interfaces.cli.main report --account <account>`.
+- Broker-side charges the books do not record (market-data fees, interest). They add up, so a $1.00
+  drift can build over weeks; reconcile the books to the broker's cash.
+- A paused book that still holds cash; it counts.
 
-The broker's figure is read from the Web API ledger (`cashbalance` of the `BASE` or `USD` row) or the
-socket account summary (`TotalCashValue`). A summary with no cash figure is reported as an unavailable
-session, so the run skips that account instead of trading blind.
+The broker's figure is the `cashbalance` of the Web API ledger's `BASE` or `USD` row (`settledcash`
+when that is absent), or the socket account summary's `TotalCashValue`. An answer with no usable
+cash figure, including a ledger with neither field, is not read as zero: every account in that pool
+is skipped with `could not read the broker's cash: ...`, so look at the gateway and the ledger, not
+at the books.
+
+Accounts with an unset host and port are one socket pool, separate from accounts that name the
+default host and port explicitly. Two accounts that reach one IBKR account through different
+settings are counted as two pools and are not checked against each other.
 
 ## Rolling back
 

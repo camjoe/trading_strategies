@@ -27,8 +27,8 @@ from common.runtime_job_status import (
     UNRESOLVED_ORDERS_KEY,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
-    BrokerCashShortfallError,
-    BrokerSessionUnavailableError,
+    NoAccountCanTradeError,
+    check_broker_cash,
     check_broker_sessions,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
@@ -401,11 +401,7 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
-    skipped_accounts = (
-        error.unavailable
-        if isinstance(error, (BrokerSessionUnavailableError, BrokerCashShortfallError))
-        else context.skipped_accounts
-    )
+    skipped_accounts = error.skipped if isinstance(error, NoAccountCanTradeError) else context.skipped_accounts
     if skipped_accounts:
         payload["skipped_accounts"] = skipped_accounts
 
@@ -437,7 +433,7 @@ def _finish_run(
             notes.append(
                 f"completed without accounts that could not trade today (IBKR session unavailable, or the books hold more "
                 f"cash than the broker): {', '.join(skipped_accounts)}. "
-                f"Run them with: {context.catch_up_command}"
+                f"Once the cause is fixed, run them with: {context.catch_up_command}"
             )
         if broker_anomaly_accounts:
             notes.append(
@@ -491,6 +487,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     accounts = context.accounts
     account_trade_caps = context.account_trade_caps
     report_date = context.report_date
+    initial_context = context
     step_results = new_step_results()
 
     skipped_accounts: dict[str, str] = {}
@@ -521,16 +518,38 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
                 log_path,
                 f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
             )
+
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
         # value. Books are marked to current prices just before that check, so a
         # snapshot from an earlier session fails it. Snapshotting here — before any
         # trading — is what lets the run stand on its own at any point the market
         # is open; the post-trade pass at step 08 still records end-state equity.
+        def _pre_trade_reconcile_and_cash_check() -> dict[str, object]:
+            # The cash check follows the reconcile, which posts the fills the books have not
+            # applied yet; compared earlier, an unposted fill reads as a shortfall.
+            nonlocal context, accounts, account_trade_caps
+            details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
+            cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
+            if cash_skipped:
+                for name, reason in cash_skipped.items():
+                    tee_line(log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
+                every_skip = {**context.skipped_accounts, **cash_skipped}
+                context = exclude_accounts(
+                    initial_context, every_skip, catch_up_command(args, initial_context, every_skip)
+                )
+                accounts = context.accounts
+                account_trade_caps = context.account_trade_caps
+                tee_line(
+                    log_path,
+                    f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
+                )
+            return {**details, "skipped_accounts": cash_skipped}
+
         run_dag_step(
             step_results,
             step_id=PRE_TRADE_RECONCILE_STEP_ID,
-            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade"),
+            run_fn=_pre_trade_reconcile_and_cash_check,
             now_iso=ts,
         )
 

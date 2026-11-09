@@ -53,6 +53,12 @@ def _stub_check_broker_sessions(monkeypatch):
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", lambda _accounts: {})
 
 
+@pytest.fixture(autouse=True)
+def _stub_check_broker_cash(monkeypatch):
+    """The pre-trade step compares book cash with the broker's; these tests name accounts no database holds."""
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", lambda _accounts, *, already_skipped: {})
+
+
 @pytest.fixture
 def _runtime_harness(monkeypatch, conn):
     """Stub the subprocess/notification surface and isolate the DB.
@@ -518,15 +524,15 @@ def _every_account_unavailable(monkeypatch) -> None:
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _raise)
 
 
-def test_a_cash_shortfall_on_every_account_fails_the_run_before_any_step_runs(
+def test_a_cash_shortfall_on_every_account_fails_the_run_after_the_reconcile_and_before_any_order(
     monkeypatch, tmp_path: Path, _runtime_harness
 ) -> None:
-    reason = "interactive_brokers_web_paper: the books hold 80000.00 cash and the broker holds 70000.00"
+    reason = "the books hold 80000.00 cash and the broker holds 70000.00"
 
-    def _raise(_accounts):
-        raise BrokerCashShortfallError({"acct_a": reason})
+    def _raise(_accounts, *, already_skipped):
+        raise BrokerCashShortfallError({**already_skipped, "acct_a": reason})
 
-    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_sessions", _raise)
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", _raise)
 
     code = run_runtime_job_main(
         monkeypatch,
@@ -536,17 +542,114 @@ def test_a_cash_shortfall_on_every_account_fails_the_run_before_any_step_runs(
     )
 
     assert code == 1
-    assert not _runtime_harness.stream_calls
+    labels = [label for label, _args in _runtime_harness.stream_calls]
+    assert "Pre-trade reconcile fills" in labels
+    assert not any("Auto Trader" in label or "Post-trade" in label for label in labels)
     payload = load_single_artifact_json(
         tmp_path / "local" / "exports" / "daily_paper_trading",
         "daily_paper_trading_*.json",
     )
     assert payload["status"] == "failed"
-    assert payload["failed_step"] == "00_ingest_market_and_account"
+    assert payload["failed_step"] == "01_mark_book_nav"
     assert payload["skipped_accounts"] == {"acct_a": reason}
     [notification] = _runtime_harness.notifications
     assert notification["status"] == "fail"
     assert "the books hold 80000.00 cash" in notification["message"]
+    assert module.COMPLETE_SENTINEL not in _only_log(tmp_path).read_text(encoding="utf-8")
+
+
+def test_a_cash_shortfall_skips_one_account_and_the_rest_trade(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    reason = "the books hold 80000.00 cash and the broker holds 70000.00"
+    seen: list[list[str]] = []
+
+    def _check(accounts, *, already_skipped):
+        seen.append(list(accounts))
+        return {"acct_b": reason}
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", _check)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a,acct_b",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+            "--account-trade-caps",
+            "acct_a:3,acct_b:8",
+        ],
+    )
+
+    assert code == 0
+    assert seen == [["acct_a", "acct_b"]]
+    pre_trade_accounts = [
+        args[args.index("--accounts") + 1]
+        for label, args in _runtime_harness.stream_calls
+        if label == "Pre-trade reconcile fills"
+    ]
+    assert pre_trade_accounts == ["acct_a,acct_b"]
+    later_accounts = [
+        args[args.index("--accounts") + 1]
+        for label, args in _runtime_harness.stream_calls
+        if "--accounts" in args and label != "Pre-trade reconcile fills"
+    ]
+    assert later_accounts
+    assert all(value == "acct_a" for value in later_accounts)
+    log_text = _only_log(tmp_path).read_text(encoding="utf-8")
+    assert f"WARN: skipping acct_b before trading ({reason})" in log_text
+    assert module.COMPLETE_SENTINEL in log_text
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["skipped_accounts"] == {"acct_b": reason}
+    [notification] = _runtime_harness.notifications
+    assert notification["status"] == "warn"
+    command = notification["message"].split("Once the cause is fixed, run them with: ", 1)[1]
+    assert "--accounts acct_b" in command
+    assert "acct_b:8" in command
+
+
+def test_a_cash_skip_after_a_session_skip_names_both_in_one_catch_up(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b", "acct_c"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_c": "interactive_brokers_web_paper: gateway down"},
+    )
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_cash",
+        lambda _accounts, *, already_skipped: {"acct_b": "the books hold 2.00 cash and the broker holds 1.00"},
+    )
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        [
+            "--accounts",
+            "acct_a,acct_b,acct_c",
+            "--notify-webhook-url",
+            "https://example.test/webhook",
+            "--account-trade-caps",
+            "acct_a:3,acct_b:8,acct_c:5",
+        ],
+    )
+
+    assert code == 0
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert set(payload["skipped_accounts"]) == {"acct_b", "acct_c"}
+    [notification] = _runtime_harness.notifications
+    command = notification["message"].split("Once the cause is fixed, run them with: ", 1)[1]
+    assert "--accounts acct_c,acct_b" in command
+    assert "acct_c:5,acct_b:8" in command
 
 
 def test_every_account_unavailable_fails_the_run_before_any_step_runs(
@@ -638,7 +741,7 @@ def test_an_unavailable_account_is_skipped_and_the_rest_trade(monkeypatch, tmp_p
     [notification] = _runtime_harness.notifications
     assert notification["status"] == "warn"
     assert "acct_b" in notification["message"]
-    command = notification["message"].split("Run them with: ", 1)[1]
+    command = notification["message"].split("Once the cause is fixed, run them with: ", 1)[1]
     assert f"-m {DAILY_PAPER_TRADING_MODULE} " in command
     for option in (
         "--accounts acct_b",
@@ -884,7 +987,7 @@ def test_a_skipped_account_is_left_out_of_the_shadow_eval_and_the_command_carrie
     [shadow_args] = [args for label, args in _runtime_harness.stream_calls if label == "Challenger Shadow Eval"]
     assert shadow_args[shadow_args.index("--accounts") + 1] == "acct_a"
     [notification] = _runtime_harness.notifications
-    command = notification["message"].split("Run them with: ", 1)[1]
+    command = notification["message"].split("Once the cause is fixed, run them with: ", 1)[1]
     assert "--run-challenger-shadow-eval" in command
     assert "--shadow-eval-rolling-window-days 45" in command
 
