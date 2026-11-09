@@ -23,13 +23,8 @@ from pathlib import Path
 from common.paths import db_backups_dir
 from trading.interfaces.runtime.data_ops.admin import backup_database
 
-# ---------------------------------------------------------------------------
-# CONFIG — edit this block to reconfigure without touching any logic below
-# ---------------------------------------------------------------------------
-
 # Rolling window: how many recent copies to keep (monthly archives are on top of this).
 KEEP_RECENT: int = 30
-# ---------------------------------------------------------------------------
 
 
 _STEM_PREFIX = "paper_trading_"
