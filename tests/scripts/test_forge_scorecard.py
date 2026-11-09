@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import Collection, Sequence
 from pathlib import Path
 
+from common.paths import data_home
 from scripts.forge import cli as cli_module
 from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError, PullRequestDetails
 from scripts.forge.findings import parse_findings
@@ -638,7 +639,13 @@ class TestScorecardLocation:
     def test_the_shared_data_folder_moves_the_default(self, monkeypatch, tmp_path) -> None:
         monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
 
-        assert cli_module._scorecard_db(self._args()) == tmp_path / "review_scorecard.db"
+        assert cli_module._scorecard_db(self._args()) == tmp_path.resolve() / "review_scorecard.db"
+
+    def test_a_relative_shared_folder_resolves_like_the_backup_folder(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("TRADING_DATA_HOME", "shared")
+
+        assert cli_module._scorecard_db(self._args()) == data_home() / "review_scorecard.db"
 
     def test_the_scorecard_setting_wins_over_the_shared_folder(self, monkeypatch, tmp_path) -> None:
         monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))

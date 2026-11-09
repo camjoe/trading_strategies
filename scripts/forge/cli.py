@@ -30,6 +30,8 @@ from scripts.forge.scorecard_store import ScoreStore
 from scripts.forge.service import resolve_authors, review_context
 
 SCORECARD_DB_ENV = "REVIEW_SCORECARD_DB"
+# Read here rather than through common.paths.data_home, because the forge tool imports no project code
+# beyond common.git; the lookup must match that function's.
 DATA_HOME_ENV = "TRADING_DATA_HOME"
 SCORECARD_DB_NAME = "review_scorecard.db"
 DEFAULT_SCORECARD_DB = f"local/{SCORECARD_DB_NAME}"
@@ -225,7 +227,7 @@ def _scorecard_db(args: argparse.Namespace) -> Path:
         return Path(explicit).expanduser()
     data_home = os.environ.get(DATA_HOME_ENV, "").strip()
     if data_home:
-        return Path(data_home).expanduser() / SCORECARD_DB_NAME
+        return Path(data_home).expanduser().resolve() / SCORECARD_DB_NAME
     return Path(DEFAULT_SCORECARD_DB)
 
 
