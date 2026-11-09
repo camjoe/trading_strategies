@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -36,3 +37,9 @@ def test_run_backup_prefers_the_backup_folder_setting(
     summary = backup_db.run_backup(verbose=False)
 
     assert Path(str(summary["backup"])).parent == (tmp_path / "backups").resolve()
+
+
+def test_a_suffixed_backup_name_still_carries_its_stamp() -> None:
+    assert backup_db._parse_stamp(Path("paper_trading_20260327_080910_2.db")) == datetime(2026, 3, 27, 8, 9, 10)
+    assert backup_db._parse_stamp(Path("paper_trading_20260327_080910.db")) == datetime(2026, 3, 27, 8, 9, 10)
+    assert backup_db._parse_stamp(Path("paper_trading_notastamp.db")) is None

@@ -21,26 +21,30 @@ from datetime import datetime
 from pathlib import Path
 
 from common.paths import db_backups_dir
-from trading.interfaces.runtime.data_ops.admin import backup_database
+from trading.interfaces.runtime.data_ops.admin import BACKUP_STAMP_FORMAT, backup_database
 
 # Rolling window: how many recent copies to keep (monthly archives are on top of this).
 KEEP_RECENT: int = 30
 
 
 _STEM_PREFIX = "paper_trading_"
-_STAMP_FMT = "%Y%m%d_%H%M%S"
 
 
 def _parse_stamp(path: Path) -> datetime | None:
-    """Extract the datetime embedded in a backup filename, or None if unparseable."""
+    """Extract the datetime embedded in a backup filename, or None if unparseable.
+
+    A name may end in ``_<n>`` after the stamp when an earlier backup took the same stamp.
+    """
     stem = path.stem
     if not stem.startswith(_STEM_PREFIX):
         return None
     raw = stem[len(_STEM_PREFIX) :]
-    try:
-        return datetime.strptime(raw, _STAMP_FMT)
-    except ValueError:
-        return None
+    for candidate in (raw, raw.rpartition("_")[0]):
+        try:
+            return datetime.strptime(candidate, BACKUP_STAMP_FORMAT)
+        except ValueError:
+            continue
+    return None
 
 
 def _prune(directory: Path, keep_recent: int) -> list[Path]:

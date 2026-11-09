@@ -92,6 +92,27 @@ class TestBackupDatabase:
         assert backup.name == "paper_trading_20260327_080910.db"
         assert backup.exists()
 
+    def test_a_backup_in_the_same_second_takes_a_new_name(
+        self,
+        configured_backend: SQLiteBackend,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        build_db_at_head(configured_backend.db_path)
+        monkeypatch.setattr(admin, "datetime", FixedDateTime)
+        existing = tmp_path / "shared" / "paper_trading_20260327_080910.db"
+        existing.parent.mkdir()
+        existing.write_bytes(b"another checkout's backup")
+
+        first = admin.backup_database(str(existing.parent))
+        second = admin.backup_database(str(existing.parent))
+
+        assert [first.name, second.name] == [
+            "paper_trading_20260327_080910_1.db",
+            "paper_trading_20260327_080910_2.db",
+        ]
+        assert existing.read_bytes() == b"another checkout's backup"
+
     def test_backup_database_captures_committed_wal_content(
         self, configured_backend: SQLiteBackend, tmp_path: Path
     ) -> None:
