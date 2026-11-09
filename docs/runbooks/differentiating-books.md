@@ -81,10 +81,30 @@ A value above the book's share has no effect, and the limit cannot be cleared ba
 - A universe wider than large caps may include contracts that reject fractional sizes; see
   `plan/contract-trading-rules.md` before widening it a lot.
 
+## Reading the evidence
+
+The advisor digest reviews every book on its own: its strategy, its paper return since that strategy
+was assigned, and its decisions. The evaluation artifact and promotion review read the account's
+snapshots, which sum all of its books. When more than one book of an account has held equity (a book
+that has since stopped trading still counts), that paper evidence is marked not isolated, and the
+live-readiness check of promotion review lists it as a blocker instead of treating the account's return
+as one strategy's. There is no per-book promotion path yet; judge each book from the digest.
+
 ## Confirm
 
 ```bash
 python -m trading.interfaces.cli.main parameters --account <account>
 ```
 
-The next daily run's log lists each book's trades. A book with a limit stops at it.
+The next daily run's log gives only the account's total (`<account>: executed N trades`). Count a
+book's orders from the `orders` table, which carries `book_id`:
+
+```sql
+SELECT b.name, o.side, o.symbol, o.status
+FROM orders o JOIN books b ON b.id = o.book_id
+WHERE o.account_id = (SELECT id FROM accounts WHERE name = '<account>')
+  AND o.submitted_at >= '<run date>';
+```
+
+A book with a limit stops at it, and no book exceeds its even share of the account's cap, except for
+stop-loss and take-profit exits.
