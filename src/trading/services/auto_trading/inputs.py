@@ -12,7 +12,7 @@ from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
 from trading.services.accounts.mutations import get_account
 from trading.services.auto_trading.market import build_iv_rank_proxy, fetch_bar_histories
-from trading.services.auto_trading.runtime import run_for_account
+from trading.services.auto_trading.runtime import ensure_market_hours_override_allowed, run_for_account
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.market_data.lookups import fetch_latest_prices
 from trading.services.market_data.protocols import MarketDataProvider
@@ -79,14 +79,18 @@ def run_accounts(
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
+    ignore_market_hours: bool = False,
 ) -> list[AccountRunResult]:
     """Run each account independently.
 
     Accounts are isolated on purpose: broker connections are per account, so one
     account halting on a broker anomaly says nothing about the next one's broker.
     Each result carries its own kill-switch reasons; deriving an exit code from
-    the aggregate is the caller's job.
+    the aggregate is the caller's job. With ``ignore_market_hours`` every account
+    is checked before any trades, so a refusal leaves nothing half-run.
     """
+    if ignore_market_hours:
+        ensure_market_hours_override_allowed(conn, account_names)
     results: list[AccountRunResult] = []
     for account_name in account_names:
         result = run_for_account(
@@ -97,6 +101,7 @@ def run_accounts(
             fee=fee,
             broker_factory=broker_factory,
             feature_fetchers=feature_fetchers,
+            ignore_market_hours=ignore_market_hours,
         )
         results.append(result)
     return results
