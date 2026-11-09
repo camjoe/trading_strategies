@@ -18,6 +18,10 @@ def add_book_arg(p: argparse.ArgumentParser) -> None:
     p.add_argument("--book", default=None, help="Book name (default: the account's default book)")
 
 
+def _comma_separated_names(value: str) -> list[str]:
+    return [name.strip() for name in value.split(",") if name.strip()]
+
+
 def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False) -> None:
     """Add shared account option/risk arguments to a sub-parser."""
     p.add_argument("--display-name", default=None, help=DISPLAY_NAME_HELP)
@@ -59,6 +63,19 @@ def add_option_args(p: argparse.ArgumentParser, *, configure_mode: bool = False)
         default=None if configure_mode else 20.0,
         help="Maximum portfolio allocation percent allowed for a single position",
     )
+    if configure_mode:
+        p.add_argument(
+            "--max-trades-per-run",
+            type=int,
+            default=None,
+            help="Most trades this book may make in one run (within the account's cap)",
+        )
+        p.add_argument(
+            "--trade-universes",
+            type=_comma_separated_names,
+            default=None,
+            help="Comma-separated universe names to replace the book's tickers, e.g. default,growth",
+        )
     p.add_argument(
         "--instrument-mode",
         default=None if configure_mode else "equity",
