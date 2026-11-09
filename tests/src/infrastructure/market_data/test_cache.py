@@ -29,6 +29,12 @@ def test_cache_dir_uses_env_var(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert market_data_cache_dir() == tmp_path.resolve()
 
 
+def test_cache_dir_falls_back_to_the_shared_data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TRADING_MARKET_DATA_CACHE_DIR", raising=False)
+    monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+    assert market_data_cache_dir() == tmp_path.resolve() / "cache" / "market_data"
+
+
 def test_read_returns_cache_miss_when_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path))
     monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DISABLED", "1")
@@ -108,3 +114,9 @@ def test_write_is_noop_when_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     write_market_data_cache(key, pd.Series([1.0]))
     assert not (tmp_path / f"{key}.pkl").exists()
+
+
+def test_cache_dir_setting_wins_over_the_shared_data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path / "shared"))
+    monkeypatch.setenv("TRADING_MARKET_DATA_CACHE_DIR", str(tmp_path / "cache"))
+    assert market_data_cache_dir() == (tmp_path / "cache").resolve()

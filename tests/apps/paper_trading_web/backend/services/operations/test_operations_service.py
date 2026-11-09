@@ -37,7 +37,7 @@ def test_list_operations_overview_reports_jobs_and_artifacts(tmp_path, monkeypat
     _write(backups_dir / f"paper_trading_{today_tag}_133000.db", "db")
 
     monkeypatch.setattr(services_operations, "LOGS_DIR", logs_dir)
-    monkeypatch.setattr(services_operations, "DB_BACKUPS_DIR", backups_dir)
+    monkeypatch.setenv("TRADING_DB_BACKUPS_DIR", str(backups_dir))
 
     payload = services_operations.list_operations_overview()
 
