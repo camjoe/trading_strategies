@@ -1,5 +1,7 @@
 from unittest.mock import Mock
 
+import pytest
+
 import trading.services.auto_trading.runtime as runtime_service
 from tests.src.trading.services.auto_trading.factories import (
     MARKET_CLOSED_TIME_ISO,
@@ -8,7 +10,7 @@ from tests.src.trading.services.auto_trading.factories import (
 )
 from trading.models.execution import AccountRunResult
 from trading.models.market_data import MarketInputs
-from trading.services.auto_trading.runtime import run_for_account
+from trading.services.auto_trading.runtime import MarketHoursOverrideRefusedError, run_for_account
 
 
 def test_run_for_account_skips_when_market_closed(monkeypatch) -> None:
@@ -83,3 +85,42 @@ def test_is_runtime_submission_window_open_defaults_to_now(monkeypatch) -> None:
 
     assert runtime_service.is_runtime_submission_window_open() is False
     parse_iso.assert_called_once_with("2026-03-14T14:00:00Z")
+
+
+def _run_with_market_hours_override(monkeypatch, account, books_runner):
+    monkeypatch.setattr(runtime_service, "is_runtime_submission_window_open", lambda _now: False)
+    monkeypatch.setattr(runtime_service, "get_account", Mock(return_value=account))
+    monkeypatch.setattr(runtime_service, "_run_books_for_account", books_runner)
+    return run_for_account(
+        conn=object(),
+        account_name="acct",
+        market=MarketInputs(universe=["AAPL"], prices={"AAPL": 101.0}),
+        max_trades=3,
+        fee=0.0,
+        broker_factory=Mock(),
+        feature_fetchers=make_feature_fetchers(),
+        ignore_market_hours=True,
+    )
+
+
+@pytest.mark.parametrize("broker_type", ["paper", None, " PAPER "])
+def test_run_for_account_override_trades_a_simulator_account_when_market_closed(monkeypatch, broker_type) -> None:
+    books_runner = Mock(return_value=AccountRunResult(account_name="acct", submitted_count=2))
+
+    executed = _run_with_market_hours_override(
+        monkeypatch, make_auto_trading_account(broker_type=broker_type), books_runner
+    )
+
+    assert executed.submitted_count == 2
+    assert executed.submission_window_closed is False
+    assert books_runner.call_count == 1
+
+
+@pytest.mark.parametrize("broker_type", ["interactive_brokers_web_paper", "interactive_brokers_socket"])
+def test_run_for_account_override_refuses_a_broker_account(monkeypatch, broker_type) -> None:
+    books_runner = Mock()
+
+    with pytest.raises(MarketHoursOverrideRefusedError, match=broker_type):
+        _run_with_market_hours_override(monkeypatch, make_auto_trading_account(broker_type=broker_type), books_runner)
+
+    books_runner.assert_not_called()
