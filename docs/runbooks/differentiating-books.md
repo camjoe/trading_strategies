@@ -96,4 +96,15 @@ as one strategy's. There is no per-book promotion path yet; judge each book from
 python -m trading.interfaces.cli.main parameters --account <account>
 ```
 
-The next daily run's log lists each book's trades. A book with a limit stops at it.
+The next daily run's log gives only the account's total (`<account>: executed N trades`). Count a
+book's orders from the `orders` table, which carries `book_id`:
+
+```sql
+SELECT b.name, o.side, o.symbol, o.status
+FROM orders o JOIN books b ON b.id = o.book_id
+WHERE o.account_id = (SELECT id FROM accounts WHERE name = '<account>')
+  AND o.submitted_at >= '<run date>';
+```
+
+A book with a limit stops at it, and no book exceeds its even share of the account's cap, except for
+stop-loss and take-profit exits.

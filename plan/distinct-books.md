@@ -100,7 +100,11 @@ account, before relying on this. UNVERIFIED.
 
 ## Developer verification (fill in when the work ships)
 - `parameters` and `list-accounts` show the per-book universe and limit.
-- A run log shows each book's trades, and a book with a limit stops at it.
+- The run log gives only the account's trade total; per-book counts come from the `orders` table by
+  `book_id` (query in `docs/runbooks/differentiating-books.md`). A book with a limit stops at it.
+- Checked on the dev PC sandbox 2026-11-09 (account with three books, cap 6, `trend` on all): default 2,
+  growth 2, limited book 1; no book above its share of 2. Not checked: exits past a stop-loss, a cap not
+  divisible by the book count, the IBKR host.
 
 ### 5. Check book cash against the broker (decided 2026-11-02, not started)
 Decision (owner): on a shortfall, raise an alert and skip that day's orders for the account. Do not shrink
