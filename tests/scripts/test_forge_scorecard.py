@@ -658,3 +658,16 @@ class TestScorecardLocation:
         monkeypatch.setenv("REVIEW_SCORECARD_DB", str(tmp_path / "own.db"))
 
         assert cli_module._scorecard_db(self._args(str(tmp_path / "flag.db"))) == tmp_path / "flag.db"
+
+    def test_blank_settings_count_as_unset(self, monkeypatch) -> None:
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", "  ")
+        monkeypatch.setenv("TRADING_DATA_HOME", "  ")
+
+        assert cli_module._scorecard_db(self._args()) == Path("local/review_scorecard.db")
+
+    def test_a_home_relative_setting_is_expanded(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", "~/own.db")
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path / "own.db"
