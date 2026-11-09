@@ -4,7 +4,8 @@
 A development check that needs no broker, credentials, or network: the sandbox
 is restored from its golden build, every account in it trades on the in-process
 simulator, and market data comes from the offline demo provider. Runtime
-notifications are switched off. Logs and artifacts still go to ``local/``.
+notifications are switched off. Logs and artifacts go under ``local/dev_runs/``,
+where the duplicate-run guard, health check, and burn-in count never look.
 
 Usage:
     python -m scripts.dev_run_daily                          # all sandbox accounts
@@ -29,6 +30,26 @@ from trading.services.fixtures.profiles import SANDBOX_PROFILE
 DAILY_JOB_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading"
 # Recorded in the run's log and artifact so a development run is never mistaken for a scheduled one.
 DEV_RUN_SOURCE = "dev-sandbox"
+
+
+def dev_run_root(repo_root: Path) -> Path:
+    """The job's ``--repo-root`` for a development run; only its logs and artifacts land here."""
+    return repo_root / "local" / "dev_runs"
+
+
+def build_job_command(repo_root: Path, job_args: list[str]) -> list[str]:
+    run_root = dev_run_root(repo_root)
+    return [
+        sys.executable,
+        "-m",
+        DAILY_JOB_MODULE,
+        "--run-source",
+        DEV_RUN_SOURCE,
+        "--force-run",
+        "--repo-root",
+        str(run_root),
+        *job_args,
+    ]
 
 
 def parse_args() -> tuple[argparse.Namespace, list[str]]:
@@ -86,9 +107,11 @@ def main() -> int:
         print(f"Rebuilt golden sandbox build: {repo_root / 'local' / GOLDEN_DATABASE_NAME}")
     print(f"Restored disposable sandbox database: {database_path}")
 
-    command = [sys.executable, "-m", DAILY_JOB_MODULE, "--run-source", DEV_RUN_SOURCE, "--force-run", *job_args]
+    run_root = dev_run_root(repo_root)
+    run_root.mkdir(parents=True, exist_ok=True)
+    print(f"Run logs and artifacts: {run_root / 'local'}")
     env = build_job_environment(database_path, ignore_market_hours=args.ignore_market_hours)
-    return subprocess.call(command, cwd=repo_root, env=env)
+    return subprocess.call(build_job_command(repo_root, job_args), cwd=run_root, env=env)
 
 
 if __name__ == "__main__":

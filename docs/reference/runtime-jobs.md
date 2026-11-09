@@ -89,7 +89,9 @@ python -m scripts.dev_run_daily --ignore-market-hours   # trade even when the ma
 
 The script restores `local/sandbox.db`, uses the offline demo market data, turns off notifications,
 and runs the job with `--run-source dev-sandbox --force-run`. Any other arguments, such as
-`--accounts sandbox_core`, go to the daily job. Logs and artifacts are written to `local/` as usual.
+`--accounts sandbox_core`, go to the daily job. Its logs and artifacts go under `local/dev_runs/`
+(passed as the job's `--repo-root`). The duplicate-run guard, `trader_health`, and `burn_in_status`
+never read that folder, so a development run cannot make a scheduled run skip or count as a burn-in day.
 
 `--ignore-market-hours` sets `TRADING_DEV_IGNORE_MARKET_HOURS=1`. The auto trader refuses that
 variable when the database is the default `local/paper_trading.db`, or when any account in the run
