@@ -285,10 +285,10 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
 | `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, which digest review flags to raise, which arms a decision is scored on, and the neutral-band verdict rule |
 | `advisor_scorecard.py` | Scorecard statistics: +1/0/-1 verdict points, mean edge with a seeded bootstrap interval, benchmark-regime tags, the minimum count before ranking, and the non-overlapping-interval leader rule |
+| `broker_cash.py` | Which accounts share one broker cash balance (`broker_cash_pool`) and whether the books' cash exceeds the broker's beyond a tolerance (`broker_cash_shortfall`) |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
-| `broker_cash.py` | Which accounts share one broker cash balance (`broker_cash_pool`) and whether the books' cash exceeds the broker's beyond a tolerance (`broker_cash_shortfall`) |
 | `incremental_fill.py` | Cumulative-to-incremental fill arithmetic: the shares, price and commission still to post from a broker's cumulative report |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
