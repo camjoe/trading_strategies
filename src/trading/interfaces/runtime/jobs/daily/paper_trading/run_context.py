@@ -47,8 +47,8 @@ class DailyRunContext:
     # --as-of-date reports the replayed date's rows instead of today's, and the
     # artifact cannot end up carrying two different dates.
     report_date: str
-    # Accounts left out of this run because their broker session was unavailable,
-    # and the command that runs them later with this run's options.
+    # Accounts left out of this run (broker session unavailable, or books holding more cash
+    # than the broker), and the command that runs them later with this run's options.
     skipped_accounts: dict[str, str] = field(default_factory=dict)
     catch_up_command: str = ""
 

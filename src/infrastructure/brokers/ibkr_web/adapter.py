@@ -157,8 +157,13 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
         summary = self._client.fetch_summary()
 
         ledger_row = _select_ledger_row(ledger)
+        cash = _coerce_number(ledger_row.get("cashbalance"))
+        if cash is None:
+            cash = _coerce_number(ledger_row.get("settledcash"))
+        if cash is None:
+            raise RuntimeError("IBKR Web API ledger has no cashbalance or settledcash.")
         account_info = {
-            "TotalCashValue": _coerce_number(ledger_row.get("cashbalance") or ledger_row.get("settledcash")) or 0.0,
+            "TotalCashValue": cash,
             "BuyingPower": (
                 _summary_amount(summary, "buyingpower")
                 or _summary_amount(summary, "availablefunds")

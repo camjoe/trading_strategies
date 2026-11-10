@@ -489,6 +489,32 @@ class TestInteractiveBrokersWebAdapter:
             "NetLiquidation": 1500.0,
         }
 
+    def test_get_account_info_reads_a_genuine_zero_cash_balance(self):
+        client = self._make_client()
+        client.fetch_ledger.return_value = {"BASE": {"cashbalance": 0.0, "settledcash": 750.0}}
+        client.fetch_summary.return_value = {}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_account_info()["TotalCashValue"] == 0.0
+
+    def test_get_account_info_falls_back_to_settled_cash_when_there_is_no_cash_balance(self):
+        client = self._make_client()
+        client.fetch_ledger.return_value = {"BASE": {"settledcash": "750.5"}}
+        client.fetch_summary.return_value = {}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        assert adapter.get_account_info()["TotalCashValue"] == 750.5
+
+    @pytest.mark.parametrize("ledger", [{}, {"BASE": {}}])
+    def test_get_account_info_refuses_a_ledger_with_no_cash_figure(self, ledger):
+        client = self._make_client()
+        client.fetch_ledger.return_value = ledger
+        client.fetch_summary.return_value = {}
+        adapter = InteractiveBrokersWebAdapter(client=client)
+
+        with pytest.raises(RuntimeError, match="no cashbalance or settledcash"):
+            adapter.get_account_info()
+
     def test_get_quotes_skips_rows_for_unknown_conids(self):
         client = self._make_client()
         client.resolve_conid.return_value = "265598"
