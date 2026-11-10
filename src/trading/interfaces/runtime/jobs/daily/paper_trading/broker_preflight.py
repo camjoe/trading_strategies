@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from contextlib import suppress
 
 import httpx
 
@@ -72,21 +73,14 @@ class BrokerSessionUnavailableError(NoAccountCanTradeError):
 
 
 class BrokerCashShortfallError(NoAccountCanTradeError):
-    """Every run account was left out by the cash check: its books hold more than the broker, or its cash was unreadable.
+    """Every run account was left out by the cash check: its books hold more than the broker, or its cash was unreadable."""
 
-    ``shortfall`` is False when no account was skipped for holding more cash than the broker.
-    """
-
-    def __init__(self, skipped: dict[str, str], *, shortfall: bool = True) -> None:
-        fix = (
-            "Bring the books' cash back in line with the broker's"
-            if shortfall
-            else "Check the gateway session and the broker's ledger"
-        )
+    def __init__(self, skipped: dict[str, str]) -> None:
         super().__init__(
             "No run account can trade today, nothing was submitted. "
             + "; ".join(f"{name} ({reason})" for name, reason in skipped.items())
-            + f". {fix}, then re-run (a plain re-run works only if no run completed today). "
+            + ". Fix each reason (bring the books' cash back in line with the broker's, or check the gateway "
+            "session and the broker's ledger), then re-run (a plain re-run works only if no run completed today). "
             "See docs/runbooks/ibkr-paper-trading.md (Books hold more cash than the broker).",
             skipped,
         )
@@ -128,9 +122,10 @@ def _reported_cash(account: AccountRecord) -> float | None:
     except NotImplementedError:
         return None
     finally:
-        broker.disconnect()
+        with suppress(OSError, RuntimeError):
+            broker.disconnect()
     cash = info.get(_CASH_KEY)
-    if cash is None or not math.isfinite(cash):
+    if not isinstance(cash, (int, float)) or not math.isfinite(cash):
         raise RuntimeError(f"the broker's account summary has no usable {_CASH_KEY}")
     return cash
 
@@ -154,7 +149,6 @@ def check_broker_cash(account_names: list[str], *, already_skipped: Mapping[str,
                 pools.setdefault(pool, []).append(account)
 
     skipped: dict[str, str] = {}
-    shortfall = False
     for pool, accounts in pools.items():
         try:
             cash = _reported_cash(accounts[0])
@@ -171,9 +165,8 @@ def check_broker_cash(account_names: list[str], *, already_skipped: Mapping[str,
         if cash is not None and broker_cash_shortfall(book_cash[pool], cash):
             reason = f"the books hold {book_cash[pool]:.2f} cash and the broker holds {cash:.2f}"
             skipped.update({account.name: reason for account in accounts})
-            shortfall = True
     if skipped and set(skipped) >= set(account_names):
-        raise BrokerCashShortfallError({**already_skipped, **skipped}, shortfall=shortfall)
+        raise BrokerCashShortfallError({**already_skipped, **skipped})
     return skipped
 
 

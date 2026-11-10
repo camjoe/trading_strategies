@@ -587,6 +587,73 @@ def test_accounts_sharing_the_broker_cash_are_reconciled_before_the_comparison(
     assert calls == ["cash check"]
 
 
+def test_a_pool_mate_skipped_for_its_session_is_not_reconciled(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_b": "interactive_brokers_socket_paper: connection refused"},
+    )
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.pool_mates_outside_run", lambda _accounts: ["acct_b", "acct_z"])
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a,acct_b", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    pool_calls = [args for label, args in _runtime_harness.stream_calls if label == "Pre-trade pool reconcile fills"]
+    assert [args[args.index("--accounts") + 1] for args in pool_calls] == ["acct_z"]
+
+
+def test_the_cash_check_is_told_which_accounts_step_00_skipped(monkeypatch, tmp_path: Path, _runtime_harness) -> None:
+    _runtime_harness.accounts = ["acct_a", "acct_b"]
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}.check_broker_sessions",
+        lambda _accounts: {"acct_b": "interactive_brokers_web_paper: gateway down"},
+    )
+    received: list[tuple[list[str], dict[str, str]]] = []
+
+    def _check(accounts, *, already_skipped):
+        received.append((list(accounts), dict(already_skipped)))
+        return {}
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", _check)
+
+    run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a,acct_b", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert received == [(["acct_a"], {"acct_b": "interactive_brokers_web_paper: gateway down"})]
+
+
+def test_a_failed_pool_mate_reconcile_keeps_the_run_accounts_unresolved_orders(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.pool_mates_outside_run", lambda _accounts: ["acct_z"])
+    run_unresolved = {"acct_a": {"pending": ["ord-1"], "unreported": []}}
+    monkeypatch.setattr(
+        f"{WORKFLOW_MODULE}._unresolved_orders",
+        lambda _log, output: {} if output == "pool failed" else run_unresolved,
+    )
+    _runtime_harness.command_outputs["Pre-trade pool reconcile fills"] = (1, "pool failed")
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    [notification] = _runtime_harness.notifications
+    assert "acct_a (1 sent but never confirmed, 0 not reported by the broker)" in notification["message"]
+
+
 def test_a_cash_shortfall_keeps_the_unresolved_orders_the_pre_trade_reconcile_found(
     monkeypatch, tmp_path: Path, _runtime_harness
 ) -> None:

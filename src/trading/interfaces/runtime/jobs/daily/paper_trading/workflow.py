@@ -541,20 +541,21 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         # trading — is what lets the run stand on its own at any point the market
         # is open; the post-trade pass at step 08 still records end-state equity.
         def _pre_trade_reconcile_and_cash_check() -> dict[str, object]:
-            # The cash check follows the reconcile, which posts the fills the books have not
-            # applied yet; compared earlier, an unposted fill reads as a shortfall.
             nonlocal context, accounts, account_trade_caps
             details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
-            # The cash it compares includes the books of accounts that share the broker's cash
-            # but are not in this run, so their fills are posted first too.
-            pool_mates = pool_mates_outside_run(accounts)
+            # The cash check counts the books of every account that shares the broker's cash, so
+            # their fills are posted first. Accounts skipped at step 00 cannot connect and are left out.
+            pool_mates = [name for name in pool_mates_outside_run(accounts) if name not in context.skipped_accounts]
             if pool_mates:
-                mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
+                try:
+                    mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
+                except StepFailedError as exc:
+                    unresolved = {**_unresolved_in(details), **_unresolved_in(exc.details)}
+                    raise StepFailedError(str(exc), {**details, UNRESOLVED_ORDERS_KEY: unresolved}) from exc
                 details[UNRESOLVED_ORDERS_KEY] = {**_unresolved_in(details), **mates_unresolved}
             try:
                 cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
             except NoAccountCanTradeError as exc:
-                # A plain raise would drop the reconcile's unresolved orders, the likeliest clue to a gap.
                 raise StepFailedError(str(exc), details) from exc
             if cash_skipped:
                 for name, reason in cash_skipped.items():

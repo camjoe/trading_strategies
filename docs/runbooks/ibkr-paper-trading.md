@@ -68,7 +68,8 @@ IBKR account.
 - **Before each daily run**, step 00 connects every run account's broker. An account whose session is
   unavailable is skipped, named in the log, the artifact and a `warn` alert, and the others trade. If
   every account is unavailable the run fails there, before any step runs. Run a skipped account later
-  with `--accounts <name> --force-run`.
+  with `--accounts <name> --force-run`. An account the cash check skips needs its cause fixed first; see
+  [Books hold more cash than the broker](#books-hold-more-cash-than-the-broker).
 - **Between runs**, the keepalive worker holds the session open — set it up in
   [Production Runtime Host Runbook, Part 6](production-runtime-host.md#part-6--ibkr-gateway-and-session-keepalive).
   A job's own keepalive thread only lives while the job is connected.

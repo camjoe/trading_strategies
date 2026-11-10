@@ -269,12 +269,14 @@ def test_a_cash_read_that_fails_to_parse_is_a_skip_not_a_crash(monkeypatch) -> N
             raise ValueError("Expecting value: line 1 column 1 (char 0)")
 
     account("sim", "paper")
-    install(monkeypatch, {"acct_a": Garbled(), "sim": None}, book_cash={"ibkr_web": Decimal("10.00")})
+    garbled = Garbled()
+    install(monkeypatch, {"acct_a": garbled, "sim": None}, book_cash={"ibkr_web": Decimal("10.00")})
 
     skipped = module.check_broker_cash(["acct_a", "sim"], already_skipped={})
 
     assert set(skipped) == {"acct_a"}
     assert "Expecting value" in skipped["acct_a"]
+    assert garbled.disconnected
 
 
 def test_a_failed_read_still_disconnects(monkeypatch) -> None:
@@ -344,29 +346,81 @@ def test_a_simulator_only_run_reads_no_cash(monkeypatch) -> None:
     assert brokers == {}
 
 
-def test_the_message_names_the_books_when_an_account_was_skipped_for_holding_too_much_cash(monkeypatch) -> None:
+def test_the_message_covers_a_shortfall_and_an_unreadable_read_in_one_run(monkeypatch) -> None:
+    account("acct_b", SOCKET_PAPER, "127.0.0.1", 4002)
     install(
         monkeypatch,
-        {"acct_a": FakeBroker({"TotalCashValue": 1.0})},
-        book_cash={"ibkr_web": Decimal("100.00")},
+        {"acct_a": FakeBroker({"TotalCashValue": 1.0}), "acct_b": FakeBroker({"NetLiquidation": 1.0})},
+        book_cash={"ibkr_web": Decimal("100.00"), "ibkr_socket:127.0.0.1:4002": Decimal("10.00")},
     )
 
     with pytest.raises(module.BrokerCashShortfallError) as raised:
-        module.check_broker_cash(["acct_a"], already_skipped={})
+        module.check_broker_cash(["acct_a", "acct_b"], already_skipped={})
 
-    assert "Bring the books' cash back in line" in str(raised.value)
-    assert "Check the gateway session" not in str(raised.value)
+    message = str(raised.value)
+    assert "the books hold 100.00 cash" in message
+    assert "could not read the broker's cash" in message
+    assert "bring the books' cash back in line" in message
+    assert "check the gateway session" in message
 
 
-def test_the_message_names_the_gateway_when_no_account_was_skipped_for_a_shortfall(monkeypatch) -> None:
+def test_a_short_pool_beside_a_healthy_one_skips_only_the_short_pool(monkeypatch) -> None:
+    account("acct_b", SOCKET_PAPER, "127.0.0.1", 4002)
     install(
         monkeypatch,
-        {"acct_a": FakeBroker({"NetLiquidation": 1.0})},
+        {"acct_a": FakeBroker({"TotalCashValue": 1.0}), "acct_b": FakeBroker({"TotalCashValue": 500.0})},
+        book_cash={"ibkr_web": Decimal("100.00"), "ibkr_socket:127.0.0.1:4002": Decimal("10.00")},
+    )
+
+    assert set(module.check_broker_cash(["acct_a", "acct_b"], already_skipped={})) == {"acct_a"}
+
+
+def test_a_pooled_account_whose_broker_keeps_no_cash_is_not_skipped(monkeypatch) -> None:
+    install(monkeypatch, {"acct_a": FakeBroker(None)}, book_cash={"ibkr_web": Decimal("100.00")})
+
+    assert module.check_broker_cash(["acct_a"], already_skipped={}) == {}
+
+
+@pytest.mark.parametrize(
+    "guard_error",
+    [
+        LiveTradingNotEnabledError("live gate"),
+        PaperBrokerAccountMismatchError("not a paper account"),
+        UnknownBrokerTypeError("unknown broker"),
+        IbWebAccountUnavailableError("account not visible"),
+    ],
+)
+def test_every_guard_error_propagates_from_the_cash_check(monkeypatch, guard_error: Exception) -> None:
+    install(monkeypatch, {"acct_a": guard_error}, book_cash={"ibkr_web": Decimal("1.00")})
+
+    with pytest.raises(type(guard_error)) as raised:
+        module.check_broker_cash(["acct_a"], already_skipped={})
+
+    assert raised.value is guard_error
+
+
+def test_a_non_numeric_cash_figure_skips_the_pool(monkeypatch) -> None:
+    account("sim", "paper")
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": "12.5"}), "sim": None},  # type: ignore[dict-item]
+        book_cash={"ibkr_web": Decimal("1.00")},
+    )
+
+    skipped = module.check_broker_cash(["acct_a", "sim"], already_skipped={})
+
+    assert "no usable TotalCashValue" in skipped["acct_a"]
+
+
+def test_a_disconnect_that_fails_does_not_hide_the_cash_answer(monkeypatch) -> None:
+    class BadDisconnect(FakeBroker):
+        def disconnect(self) -> None:
+            raise OSError("socket already closed")
+
+    install(
+        monkeypatch,
+        {"acct_a": BadDisconnect({"TotalCashValue": 500.0})},
         book_cash={"ibkr_web": Decimal("100.00")},
     )
 
-    with pytest.raises(module.BrokerCashShortfallError) as raised:
-        module.check_broker_cash(["acct_a"], already_skipped={})
-
-    assert "Check the gateway session" in str(raised.value)
-    assert "Bring the books' cash back in line" not in str(raised.value)
+    assert module.check_broker_cash(["acct_a"], already_skipped={}) == {}
