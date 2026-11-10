@@ -550,7 +550,7 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             pool_mates = pool_mates_outside_run(accounts)
             if pool_mates:
                 mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
-                details[UNRESOLVED_ORDERS_KEY] = {**details[UNRESOLVED_ORDERS_KEY], **mates_unresolved}
+                details[UNRESOLVED_ORDERS_KEY] = {**_unresolved_in(details), **mates_unresolved}
             try:
                 cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
             except NoAccountCanTradeError as exc:
