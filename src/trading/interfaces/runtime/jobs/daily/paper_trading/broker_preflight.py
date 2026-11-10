@@ -62,7 +62,6 @@ class BrokerSessionUnavailableError(NoAccountCanTradeError):
     """No run account has a usable broker session."""
 
     def __init__(self, unavailable: dict[str, str]) -> None:
-        self.unavailable = unavailable
         super().__init__(
             "Broker session unavailable for every run account, no step ran. "
             + "; ".join(f"{name} ({reason})" for name, reason in unavailable.items())

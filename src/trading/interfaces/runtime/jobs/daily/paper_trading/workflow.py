@@ -412,7 +412,8 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
-    no_account_error = error if isinstance(error, NoAccountCanTradeError) else getattr(error, "__cause__", None)
+    # The pre-trade step wraps the error so the step keeps its details; the run's skips are on the cause.
+    no_account_error = error if isinstance(error, NoAccountCanTradeError) else error and error.__cause__
     skipped_accounts = (
         no_account_error.skipped if isinstance(no_account_error, NoAccountCanTradeError) else context.skipped_accounts
     )
@@ -495,6 +496,60 @@ def _finish_run(
     return 1 if failed else 0
 
 
+def skip_accounts(
+    args: argparse.Namespace,
+    initial_context: DailyRunContext,
+    context: DailyRunContext,
+    newly_skipped: dict[str, str],
+) -> DailyRunContext:
+    """*context* without the newly skipped accounts, with each skip logged and the catch-up command covering every skip.
+
+    The context is rebuilt from *initial_context*, which still has the caps of accounts skipped earlier.
+    """
+    for name, reason in newly_skipped.items():
+        tee_line(context.log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
+    every_skip = {**context.skipped_accounts, **newly_skipped}
+    skipped_context = exclude_accounts(
+        initial_context, every_skip, catch_up_command(args, initial_context, every_skip)
+    )
+    tee_line(
+        context.log_path,
+        f"[{ts()}] RUN META (after skips): accounts={','.join(skipped_context.accounts)} "
+        f"caps={skipped_context.caps_summary}",
+    )
+    return skipped_context
+
+
+def pre_trade_reconcile_and_cash_check(
+    args: argparse.Namespace,
+    initial_context: DailyRunContext,
+    context: DailyRunContext,
+) -> tuple[dict[str, object], DailyRunContext]:
+    """Post outstanding fills, snapshot, then skip the accounts whose books hold more cash than the broker.
+
+    Returns the step's details and the context to trade with. The cash check counts the books of every account
+    that shares the broker's cash, so those accounts' fills are posted first; accounts skipped at step 00 cannot
+    connect and are left out. A failure keeps the orders the reconcile could not resolve in the step's details.
+    """
+    log_path, repo_root, accounts = context.log_path, context.repo_root, context.accounts
+    details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
+    pool_mates = [name for name in pool_mates_outside_run(accounts) if name not in context.skipped_accounts]
+    if pool_mates:
+        try:
+            mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
+        except StepFailedError as exc:
+            unresolved = {**_unresolved_in(details), **_unresolved_in(exc.details)}
+            raise StepFailedError(str(exc), {**details, UNRESOLVED_ORDERS_KEY: unresolved}) from exc
+        details[UNRESOLVED_ORDERS_KEY] = {**_unresolved_in(details), **mates_unresolved}
+    try:
+        cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
+    except NoAccountCanTradeError as exc:
+        raise StepFailedError(str(exc), details) from exc
+    if cash_skipped:
+        context = skip_accounts(args, initial_context, context, cash_skipped)
+    return {**details, "skipped_accounts": cash_skipped}, context
+
+
 def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     repo_root = context.repo_root
     log_path = context.log_path
@@ -524,15 +579,9 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
         if skipped_accounts:
-            for name, reason in skipped_accounts.items():
-                tee_line(log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
-            context = exclude_accounts(context, skipped_accounts, catch_up_command(args, context, skipped_accounts))
+            context = skip_accounts(args, initial_context, context, skipped_accounts)
             accounts = context.accounts
             account_trade_caps = context.account_trade_caps
-            tee_line(
-                log_path,
-                f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
-            )
 
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
@@ -540,44 +589,19 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         # snapshot from an earlier session fails it. Snapshotting here — before any
         # trading — is what lets the run stand on its own at any point the market
         # is open; the post-trade pass at step 08 still records end-state equity.
-        def _pre_trade_reconcile_and_cash_check() -> dict[str, object]:
-            nonlocal context, accounts, account_trade_caps
-            details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
-            # The cash check counts the books of every account that shares the broker's cash, so
-            # their fills are posted first. Accounts skipped at step 00 cannot connect and are left out.
-            pool_mates = [name for name in pool_mates_outside_run(accounts) if name not in context.skipped_accounts]
-            if pool_mates:
-                try:
-                    mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
-                except StepFailedError as exc:
-                    unresolved = {**_unresolved_in(details), **_unresolved_in(exc.details)}
-                    raise StepFailedError(str(exc), {**details, UNRESOLVED_ORDERS_KEY: unresolved}) from exc
-                details[UNRESOLVED_ORDERS_KEY] = {**_unresolved_in(details), **mates_unresolved}
-            try:
-                cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
-            except NoAccountCanTradeError as exc:
-                raise StepFailedError(str(exc), details) from exc
-            if cash_skipped:
-                for name, reason in cash_skipped.items():
-                    tee_line(log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
-                every_skip = {**context.skipped_accounts, **cash_skipped}
-                context = exclude_accounts(
-                    initial_context, every_skip, catch_up_command(args, initial_context, every_skip)
-                )
-                accounts = context.accounts
-                account_trade_caps = context.account_trade_caps
-                tee_line(
-                    log_path,
-                    f"[{ts()}] RUN META (after skips): accounts={','.join(accounts)} caps={context.caps_summary}",
-                )
-            return {**details, "skipped_accounts": cash_skipped}
+        def _pre_trade_step() -> dict[str, object]:
+            nonlocal context
+            details, context = pre_trade_reconcile_and_cash_check(args, initial_context, context)
+            return details
 
         run_dag_step(
             step_results,
             step_id=PRE_TRADE_RECONCILE_STEP_ID,
-            run_fn=_pre_trade_reconcile_and_cash_check,
+            run_fn=_pre_trade_step,
             now_iso=ts,
         )
+        accounts = context.accounts
+        account_trade_caps = context.account_trade_caps
 
         shadow_eval_summary: dict[str, object] | None = None
         if args.run_challenger_shadow_eval:

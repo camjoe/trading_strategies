@@ -241,10 +241,11 @@ gap is one of these:
 - A book funded with more starting cash than the account holds. Compare each book's cash with
   `python -m trading.interfaces.cli.main report --account <account>`.
 - Broker-side charges the books do not record (market-data fees, interest). They add up, so a $1.00
-  drift can build over weeks; reconcile the books to the broker's cash.
+  drift can build over weeks. No command sets a book's cash yet (see `plan/distinct-books.md`), so
+  bringing the books back to the broker's cash is a manual database change for now.
 - A paused book that still holds cash; it counts.
 - An account you have stopped running whose books still hold cash. Accounts have no inactive status, so every
-  account in the pool counts, run or not: empty its books' cash or delete the account.
+  account in the pool counts, run or not: delete the account, or empty its books' cash (also by hand today).
 - A fill that landed at the broker between the reconcile and the cash read. The window is seconds;
   a re-run reads both again.
 

@@ -16,7 +16,11 @@ Check these off in the pull request that does each one; delete this file when no
    book stops at its share, counting orders by `book_id` (the run log gives only the account total).
 4. **Item 1 gap.** `configure-account --book` cannot set a book's `max_trades_per_run` back to NULL, and
    `create-account` does not take `--max-trades-per-run` or `--trade-universes`.
-5. **Known limits, not planned.** An unused share is lost (item 3). Positions in tickers a universe switch
+5. **Book cash.** No command sets a book's cash or divides an account's cash among its books; a book simply
+   starts with the same amount as the others. The broker cash check needs one when the books drift from the
+   broker (readiness note 3 on #338). Decide how books are funded, then add the command and point the
+   runbook at it.
+6. **Known limits, not planned.** An unused share is lost (item 3). Positions in tickers a universe switch
    drops are not managed by selection (runbook, "Check open positions first"). Promotion review has no
    per-book path (item 4).
 

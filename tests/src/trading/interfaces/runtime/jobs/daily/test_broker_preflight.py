@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -14,6 +17,8 @@ from infrastructure.brokers.factory import (
 )
 from infrastructure.brokers.ibkr_web.client import IbWebAccountUnavailableError
 from tests.src.trading.interfaces.runtime.jobs.loaders import load_runtime_job
+from tests.support.books import insert_test_book
+from tests.support.repositories import insert_repository_account
 
 BROKER_PREFLIGHT_MODULE = "trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight"
 module = load_runtime_job(BROKER_PREFLIGHT_MODULE)
@@ -115,8 +120,8 @@ def test_an_unreachable_gateway_fails_when_every_account_is_down(monkeypatch) ->
     with pytest.raises(module.BrokerSessionUnavailableError) as raised:
         module.check_broker_sessions(["acct_a", "acct_b"])
 
-    assert set(raised.value.unavailable) == {"acct_a", "acct_b"}
-    assert "Connection refused" in raised.value.unavailable["acct_a"]
+    assert set(raised.value.skipped) == {"acct_a", "acct_b"}
+    assert "Connection refused" in raised.value.skipped["acct_a"]
 
 
 def test_a_repeated_account_name_does_not_hide_that_every_account_is_down(monkeypatch) -> None:
@@ -424,3 +429,42 @@ def test_a_disconnect_that_fails_does_not_hide_the_cash_answer(monkeypatch) -> N
     )
 
     assert module.check_broker_cash(["acct_a"], already_skipped={}) == {}
+
+
+def _stored_account(
+    conn: sqlite3.Connection, name: str, broker_type: str, cash: float, *, port: int | None = None
+) -> None:
+    account_id = insert_repository_account(conn, name=name)
+    conn.execute("UPDATE accounts SET broker_type = ?, broker_port = ? WHERE id = ?", (broker_type, port, account_id))
+    conn.commit()
+    insert_test_book(conn, account_id=account_id, name="core", current_cash=cash)
+
+
+def _real_books(monkeypatch, conn: sqlite3.Connection, broker_cash: float) -> None:
+    @contextmanager
+    def session() -> Iterator[sqlite3.Connection]:
+        yield conn
+
+    monkeypatch.setattr(module, "db_session", session)
+    monkeypatch.setattr(module, "get_broker_for_account", lambda _account: FakeBroker({"TotalCashValue": broker_cash}))
+
+
+def test_the_stored_books_of_the_whole_pool_feed_the_comparison(monkeypatch, conn: sqlite3.Connection) -> None:
+    _stored_account(conn, "web_run", WEB_PAPER, 600.0)
+    _stored_account(conn, "web_outside", "interactive_brokers_web", 500.0)
+    _stored_account(conn, "sock_other", SOCKET_PAPER, 10_000.0, port=4002)
+    _stored_account(conn, "sim", "paper", 10_000.0)
+    _real_books(monkeypatch, conn, broker_cash=1_000.0)
+
+    skipped = module.check_broker_cash(["web_run", "sim"], already_skipped={})
+
+    assert set(skipped) == {"web_run"}
+    assert "the books hold 1100.00 cash and the broker holds 1000.00" in skipped["web_run"]
+
+
+def test_the_stored_books_within_the_broker_cash_are_not_skipped(monkeypatch, conn: sqlite3.Connection) -> None:
+    _stored_account(conn, "web_run", WEB_PAPER, 600.0)
+    _stored_account(conn, "web_outside", "interactive_brokers_web", 400.0)
+    _real_books(monkeypatch, conn, broker_cash=1_000.0)
+
+    assert module.check_broker_cash(["web_run"], already_skipped={}) == {}
