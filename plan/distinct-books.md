@@ -115,7 +115,7 @@ once per cash pool (every Web API account; socket accounts by host and port), ad
 the pool's accounts, and when the books hold more (beyond a $1.00 tolerance) skips each run account in the
 pool for the day with a `warn` alert and the existing catch-up command. When that leaves no account to trade
 the run fails with `BrokerCashShortfallError`. A broker answer with no usable cash figure skips the pool with
-the reason (the Web adapter now raises on a ledger with no `cashbalance` or `settledcash` instead of
+the reason (owner's decision, 2026-11-09: a warn, not a failed run) (the Web adapter now raises on a ledger with no `cashbalance` or `settledcash` instead of
 returning 0.0). Simulator accounts are not checked. Operator text: `docs/runbooks/ibkr-paper-trading.md`
 ("Books hold more cash than the broker") and the tables in `docs/runbooks/ibkr-operations.md`.
 
