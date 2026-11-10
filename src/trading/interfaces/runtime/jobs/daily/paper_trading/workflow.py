@@ -30,6 +30,7 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import
     NoAccountCanTradeError,
     check_broker_cash,
     check_broker_sessions,
+    pool_mates_outside_run,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
@@ -170,6 +171,25 @@ def snapshot_account_with_retry(
             sleep_fn(SNAPSHOT_BACKOFF_SECONDS * (2 ** (attempt - 1)))
 
 
+def reconcile_fills(
+    log_path: Path,
+    repo_root: Path,
+    accounts: list[str],
+    label: str,
+) -> dict[str, dict[str, list[str]]]:
+    """Apply outstanding broker fills for *accounts*; return the orders reconcile could not resolve."""
+    try:
+        output = stream_command(
+            log_path,
+            f"{label} reconcile fills",
+            ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
+            repo_root,
+        )
+    except CommandFailedError as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, exc.output)}) from exc
+    return _unresolved_orders(log_path, output)
+
+
 def reconcile_and_snapshot(
     log_path: Path,
     repo_root: Path,
@@ -186,16 +206,7 @@ def reconcile_and_snapshot(
     Snapshots retry on transient failure; an account that still fails after
     ``SNAPSHOT_MAX_ATTEMPTS`` propagates, failing the step.
     """
-    try:
-        output = stream_command(
-            log_path,
-            f"{label} reconcile fills",
-            ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
-            repo_root,
-        )
-    except CommandFailedError as exc:
-        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, exc.output)}) from exc
-    unresolved = _unresolved_orders(log_path, output)
+    unresolved = reconcile_fills(log_path, repo_root, accounts, label)
     try:
         for account in accounts:
             snapshot_account_with_retry(log_path, repo_root, account, label)
@@ -401,7 +412,10 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
-    skipped_accounts = error.skipped if isinstance(error, NoAccountCanTradeError) else context.skipped_accounts
+    no_account_error = error if isinstance(error, NoAccountCanTradeError) else getattr(error, "__cause__", None)
+    skipped_accounts = (
+        no_account_error.skipped if isinstance(no_account_error, NoAccountCanTradeError) else context.skipped_accounts
+    )
     if skipped_accounts:
         payload["skipped_accounts"] = skipped_accounts
 
@@ -431,8 +445,9 @@ def _finish_run(
             notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
         if skipped_accounts:
             notes.append(
-                f"completed without accounts that could not trade today (IBKR session unavailable, or the books hold more "
-                f"cash than the broker): {', '.join(skipped_accounts)}. "
+                f"completed without accounts that could not trade today: {', '.join(skipped_accounts)}. "
+                "Each one's reason (session unavailable, books holding more cash than the broker, or the broker's "
+                "cash unreadable) is in the log and the artifact's skipped_accounts. "
                 f"Once the cause is fixed, run them with: {context.catch_up_command}"
             )
         if broker_anomaly_accounts:
@@ -530,7 +545,17 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             # applied yet; compared earlier, an unposted fill reads as a shortfall.
             nonlocal context, accounts, account_trade_caps
             details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
-            cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
+            # The cash it compares includes the books of accounts that share the broker's cash
+            # but are not in this run, so their fills are posted first too.
+            pool_mates = pool_mates_outside_run(accounts)
+            if pool_mates:
+                mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
+                details[UNRESOLVED_ORDERS_KEY] = {**details[UNRESOLVED_ORDERS_KEY], **mates_unresolved}
+            try:
+                cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
+            except NoAccountCanTradeError as exc:
+                # A plain raise would drop the reconcile's unresolved orders, the likeliest clue to a gap.
+                raise StepFailedError(str(exc), details) from exc
             if cash_skipped:
                 for name, reason in cash_skipped.items():
                     tee_line(log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")

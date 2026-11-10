@@ -57,6 +57,7 @@ def _stub_check_broker_sessions(monkeypatch):
 def _stub_check_broker_cash(monkeypatch):
     """The pre-trade step compares book cash with the broker's; these tests name accounts no database holds."""
     monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", lambda _accounts, *, already_skipped: {})
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.pool_mates_outside_run", lambda _accounts: [])
 
 
 @pytest.fixture
@@ -556,6 +557,63 @@ def test_a_cash_shortfall_on_every_account_fails_the_run_after_the_reconcile_and
     assert notification["status"] == "fail"
     assert "the books hold 80000.00 cash" in notification["message"]
     assert module.COMPLETE_SENTINEL not in _only_log(tmp_path).read_text(encoding="utf-8")
+
+
+def test_accounts_sharing_the_broker_cash_are_reconciled_before_the_comparison(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.pool_mates_outside_run", lambda _accounts: ["acct_z"])
+
+    def _check(accounts, *, already_skipped):
+        calls.append("cash check")
+        return {}
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", _check)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 0
+    labels = [label for label, _args in _runtime_harness.stream_calls]
+    pool = labels.index("Pre-trade pool reconcile fills")
+    assert labels.index("Pre-trade reconcile fills") < pool
+    pool_args = _runtime_harness.stream_calls[pool][1]
+    assert pool_args[pool_args.index("--accounts") + 1] == "acct_z"
+    assert calls == ["cash check"]
+
+
+def test_a_cash_shortfall_keeps_the_unresolved_orders_the_pre_trade_reconcile_found(
+    monkeypatch, tmp_path: Path, _runtime_harness
+) -> None:
+    unresolved = {"acct_a": {"pending": ["ord-1"], "unreported": []}}
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}._unresolved_orders", lambda _log, _output: unresolved)
+
+    def _raise(_accounts, *, already_skipped):
+        raise BrokerCashShortfallError({"acct_a": "the books hold 2.00 cash and the broker holds 1.00"})
+
+    monkeypatch.setattr(f"{WORKFLOW_MODULE}.check_broker_cash", _raise)
+
+    code = run_runtime_job_main(
+        monkeypatch,
+        tmp_path,
+        DAILY_PAPER_TRADING_MODULE,
+        ["--accounts", "acct_a", "--notify-webhook-url", "https://example.test/webhook"],
+    )
+
+    assert code == 1
+    payload = load_single_artifact_json(
+        tmp_path / "local" / "exports" / "daily_paper_trading",
+        "daily_paper_trading_*.json",
+    )
+    assert payload["skipped_accounts"] == {"acct_a": "the books hold 2.00 cash and the broker holds 1.00"}
+    assert "ord-1" in json.dumps(payload)
+    [notification] = _runtime_harness.notifications
+    assert "acct_a (1 sent but never confirmed, 0 not reported by the broker)" in notification["message"]
 
 
 def test_a_cash_shortfall_skips_one_account_and_the_rest_trade(monkeypatch, tmp_path: Path, _runtime_harness) -> None:

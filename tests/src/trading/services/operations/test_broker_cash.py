@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from tests.support.books import insert_test_book
 from tests.support.repositories import insert_repository_account
-from trading.services.operations.broker_cash import fetch_book_cash_by_pool
+from trading.services.operations.broker_cash import fetch_book_cash_by_pool, fetch_pool_mates_outside_run
 
 WEB = "interactive_brokers_web_paper"
 SOCKET = "interactive_brokers_socket_paper"
@@ -53,3 +53,16 @@ def test_socket_accounts_on_different_ports_are_separate_pools(conn: sqlite3.Con
 
 def test_no_accounts_means_no_totals(conn: sqlite3.Connection) -> None:
     assert fetch_book_cash_by_pool(conn) == {}
+
+
+def test_pool_mates_are_the_accounts_sharing_a_pool_with_the_run_but_not_in_it(conn: sqlite3.Connection) -> None:
+    _account(conn, "web_a", WEB)
+    _account(conn, "web_b", "interactive_brokers_web")
+    _account(conn, "sim", "paper")
+    _account(conn, "sock_a", SOCKET, port=4002)
+    _account(conn, "sock_b", SOCKET, port=4003)
+
+    assert fetch_pool_mates_outside_run(conn, ["web_a"]) == ["web_b"]
+    assert fetch_pool_mates_outside_run(conn, ["web_a", "web_b"]) == []
+    assert fetch_pool_mates_outside_run(conn, ["sim"]) == []
+    assert fetch_pool_mates_outside_run(conn, ["sock_a", "sim"]) == []

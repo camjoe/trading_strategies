@@ -342,3 +342,31 @@ def test_a_simulator_only_run_reads_no_cash(monkeypatch) -> None:
 
     assert module.check_broker_cash(["sim"], already_skipped={}) == {}
     assert brokers == {}
+
+
+def test_the_message_names_the_books_when_an_account_was_skipped_for_holding_too_much_cash(monkeypatch) -> None:
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"TotalCashValue": 1.0})},
+        book_cash={"ibkr_web": Decimal("100.00")},
+    )
+
+    with pytest.raises(module.BrokerCashShortfallError) as raised:
+        module.check_broker_cash(["acct_a"], already_skipped={})
+
+    assert "Bring the books' cash back in line" in str(raised.value)
+    assert "Check the gateway session" not in str(raised.value)
+
+
+def test_the_message_names_the_gateway_when_no_account_was_skipped_for_a_shortfall(monkeypatch) -> None:
+    install(
+        monkeypatch,
+        {"acct_a": FakeBroker({"NetLiquidation": 1.0})},
+        book_cash={"ibkr_web": Decimal("100.00")},
+    )
+
+    with pytest.raises(module.BrokerCashShortfallError) as raised:
+        module.check_broker_cash(["acct_a"], already_skipped={})
+
+    assert "Check the gateway session" in str(raised.value)
+    assert "Bring the books' cash back in line" not in str(raised.value)

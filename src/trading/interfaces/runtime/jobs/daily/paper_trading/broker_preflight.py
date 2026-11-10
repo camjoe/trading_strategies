@@ -30,7 +30,11 @@ from infrastructure.database.connection import db_session
 from trading.domain.broker_cash import broker_cash_shortfall
 from trading.models import AccountRecord
 from trading.services.accounts.mutations import get_account
-from trading.services.operations.broker_cash import account_cash_pool, fetch_book_cash_by_pool
+from trading.services.operations.broker_cash import (
+    account_cash_pool,
+    fetch_book_cash_by_pool,
+    fetch_pool_mates_outside_run,
+)
 
 __all__ = [
     "BrokerCashShortfallError",
@@ -38,6 +42,7 @@ __all__ = [
     "NoAccountCanTradeError",
     "check_broker_cash",
     "check_broker_sessions",
+    "pool_mates_outside_run",
 ]
 
 # The account-summary key that holds the broker's cash balance.
@@ -67,14 +72,22 @@ class BrokerSessionUnavailableError(NoAccountCanTradeError):
 
 
 class BrokerCashShortfallError(NoAccountCanTradeError):
-    """Every run account was left out, at least one because its books hold more cash than the broker."""
+    """Every run account was left out by the cash check: its books hold more than the broker, or its cash was unreadable.
 
-    def __init__(self, skipped: dict[str, str]) -> None:
+    ``shortfall`` is False when no account was skipped for holding more cash than the broker.
+    """
+
+    def __init__(self, skipped: dict[str, str], *, shortfall: bool = True) -> None:
+        fix = (
+            "Bring the books' cash back in line with the broker's"
+            if shortfall
+            else "Check the gateway session and the broker's ledger"
+        )
         super().__init__(
             "No run account can trade today, nothing was submitted. "
             + "; ".join(f"{name} ({reason})" for name, reason in skipped.items())
-            + ". Bring the books' cash back in line with the broker's, then re-run (a plain re-run works only if no "
-            "run completed today). See docs/runbooks/ibkr-paper-trading.md (Books hold more cash than the broker).",
+            + f". {fix}, then re-run (a plain re-run works only if no run completed today). "
+            "See docs/runbooks/ibkr-paper-trading.md (Books hold more cash than the broker).",
             skipped,
         )
 
@@ -141,6 +154,7 @@ def check_broker_cash(account_names: list[str], *, already_skipped: Mapping[str,
                 pools.setdefault(pool, []).append(account)
 
     skipped: dict[str, str] = {}
+    shortfall = False
     for pool, accounts in pools.items():
         try:
             cash = _reported_cash(accounts[0])
@@ -157,6 +171,13 @@ def check_broker_cash(account_names: list[str], *, already_skipped: Mapping[str,
         if cash is not None and broker_cash_shortfall(book_cash[pool], cash):
             reason = f"the books hold {book_cash[pool]:.2f} cash and the broker holds {cash:.2f}"
             skipped.update({account.name: reason for account in accounts})
+            shortfall = True
     if skipped and set(skipped) >= set(account_names):
-        raise BrokerCashShortfallError({**already_skipped, **skipped})
+        raise BrokerCashShortfallError({**already_skipped, **skipped}, shortfall=shortfall)
     return skipped
+
+
+def pool_mates_outside_run(account_names: list[str]) -> list[str]:
+    """The accounts that share a broker cash pool with a run account but are not in the run."""
+    with db_session() as conn:
+        return fetch_pool_mates_outside_run(conn, account_names)
