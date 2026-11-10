@@ -243,6 +243,8 @@ gap is one of these:
 - Broker-side charges the books do not record (market-data fees, interest). They add up, so a $1.00
   drift can build over weeks; reconcile the books to the broker's cash.
 - A paused book that still holds cash; it counts.
+- An account you have stopped running whose books still hold cash. Accounts have no inactive status, so every
+  account in the pool counts, run or not: empty its books' cash or delete the account.
 - A fill that landed at the broker between the reconcile and the cash read. The window is seconds;
   a re-run reads both again.
 

@@ -121,6 +121,11 @@ returning 0.0). Simulator accounts are not checked. Operator text: `docs/runbook
 
 Not verified: what the IBKR Web API ledger returns as `cashbalance` on the real paper account. Check one real
 run's log line (`the books hold X cash and the broker holds Y`) against the Client Portal before relying on it.
+Decided 2026-11-10 (owner): the pool is named from the four IBKR broker types in `domain/broker_cash.py`, and a
+socket account with an unset host and port is a different pool from one naming the defaults (accepted, no real
+account uses the socket transport); every account in a pool counts, run or not, and a stopped account's books
+must be emptied or the account deleted (accounts have no inactive status to filter on).
+
 Not covered: open orders that have reserved cash at the broker but are not yet filled, positions
 (`get_positions` still has no caller), broker-side charges the books do not record (they build up past the
 tolerance and need a manual reconcile), and two accounts that reach one IBKR account through different
