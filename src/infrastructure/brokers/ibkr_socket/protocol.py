@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrAccountValue,
+    IbkrApiError,
     IbkrOrderRequest,
     IbkrPosition,
     IbkrQuote,
@@ -30,6 +31,10 @@ class IbkrSocketClient(Protocol):
     def cancel_order(self, order_id: int) -> None: ...
 
     def trades(self) -> list[IbkrTrade]: ...
+
+    def errors(self) -> list[IbkrApiError]:
+        """Messages IBKR has sent since connecting, oldest first (the most recent ones)."""
+        ...
 
     def find_trade(self, order_id: int) -> IbkrTrade | None:
         """The order with this id, including one that filled while no job was connected, or None."""

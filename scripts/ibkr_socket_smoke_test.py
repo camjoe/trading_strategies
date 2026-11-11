@@ -68,6 +68,12 @@ _FILL_POLL_INTERVAL_SECONDS = 1.0
 # A reported fill total and the sum of its fills may differ by float noise only.
 _FILL_SUM_TOLERANCE = 1e-6
 
+# IBKR status codes about market data and farm connections, sent on every connect; not about an order.
+_INFORMATIONAL_CODES = frozenset({2103, 2104, 2105, 2106, 2107, 2108, 2119, 2158})
+
+# How many of IBKR's messages for an order are printed.
+_MESSAGES_SHOWN = 5
+
 # Statuses after which an order will not fill any further.
 _TERMINAL_STATUSES = frozenset({OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED})
 
@@ -215,8 +221,33 @@ def _paper_venue_verdict(managed_accounts: list[str]) -> str:
     return f"ok — every account carries the {IBKR_PAPER_ACCOUNT_PREFIX!r} paper prefix"
 
 
+def _print_ibkr_messages(adapter: IbkrSocketAdapter, broker_order_id: str, *, out: TextIO) -> None:
+    """Print what IBKR said about an order that did not behave: its messages, or that there were none."""
+    messages = [
+        message
+        for message in adapter.errors()
+        if message.code not in _INFORMATIONAL_CODES and message.request_id in (int(broker_order_id), -1)
+    ]
+    if not messages:
+        print("  ibkr messages    : none received for this order", file=out)
+    for message in messages[-_MESSAGES_SHOWN:]:
+        print(f"  ibkr message     : {message.code} {message.message}", file=out)
+
+
 def _find_trade(trades: list[BrokerOrder], broker_order_id: str) -> BrokerOrder | None:
     return next((trade for trade in trades if str(trade.broker_order_id) == str(broker_order_id)), None)
+
+
+def _wait_until_listed(adapter: IbkrSocketAdapter, broker_order_id: str) -> BrokerOrder | None:
+    """Poll get_open_trades() a few times for the order; None if it never appears."""
+    observed: BrokerOrder | None = None
+    for attempt in range(_ORDER_VISIBILITY_POLL_ATTEMPTS):
+        observed = _find_trade(adapter.get_open_trades(), broker_order_id)
+        if observed is not None:
+            break
+        if attempt + 1 < _ORDER_VISIBILITY_POLL_ATTEMPTS:
+            time.sleep(_ORDER_VISIBILITY_POLL_DELAY_SECONDS)
+    return observed
 
 
 def run_paper_order_check(
@@ -270,13 +301,7 @@ def run_paper_order_check(
         raise RuntimeError("Paper order was submitted but IBKR returned no broker order id.")
     print(f"  submitted        : id {broker_order_id} status {submitted.status.value}", file=out)
 
-    observed: BrokerOrder | None = None
-    for attempt in range(_ORDER_VISIBILITY_POLL_ATTEMPTS):
-        observed = _find_trade(adapter.get_open_trades(), broker_order_id)
-        if observed is not None:
-            break
-        if attempt + 1 < _ORDER_VISIBILITY_POLL_ATTEMPTS:
-            time.sleep(_ORDER_VISIBILITY_POLL_DELAY_SECONDS)
+    observed = _wait_until_listed(adapter, broker_order_id)
 
     if observed is None:
         # This is the failure that matters: reconciliation reads the same call,
@@ -285,6 +310,7 @@ def run_paper_order_check(
             f"  FAIL read back   : get_open_trades() never reported id {broker_order_id}",
             file=out,
         )
+        _print_ibkr_messages(adapter, broker_order_id, out=out)
     else:
         print(
             f"  read back        : status {observed.status.value} "
@@ -373,6 +399,7 @@ def _report_unfilled(
     """Report an order that did not fill; return "refused" if IBKR ended it, else "inconclusive"."""
     detail = _describe_order(observed) if observed is not None else "never reported by get_open_trades()"
     print(f"  first connection : {detail}", file=out)
+    _print_ibkr_messages(adapter, broker_order_id, out=out)
     if observed is not None and observed.status in _TERMINAL_STATUSES:
         print(
             "  FAIL             : IBKR refused or cancelled the order. "

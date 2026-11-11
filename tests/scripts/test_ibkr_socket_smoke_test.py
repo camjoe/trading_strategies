@@ -5,6 +5,7 @@ from io import StringIO
 
 import pytest
 
+from infrastructure.brokers.ibkr_socket.contracts import IbkrApiError
 from scripts import ibkr_socket_smoke_test
 from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
 
@@ -38,6 +39,7 @@ class _FakeAdapter:
         self.placed: list[OrderRequest] = []
         self.cancelled: list[str] = []
         self.extra_open_trades: list[BrokerOrder] = []
+        self.messages: list[IbkrApiError] = []
 
     def connect(self) -> None:
         if self.connect_error is not None:
@@ -124,6 +126,9 @@ class _FakeAdapter:
         self.extra_open_trades = [
             trade for trade in self.extra_open_trades if str(trade.broker_order_id) != str(broker_order_id)
         ]
+
+    def errors(self) -> list[IbkrApiError]:
+        return list(self.messages)
 
     def get_quotes(self, tickers: list[str]) -> dict[str, dict[str, float]]:
         self.quoted = list(tickers)
@@ -251,6 +256,7 @@ class TestPaperOrderCheck:
         code, output = _run(monkeypatch, adapter, **self._order_args())
 
         assert "FAIL read back   : get_open_trades() never reported id 77" in output
+        assert "ibkr messages    : none received for this order" in output
         # The verdict has to follow the failure: an operator gating go-live on the
         # exit code must not be told PASS here.
         assert code == 1
@@ -481,6 +487,28 @@ class TestFillLookupCheck:
         assert adapter.cancelled == []
         assert "get_order() was not exercised" in output
         assert "could not rebuild" not in output
+
+    def test_an_order_that_stalls_prints_what_ibkr_said_about_it(self, monkeypatch) -> None:
+        monkeypatch.setattr(ibkr_socket_smoke_test.time, "sleep", lambda _seconds: None)
+        adapter = _FakeAdapter(market_order_status=OrderStatus.SUBMITTED)
+        adapter.messages = [
+            IbkrApiError(request_id=-1, code=2104, message="Market data farm connection is OK:usfarm"),
+            IbkrApiError(request_id=77, code=10243, message="Fractional-sized order cannot be placed"),
+            IbkrApiError(request_id=5, code=201, message="Another order's rejection"),
+        ]
+
+        _, output = _run(monkeypatch, adapter, **self._fill_args())
+
+        assert "ibkr message     : 10243 Fractional-sized order cannot be placed" in output
+        assert "2104" not in output
+        assert "Another order" not in output
+
+    def test_an_order_with_no_messages_says_so(self, monkeypatch) -> None:
+        monkeypatch.setattr(ibkr_socket_smoke_test.time, "sleep", lambda _seconds: None)
+
+        _, output = _run(monkeypatch, _FakeAdapter(market_order_status=OrderStatus.SUBMITTED), **self._fill_args())
+
+        assert "ibkr messages    : none received for this order" in output
 
     def test_a_partial_fill_is_cancelled_and_called_out(self, monkeypatch) -> None:
         monkeypatch.setattr(ibkr_socket_smoke_test.time, "sleep", lambda _seconds: None)

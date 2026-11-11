@@ -39,7 +39,7 @@ import time
 from collections.abc import Callable
 
 from common.time import normalize_utc_iso, utc_now_iso
-from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest, IbkrTrade
+from infrastructure.brokers.ibkr_socket.contracts import IbkrApiError, IbkrOrderRequest, IbkrTrade
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
@@ -114,6 +114,10 @@ class IbkrSocketAdapter(BrokerConnection):
         connection's resources (the native backend's message-loop thread) unreleased.
         """
         self._client.disconnect()
+
+    def errors(self) -> list[IbkrApiError]:
+        """Messages IBKR has sent since connecting, oldest first (the most recent ones)."""
+        return self._client.errors()
 
     def is_connected(self) -> bool:
         """Whether the underlying client still holds its connection to TWS/IB Gateway."""

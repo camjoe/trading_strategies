@@ -13,6 +13,7 @@ from infrastructure.brokers.factory import LiveTradingNotEnabledError, get_broke
 from infrastructure.brokers.ibkr_socket.adapter import IbkrSocketAdapter, _map_ib_status
 from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrAccountValue,
+    IbkrApiError,
     IbkrFill,
     IbkrOrderRequest,
     IbkrPosition,
@@ -491,6 +492,55 @@ class TestConnectRetry:
 
         client.connect.assert_called_once_with("127.0.0.1", 4002, client_id=7)
         assert sleeps == []
+
+
+class TestIbkrMessages:
+    @staticmethod
+    def _backend_with_error_event():
+        """A backend whose `errorEvent += handler` keeps the event, as ib_async's Event does."""
+        backend = MagicMock()
+        event = MagicMock()
+        event.__iadd__.return_value = event
+        backend.errorEvent = event
+        return backend, event
+
+    def test_the_adapter_returns_the_clients_messages(self):
+        adapter, client = _adapter_with_mock_client()
+        client.errors.return_value = [IbkrApiError(request_id=6, code=399, message="held")]
+
+        assert adapter.errors() == [IbkrApiError(request_id=6, code=399, message="held")]
+
+    def test_ib_async_client_records_the_errors_ibkr_sends_and_gives_the_loop_a_turn(self, monkeypatch):
+        backend, event = self._backend_with_error_event()
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+        client = IbAsyncClient()
+        handler = event.__iadd__.call_args.args[0]
+
+        handler(6, 10243, "Fractional-sized order cannot be placed", None)
+
+        assert client.errors() == [
+            IbkrApiError(request_id=6, code=10243, message="Fractional-sized order cannot be placed")
+        ]
+        backend.sleep.assert_called_with(0)
+
+    def test_ib_async_client_keeps_only_the_most_recent_messages(self, monkeypatch):
+        backend, event = self._backend_with_error_event()
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+        client = IbAsyncClient()
+        handler = event.__iadd__.call_args.args[0]
+
+        for code in range(150):
+            handler(1, code, "m")
+
+        messages = client.errors()
+        assert len(messages) == 100
+        assert messages[-1].code == 149
+
+    def test_native_client_returns_the_callback_errors(self):
+        client = IbApiClient()
+        client._callbacks.record_error(7, 201, "rejected", None)
+
+        assert [(error.request_id, error.code) for error in client.errors()] == [(7, 201)]
 
 
 class TestConnectionState:

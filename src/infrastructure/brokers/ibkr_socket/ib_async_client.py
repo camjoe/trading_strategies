@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections import deque
 from typing import Any
 
 from common.coercion import coerce_float
 from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrAccountValue,
+    IbkrApiError,
     IbkrFill,
     IbkrOrderRequest,
     IbkrPosition,
@@ -24,6 +26,9 @@ _LOOKUP_REQUEST_TIMEOUT_SECONDS = 20.0
 
 # ib_async marks an unset float field with sys.float_info.max; anything this large is unset.
 _UNSET_QUANTITY_THRESHOLD = 1e300
+
+# How many of IBKR's most recent messages are kept for errors().
+_ERROR_HISTORY = 100
 
 # A rebuilt order's summed fills may differ from its total by float noise only.
 _FILL_TOTAL_TOLERANCE = 1e-6
@@ -43,6 +48,8 @@ class IbAsyncClient:
         import ib_async  # noqa: PLC0415
 
         self._ib = ib_async.IB()
+        self._errors: deque[IbkrApiError] = deque(maxlen=_ERROR_HISTORY)
+        self._ib.errorEvent += self._record_error
         self._completed_orders: list[Any] | None = None
         self._completed_error: Exception | None = None
         # ids of the Trade objects reqCompletedOrders put into the session's trade list.
@@ -65,6 +72,7 @@ class IbAsyncClient:
         self._completed_orders = None
         self._completed_error = None
         self._completed_trade_ids = set()
+        self._errors.clear()
         self._ib.connect(
             host,
             port,
@@ -73,6 +81,13 @@ class IbAsyncClient:
             raiseSyncErrors=True,
             fetchFields=ib_async.StartupFetch.ORDERS_OPEN | ib_async.StartupFetch.EXECUTIONS,
         )
+
+    def _record_error(self, req_id: int, code: int, message: str, *_contract: object) -> None:
+        self._errors.append(IbkrApiError(request_id=int(req_id), code=int(code), message=str(message)))
+
+    def errors(self) -> list[IbkrApiError]:
+        self._ib.sleep(0)
+        return list(self._errors)
 
     def disconnect(self) -> None:
         self._ib.disconnect()
