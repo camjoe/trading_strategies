@@ -22,6 +22,9 @@ _CONNECT_TIMEOUT_SECONDS = 20.0
 # answers a lookup request must not hang the run that asked.
 _LOOKUP_REQUEST_TIMEOUT_SECONDS = 20.0
 
+# ib_async marks an unset float field with sys.float_info.max; anything this large is unset.
+_UNSET_QUANTITY_THRESHOLD = 1e300
+
 # A rebuilt order's summed fills may differ from its total by float noise only.
 _FILL_TOTAL_TOLERANCE = 1e-6
 
@@ -152,26 +155,7 @@ class IbAsyncClient:
         if completed is None:
             return None
 
-        filled = sum(float(fill.execution.shares) for fill in fills)
-        total_quantity = float(completed.order.totalQuantity)
-        if str(completed.orderStatus.status) == "Filled" and filled < total_quantity - _FILL_TOTAL_TOLERANCE:
-            # An execution is missing from this connection's view; posting the rest would
-            # close the order with less than the broker holds.
-            return None
-        notional = sum(float(fill.execution.shares) * float(fill.execution.price) for fill in fills)
-        return IbkrTrade(
-            order_id=order_id,
-            symbol=str(completed.contract.symbol),
-            action=str(completed.order.action),
-            total_quantity=total_quantity,
-            limit_price=float(completed.order.lmtPrice or 0.0),
-            status=str(completed.orderStatus.status),
-            filled=filled,
-            avg_fill_price=notional / filled if filled else None,
-            fills=tuple(_normalize_ib_async_fill(fill) for fill in fills),
-            status_reason=_ib_async_status_reason(completed, str(completed.orderStatus.status)),
-            order_ref=str(getattr(completed.order, "orderRef", "") or ""),
-        )
+        return _rebuild_trade(order_id, fills, completed)
 
     def _completed(self) -> list[Any]:
         if self._completed_error is not None:
@@ -242,6 +226,41 @@ def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
         status_reason=_ib_async_status_reason(trade, status),
         order_ref=str(getattr(trade.order, "orderRef", "") or ""),
     )
+
+
+def _rebuild_trade(order_id: int, fills: list[Any], completed: Any) -> IbkrTrade | None:
+    """An order rebuilt from its executions and its completed order, or None if they disagree."""
+    filled = sum(float(fill.execution.shares) for fill in fills)
+    # A completed order may report no totalQuantity (0) but its filled quantity.
+    reported_filled = _set_quantity(getattr(completed.order, "filledQuantity", None))
+    total_quantity = float(completed.order.totalQuantity)
+    if total_quantity <= 0:
+        total_quantity = reported_filled if reported_filled is not None else filled
+    expected_filled = reported_filled if reported_filled is not None else total_quantity
+    if str(completed.orderStatus.status) == "Filled" and filled < expected_filled - _FILL_TOTAL_TOLERANCE:
+        # An execution is missing from this connection's view; posting the rest would
+        # close the order with less than the broker holds.
+        return None
+    notional = sum(float(fill.execution.shares) * float(fill.execution.price) for fill in fills)
+    return IbkrTrade(
+        order_id=order_id,
+        symbol=str(completed.contract.symbol),
+        action=str(completed.order.action),
+        total_quantity=total_quantity,
+        limit_price=float(completed.order.lmtPrice or 0.0),
+        status=str(completed.orderStatus.status),
+        filled=filled,
+        avg_fill_price=notional / filled if filled else None,
+        fills=tuple(_normalize_ib_async_fill(fill) for fill in fills),
+        status_reason=_ib_async_status_reason(completed, str(completed.orderStatus.status)),
+        order_ref=str(getattr(completed.order, "orderRef", "") or ""),
+    )
+
+
+def _set_quantity(value: object) -> float | None:
+    """A quantity ib_async reports, or None when it is unset (a huge sentinel) or not positive."""
+    quantity = coerce_float(value)
+    return quantity if quantity is not None and 0 < quantity < _UNSET_QUANTITY_THRESHOLD else None
 
 
 def _commission_missing(fills: list[Any]) -> bool:

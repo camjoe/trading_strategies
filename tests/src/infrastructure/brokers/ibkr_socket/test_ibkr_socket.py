@@ -769,6 +769,33 @@ class TestIbAsyncFindTrade:
         assert client.find_trade(42) is not None
         backend.reqExecutionsAsync.assert_not_called()
 
+    def test_a_completed_order_with_no_total_quantity_uses_its_filled_quantity(self, monkeypatch):
+        completed = _sdk_completed(total=0.0)
+        completed.order.filledQuantity = 4.0
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
+
+        trade = client.find_trade(42)
+
+        assert trade is not None
+        assert (trade.total_quantity, trade.filled) == (4.0, 4.0)
+
+    def test_a_completed_order_with_no_quantities_falls_back_to_its_fills(self, monkeypatch):
+        completed = _sdk_completed(total=0.0)
+        completed.order.filledQuantity = 1.7976931348623157e308
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
+
+        trade = client.find_trade(42)
+
+        assert trade is not None
+        assert trade.total_quantity == 4.0
+
+    def test_fills_short_of_the_reported_filled_quantity_leave_the_order_unreported(self, monkeypatch):
+        completed = _sdk_completed(total=0.0)
+        completed.order.filledQuantity = 10.0
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
+
+        assert client.find_trade(42) is None
+
     def test_trades_starts_a_new_pass_so_a_later_lookup_asks_again(self, monkeypatch):
         client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
         client.find_trade(42)
