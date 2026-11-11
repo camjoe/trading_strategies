@@ -425,7 +425,8 @@ evening the host may suspend.
 Install IB Gateway (the stable build) from IBKR's own installer on the host, as the user that runs the
 jobs. Start it from the desktop session and log in with the IBKR **paper** login. IBKR does not support a
 headless Gateway, so it needs the desktop session; the owner starts and logs in to it, and nothing in
-this repo starts it.
+this repo starts it. IB Gateway logs in through its own desktop window. A browser login at
+`localhost:5000` means the Client Portal Gateway is running instead; stop it and start IB Gateway.
 
 In the Gateway's settings:
 
@@ -582,6 +583,10 @@ A job that holds a connection open (not built) would keep the account's id, and 
 ### 6.6 First-week checks
 
 These settle what is UNVERIFIED above. Record the answers in `local/operations/production-host-checklist.md`.
+
+If the smoke test cannot connect: `Connection refused` on 4002 means IB Gateway is not running, not logged in,
+or has the API off (`ss -ltn | grep -E '4001|4002|7496|7497'` shows what listens; 7497 is TWS). A timeout
+means something listens that is not the socket API; port 5000 is the Client Portal Gateway.
 
 | Check | How | Settles |
 |---|---|---|

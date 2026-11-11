@@ -1,6 +1,7 @@
 # Plan: move IBKR paper trading to IB Gateway and the socket adapter
 
-Status: drafted 2026-10-16. Not started. Nothing below has been run on the host.
+Status: in progress on `feature/ib-gateway-socket-switch` (pushed, no pull request). Host trial partly run
+2026-11-11; see "Verified on the host". The units, the awake window and the weekend suspend are not yet run.
 Branch to use: `feature/ib-gateway-socket-switch`, off `develop`.
 Not for the unattended `implement-plan` pickup: it edits guarded paths (broker, runtime-job, and
 `scripts/` prefixes), so those commits would be held. Implement it in a session.
@@ -22,6 +23,23 @@ for API users is TWS or IB Gateway with its own auto-restart: a daily restart wi
 manual login about once a week. The socket adapter is already built and was smoke-tested on IB Gateway
 paper on 2026-07-28 (outside market hours).
 
+## Verified on the host (2026-11-11)
+IB Gateway paper on the Linux host, smoke test on port 4002:
+- Connect, managed accounts (a `DU` account, so the paper-venue check passes), account summary, positions and
+  open trades all work. The account holds fractional positions from earlier Web API trades.
+- Port 5000 on this host was the Client Portal Gateway, not IB Gateway: a connect there times out, and a
+  browser login at `localhost:5000` means that program is running instead. IB Gateway logs in through its own
+  desktop window.
+- A whole-share market order filled. Before the fix the smoke test read "pending" for 30 s, because ib_async
+  applies order updates only while its event loop runs and this client does not run it between requests;
+  `trades()`, `find_trade` and `cancel_order` now call `IB.sleep(0)` before reading.
+- After a reconnect `get_open_trades` omitted the filled order, and `get_order` rebuilt it from the executions
+  and the completed order, with the right price and a commission of 1.
+- IBKR paper sends commission reports, so a rebuilt fill's commission of 0 would be real.
+- The completed order leaves `totalQuantity` unset (0): the rebuilt order read "filled 1 of 0". The total now
+  falls back to the order's reported filled quantity, then to the summed fills. Fixed and pushed, not yet re-run
+  on the host.
+
 ## What is known vs unverified
 Known from the repo: the adapter, factory routing, the `DU` paper assertion, and the smoke test
 (`python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99`).
@@ -41,22 +59,22 @@ UNVERIFIED, decided by the trial below:
 - Whether the paper login shares a username with anything else. IBKR allows one session per
   username; stop the Client Portal Gateway before logging in IB Gateway if they share one.
 - Whether the socket path accepts fractional share sizes. The books size equity orders in 0.0001
-  steps (`FRACTIONAL_SHARE_STEP`); the 2026-10-09 rejections were on the Web API, and the socket path
-  has not been exercised with a fractional size. This gates the switch.
+  steps (`FRACTIONAL_SHARE_STEP`); the 2026-10-09 rejections were on the Web API. A 0.5-share order on
+  2026-11-11 did not fill and was cancelled, but its status reads were stale (the event-loop bug above), so
+  it says nothing. Re-run it after the fix. This gates the switch.
 - Whether a systemd sleep inhibitor stops the desktop's idle suspend on this host.
 
 ## Work
 
 ### 1. Socket adapter gaps (code, tests)
-- DONE in code, UNVERIFIED on a Gateway: `IbkrSocketAdapter.get_order` and
+- DONE, verified on the host for a whole-share fill (2026-11-11): `IbkrSocketAdapter.get_order` and
   `IbkrSocketClient.find_trade`. `get_open_trades` already returns every trade the connection knows,
   so the gap was an order that filled while no job was connected: `ib_async` keeps its execution in
   `fills()` attached to no trade, so `trades()` omits it. `find_trade` rebuilds it from the
   executions (matched on order id and client id) plus the completed order (matched on permId, via
-  `reqCompletedOrders`). Covered by unit tests with a fake backend only. Confirm on the host:
-  place a market order, disconnect before the fill is read, reconnect, and check `get_order` returns
-  it with its fills. IBKR reports completed orders for the current day only, so an order from an
-  earlier day stays unreported. The native `ibapi` backend returns `None`.
+  `reqCompletedOrders`). The host run confirmed the gap and the rebuild (see above). IBKR reports
+  completed orders for the current day only, so an order from an earlier day stays unreported. The
+  native `ibapi` backend returns `None`.
 - DONE: the preflight failure message names IB Gateway as well as the Client Portal Gateway.
 - DONE: a bounded connect retry in `IbkrSocketAdapter.connect` (three attempts, pauses of 5 s and
   15 s, only for `OSError`: refused, timed out, sync error). Nothing in the repo holds a broker
@@ -95,8 +113,9 @@ answers in the private checklist. Merge only after the host account is switched,
 service will fail every 30 seconds.
 
 ### 4. Trial, then switch
-1. Smoke test on the host against IB Gateway paper. `--fill-lookup-check` (built, tested with fakes only) fills a
-   small market order, reconnects, and checks `get_order`; give it a fractional `--fill-order-qty` to test that too.
+1. Smoke test on the host against IB Gateway paper. Done for reads and a whole-share fill with
+   `--fill-lookup-check`; the fractional run (`--fill-order-qty 0.5`) and a re-run of the whole-share one after
+   the total-quantity fix remain, during market hours.
 2. Suspend the host over a weekend, wake it, and record whether Gateway needs a login.
 3. Run one full week on a throwaway paper book using `interactive_brokers_socket_paper` and a market
    hours job; confirm fills reconcile and nothing double-posts.
@@ -172,9 +191,9 @@ the runbooks describe the new host setup. Delete this plan in the PR that ships 
   (`sudo systemctl restart trading-awake.service`), documented in the host and operations runbooks. Nothing starts it at boot.
 - Decided (cheap option, built): `find_trade` requests the executions again when a rebuilt fill's commission
   report is missing, and leaves the order unreported if it is still missing, so a 0 always means IBKR reported
-  no charge. UNVERIFIED: if IBKR paper never sends commission reports, every rebuilt order stays unreported;
-  the host trial shows which, and then the fuller option (a nullable commission with a later correction)
-  becomes the question.
+  no charge. Verified 2026-11-11: IBKR paper does send commission reports, so rebuilt orders are not left
+  unreported for that reason, and the fuller option (a nullable commission with a later correction) is not
+  needed.
 - Deferred: two held accounts on one Gateway with the same `broker_client_id` would collide. Nothing holds
   two connections at once today, so it cannot happen until the loop job exists; decide then.
 - What Sunday-night time should the host wake, and by what time must the login be done before the

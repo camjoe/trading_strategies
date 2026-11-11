@@ -20,5 +20,5 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | Plan | Status | Depends on |
 |---|---|---|
 | [more-trading-evidence.md](more-trading-evidence.md) | Drafted 2026-10-09. Nothing run on the host. | none (contract-trading-rules.md is related) |
-| [ib-gateway-socket-switch.md](ib-gateway-socket-switch.md) | Drafted 2026-10-16. Nothing run on the host. | none (the socket adapter is merged) |
+| [ib-gateway-socket-switch.md](ib-gateway-socket-switch.md) | In progress on `feature/ib-gateway-socket-switch`; host trial partly run 2026-11-11. | none (the socket adapter is merged) |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
