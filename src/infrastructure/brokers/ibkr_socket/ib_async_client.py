@@ -96,7 +96,7 @@ class IbAsyncClient:
         return _normalize_ib_async_trade(self._ib.placeOrder(contract, ib_order))
 
     def cancel_order(self, order_id: int) -> None:
-        for trade in self._ib.trades():
+        for trade in self._session_trades():
             if int(trade.order.orderId) == order_id:
                 self._ib.cancelOrder(trade.order)
                 return
@@ -109,7 +109,12 @@ class IbAsyncClient:
         return [_normalize_ib_async_trade(trade) for trade in self._session_trades()]
 
     def _session_trades(self) -> list[Any]:
-        """The session's trades without the history ``reqCompletedOrders`` adds to them."""
+        """The session's trades without the history ``reqCompletedOrders`` adds to them.
+
+        ib_async applies order updates only while its event loop runs, and between requests this
+        synchronous client does not run it, so the loop is given a turn before every read.
+        """
+        self._ib.sleep(0)
         return [trade for trade in self._ib.trades() if id(trade) not in self._completed_trade_ids]
 
     def find_trade(self, order_id: int) -> IbkrTrade | None:

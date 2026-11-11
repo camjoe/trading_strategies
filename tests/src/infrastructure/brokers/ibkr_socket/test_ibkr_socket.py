@@ -594,6 +594,35 @@ def _sdk_known_trade(*, client_id=7):
     )
 
 
+class TestIbAsyncEventLoop:
+    """ib_async updates a trade's status only while its event loop runs."""
+
+    @staticmethod
+    def _client(monkeypatch):
+        backend = MagicMock()
+        backend.client.clientId = 7
+        backend.trades.return_value = [_sdk_known_trade()]
+        monkeypatch.setitem(sys.modules, "ib_async", SimpleNamespace(IB=MagicMock(return_value=backend)))
+        return IbAsyncClient(), backend
+
+    def test_trades_gives_the_event_loop_a_turn_before_reading(self, monkeypatch):
+        client, backend = self._client(monkeypatch)
+
+        client.trades()
+
+        names = [name for name, *_ in backend.mock_calls if name in {"sleep", "trades"}]
+        assert names == ["sleep", "trades"]
+        backend.sleep.assert_called_once_with(0)
+
+    def test_find_trade_and_cancel_order_do_the_same(self, monkeypatch):
+        client, backend = self._client(monkeypatch)
+
+        client.find_trade(42)
+        client.cancel_order(42)
+
+        assert backend.sleep.call_count == 2
+
+
 class TestIbAsyncFillPrice:
     def test_each_fill_carries_its_own_execution_price_not_the_running_average(self, monkeypatch):
         backend = MagicMock()
