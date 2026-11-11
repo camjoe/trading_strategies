@@ -52,8 +52,9 @@ class IbAsyncClient:
         self._ib.errorEvent += self._record_error
         self._completed_orders: list[Any] | None = None
         self._completed_error: Exception | None = None
-        # ids of the Trade objects reqCompletedOrders put into the session's trade list.
-        self._completed_trade_ids: set[int] = set()
+        # Trades reqCompletedOrders returned, by id(). The objects are held so a freed id cannot
+        # be reused by a later trade.
+        self._completed_trades: dict[int, Any] = {}
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
         import ib_async  # noqa: PLC0415
@@ -71,7 +72,7 @@ class IbAsyncClient:
         # ib_async regardless of the flags.
         self._completed_orders = None
         self._completed_error = None
-        self._completed_trade_ids = set()
+        self._completed_trades = {}
         self._errors.clear()
         self._ib.connect(
             host,
@@ -133,7 +134,7 @@ class IbAsyncClient:
         synchronous client does not run it, so the loop is given a turn before every read.
         """
         self._ib.sleep(0)
-        return [trade for trade in self._ib.trades() if id(trade) not in self._completed_trade_ids]
+        return [trade for trade in self._ib.trades() if id(trade) not in self._completed_trades]
 
     def find_trade(self, order_id: int) -> IbkrTrade | None:
         """Look up one order, including one that filled while no job was connected.
@@ -182,7 +183,7 @@ class IbAsyncClient:
                 self._completed_error = exc
                 raise
             self._completed_orders = orders
-            self._completed_trade_ids.update(id(trade) for trade in orders)
+            self._completed_trades.update((id(trade), trade) for trade in orders)
         return self._completed_orders
 
     def positions(self) -> list[IbkrPosition]:
@@ -252,7 +253,8 @@ def _rebuild_trade(order_id: int, fills: list[Any], completed: Any) -> IbkrTrade
     if total_quantity <= 0:
         total_quantity = reported_filled if reported_filled is not None else filled
     expected_filled = reported_filled if reported_filled is not None else total_quantity
-    if str(completed.orderStatus.status) == "Filled" and filled < expected_filled - _FILL_TOTAL_TOLERANCE:
+    is_complete = str(completed.orderStatus.status) == "Filled" or reported_filled is not None
+    if is_complete and filled < expected_filled - _FILL_TOTAL_TOLERANCE:
         # An execution is missing from this connection's view; posting the rest would
         # close the order with less than the broker holds.
         return None

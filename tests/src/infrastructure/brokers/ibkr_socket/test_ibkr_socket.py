@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import gc
 import sys
 import threading
+import weakref
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
@@ -845,6 +847,30 @@ class TestIbAsyncFindTrade:
         client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
 
         assert client.find_trade(42) is None
+
+    def test_a_cancelled_order_with_fills_short_of_its_reported_filled_quantity_is_unreported(self, monkeypatch):
+        completed = _sdk_completed(status="Cancelled")
+        completed.order.filledQuantity = 7.0
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
+
+        assert client.find_trade(42) is None
+
+    def test_completed_trades_are_kept_alive_so_their_ids_are_not_reused(self, monkeypatch):
+        class WeakNamespace(SimpleNamespace):
+            pass
+
+        completed = WeakNamespace(**vars(_sdk_completed(total=4.0)))
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[completed])
+        client.find_trade(42)
+        reference = weakref.ref(completed)
+        backend.reset_mock()
+        backend.reqCompletedOrdersAsync.return_value = []
+        del completed
+
+        client.trades()
+        gc.collect()
+
+        assert reference() is not None
 
     def test_trades_starts_a_new_pass_so_a_later_lookup_asks_again(self, monkeypatch):
         client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed()])
