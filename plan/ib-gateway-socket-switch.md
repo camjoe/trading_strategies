@@ -63,6 +63,11 @@ UNVERIFIED, decided by the trial below:
   2026-11-11 did not fill and was cancelled, but its status reads were stale (the event-loop bug above), so
   it says nothing. Re-run it after the fix. This gates the switch.
 - Whether a systemd sleep inhibitor stops the desktop's idle suspend on this host.
+- Whether the pre-trade broker cash check (merged from `develop`) reads a usable cash figure over the
+  socket. It takes `TotalCashValue` from `get_account_info()`, and nothing has run it against IB Gateway.
+  IBKR may return one row per currency, so confirm the figure is the base-currency one. If the read fails,
+  every account in the pool is skipped with `could not read the broker's cash`, and when all are skipped
+  the run fails. This gates the switch.
 
 ## Work
 
@@ -82,11 +87,12 @@ UNVERIFIED, decided by the trial below:
   re-syncs `trades()` and fails loudly if the sync does not complete. Reconnecting a connection held
   across market hours has nothing to attach to until a job is designed to hold one; decide that
   before building it (a drop mid-use today surfaces as "not connected" on the next call).
-- `check_broker_sessions` (`broker_preflight.py`) treats `OSError` and `RuntimeError` as unavailable,
-  which covers a refused socket. Change its failure message, which tells the operator to start the
-  Client Portal gateway, to name IB Gateway for socket accounts.
+- DONE: `check_broker_sessions` (`broker_preflight.py`) treats `OSError` and `RuntimeError` as unavailable,
+  which covers a refused socket, and its failure message names IB Gateway as well as the Client Portal
+  Gateway.
 - Use a distinct client id for each connection that can be open at once (the daily job, the health
-  check below, any manual script).
+  check below, any manual script). A run connects once per phase, and the pre-trade cash check adds one
+  more connect per account, so none of them may be held open across phases.
 
 ### 2. Replace the keepalive worker with a connection health check
 DONE in code, UNVERIFIED on a Gateway: `maintenance/ibkr_gateway_health.py`. Every
@@ -115,12 +121,19 @@ service will fail every 30 seconds.
 ### 4. Trial, then switch
 1. Smoke test on the host against IB Gateway paper. Done for reads and a whole-share fill with
    `--fill-lookup-check`; the fractional run (`--fill-order-qty 0.5`) and a re-run of the whole-share one after
-   the total-quantity fix remain, during market hours.
+   the total-quantity fix remain, during market hours. Also read the account summary and confirm
+   `TotalCashValue` is present and in the base currency, then run the daily run once so the cash check
+   reads it for a socket account.
 2. Suspend the host over a weekend, wake it, and record whether Gateway needs a login.
 3. Run one full week on a throwaway paper book using `interactive_brokers_socket_paper` and a market
-   hours job; confirm fills reconcile and nothing double-posts.
+   hours job; confirm fills reconcile and nothing double-posts. Accounts that reach one IB paper account
+   share one cash pool (`ibkr_socket:<host>:<port>`), so the throwaway book's cash and the real book's
+   together must not exceed the broker's, or the cash check skips them all.
 4. Move the real book by changing `accounts.broker_type`, only with no open orders (in-flight orders
-   do not carry across transports; see `ibkr-paper-trading.md`).
+   do not carry across transports; see `ibkr-paper-trading.md`). The move changes which accounts share
+   its cash pool (`ibkr_web` to the socket pool), so first check that the books of every account in the
+   new pool hold no more cash than the broker (see "Books hold more cash than the broker" in
+   `ibkr-paper-trading.md`).
 
 ## Held connection (design only, nothing built)
 
