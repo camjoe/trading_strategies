@@ -162,8 +162,10 @@ At minimum set:
 - Runtime notifications so missed/failed runs are visible: either `TRADING_RUNTIME_ALERT_WEBHOOK_URL`
   or the SMTP variables documented in
   [runtime-operations.md](runtime-operations.md#runtime-notifications).
-- `TRADING_IBKR_WEB_API_ACCOUNT_ID` (required) — configure the rest of the IBKR connection per
-  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
+- `TRADING_IBKR_WEB_API_ACCOUNT_ID`, only for accounts on the Web API transport
+  (`interactive_brokers_web*`) — configure the rest of that connection per
+  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md). Socket accounts read their host, port and
+  client id from the account row; see [Part 6](#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
 
 ### 1.4 Seed the database
 
@@ -595,5 +597,13 @@ means something listens that is not the socket API; port 5000 is the Client Port
 | The host wakes | Suspend it before Sunday 18:00: `systemctl list-timers trading-awake-start.timer` shows the next run; it should be awake at that time | `WakeSystem` works on this hardware |
 | Login survives the week | Log in Sunday; each morning check `journalctl -u ibkr-gateway-health.service -n 5` shows no alert and the daily run connected | the Gateway's auto-restart needs no login mid-week |
 | Login after a weekend suspend | Sunday evening: is the Gateway still logged in, or at its login screen? | whether the Sunday login is a fresh one every week |
-| A fill that lands while no job is connected, and fractional sizes | During market hours: `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99 --fill-lookup-check --fill-order-symbol <SYM> --fill-order-qty 0.5`. It fills a small paper order, reconnects, and prints what `get_order` rebuilds. Paper accounts only | `get_order` rebuilds the fill from executions and completed orders, and the socket accepts a fractional size |
+| A fill that lands while no job is connected, and fractional sizes | During market hours: `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99 --fill-lookup-check --fill-order-symbol <SYM> --fill-order-qty 0.5`. It fills a small paper order, reconnects, and prints what `get_order` rebuilds. Paper accounts only, and it changes the broker's cash (see below) | `get_order` rebuilds the fill from executions and completed orders, and the socket accepts a fractional size |
 | A fill that arrives in two parts | The same command prints each fill's price when the fill came in parts; compare them with IBKR's statement | each fill is priced at its own execution price |
+
+The fill check trades the paper account for real, and no book records the order. Afterwards the broker holds
+less cash than the books by the order's cost plus commission, and from the next daily run the pre-trade cash
+check skips every account that draws on that IBKR account, through either transport, until the two agree
+again. Selling the shares back does not undo it: the commissions and the spread stay. Run the check on a paper
+account that no account row uses, or before any book is funded; otherwise bring the books' cash back in line
+afterwards, as described in
+[Books hold more cash than the broker](ibkr-paper-trading.md#books-hold-more-cash-than-the-broker).

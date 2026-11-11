@@ -160,9 +160,11 @@ class IbAsyncClient:
             for fill in self._ib.fills()
             if int(fill.execution.orderId) == order_id and int(fill.execution.clientId) == client_id
         ]
-        perm_id = int(fills[0].execution.permId) if fills else 0
-        if perm_id == 0:
+        perm_ids = {int(fill.execution.permId) for fill in fills}
+        # No fills, an unset permId, or executions of two orders under one reused order id.
+        if len(perm_ids) != 1 or 0 in perm_ids:
             return None
+        (perm_id,) = perm_ids
         if _commission_missing(fills):
             self._ib.run(self._ib.reqExecutionsAsync(), timeout=_LOOKUP_REQUEST_TIMEOUT_SECONDS)
             if _commission_missing(fills):
@@ -252,9 +254,12 @@ def _rebuild_trade(order_id: int, fills: list[Any], completed: Any) -> IbkrTrade
     total_quantity = float(completed.order.totalQuantity)
     if total_quantity <= 0:
         total_quantity = reported_filled if reported_filled is not None else filled
+    if reported_filled is None and str(completed.orderStatus.status) != "Filled":
+        # Without IBKR's filled quantity, a partial view of an order that stopped short cannot be
+        # told from the whole of it.
+        return None
     expected_filled = reported_filled if reported_filled is not None else total_quantity
-    is_complete = str(completed.orderStatus.status) == "Filled" or reported_filled is not None
-    if is_complete and filled < expected_filled - _FILL_TOTAL_TOLERANCE:
+    if filled < expected_filled - _FILL_TOTAL_TOLERANCE:
         # An execution is missing from this connection's view; posting the rest would
         # close the order with less than the broker holds.
         return None

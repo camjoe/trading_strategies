@@ -54,10 +54,10 @@ TWS/IB Gateway socket support with interchangeable `ib_async` and native `ibapi`
 
 | Module | Responsibility |
 |---|---|
-| `adapter.py` | Backend-neutral socket `BrokerConnection` adapter |
+| `adapter.py` | Backend-neutral socket `BrokerConnection` adapter, with a bounded connect retry and `get_order` |
 | `contracts.py` | Project-owned normalized socket client records |
-| `protocol.py` | Backend-neutral socket client protocol |
-| `ib_async_client.py` | Working `ib_async` socket client |
+| `protocol.py` | Backend-neutral socket client protocol, including `find_trade` and `errors` |
+| `ib_async_client.py` | Working `ib_async` socket client; `find_trade` rebuilds an order that filled while no job was connected |
 | `ibapi_client.py` | Native `ibapi` connection, order, position, account-summary, and snapshot-quote callbacks |
 | `factory.py` | Socket backend selection, unconnected client construction, and connected broker construction |
 

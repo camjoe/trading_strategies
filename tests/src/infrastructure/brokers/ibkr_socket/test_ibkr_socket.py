@@ -742,14 +742,31 @@ class TestIbAsyncFindTrade:
         assert trade.order_ref == "ref-1"
 
     def test_reports_a_partial_fill_that_was_then_cancelled(self, monkeypatch):
-        client, _ = self._client(
-            monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[_sdk_completed(status="Cancelled")]
-        )
+        completed = _sdk_completed(status="Cancelled")
+        completed.order.filledQuantity = 4.0
+        client, _ = self._client(monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[completed])
 
         trade = client.find_trade(42)
 
         assert trade is not None
         assert (trade.status, trade.filled, trade.total_quantity) == ("Cancelled", 4.0, 10.0)
+
+    def test_a_cancelled_order_with_no_reported_filled_quantity_is_unreported(self, monkeypatch):
+        client, _ = self._client(
+            monkeypatch, fills=[_sdk_fill(shares=4.0)], completed=[_sdk_completed(status="Cancelled")]
+        )
+
+        assert client.find_trade(42) is None
+
+    def test_executions_of_two_orders_under_one_order_id_leave_it_unreported(self, monkeypatch):
+        client, backend = self._client(
+            monkeypatch,
+            fills=[_sdk_fill(shares=4.0), _sdk_fill(shares=6.0, perm_id=9002, exec_id="e2")],
+            completed=[_sdk_completed(), _sdk_completed(perm_id=9002)],
+        )
+
+        assert client.find_trade(42) is None
+        backend.reqCompletedOrdersAsync.assert_not_called()
 
     def test_requests_completed_orders_once_per_connection_with_a_timeout(self, monkeypatch):
         client, backend = self._client(

@@ -39,7 +39,7 @@ class FakeClient:
 
 
 def _check(client: FakeClient):
-    return module.check_gateway(client, host="127.0.0.1", port=4002, client_id=901)
+    return module.check_gateway(lambda: client, host="127.0.0.1", port=4002, client_id=901)
 
 
 def test_a_gateway_that_reports_an_account_is_alive() -> None:
@@ -80,6 +80,33 @@ def test_an_unexpected_exception_is_a_failed_state_not_a_crash() -> None:
 
     assert state is module.GatewayState.REJECTED
     assert detail.startswith("KeyError")
+
+
+def test_a_client_that_cannot_be_built_is_a_failed_state_not_a_crash() -> None:
+    def build_client():
+        raise ValueError("unknown TRADING_IBKR_SOCKET_CLIENT_BACKEND 'ibapy'")
+
+    state, detail = module.check_gateway(build_client, host="127.0.0.1", port=4002, client_id=901)
+
+    assert state is module.GatewayState.REJECTED
+    assert detail.startswith("ValueError: unknown TRADING_IBKR_SOCKET_CLIENT_BACKEND")
+
+
+def test_main_builds_the_client_inside_each_check(monkeypatch) -> None:
+    checks: list[tuple[object, str]] = []
+
+    def build_client():
+        raise ImportError("No module named 'ib_async'")
+
+    def run_once(check, **_kwargs):
+        checks.append(check())
+
+    monkeypatch.setattr(module, "build_ibkr_socket_client", build_client)
+    monkeypatch.setattr(module, "run_health_check", run_once)
+
+    module.main(["--port", "4002"])
+
+    assert checks == [(module.GatewayState.REJECTED, "ImportError: No module named 'ib_async'")]
 
 
 def test_a_timeout_is_unreachable_and_names_the_exception() -> None:

@@ -62,9 +62,13 @@ _REMEDY = {
 }
 
 
-def check_gateway(client: IbkrSocketClient, *, host: str, port: int, client_id: int) -> tuple[GatewayState, str]:
-    """Connect, confirm the Gateway reports at least one account, and disconnect."""
+def check_gateway(
+    build_client: Callable[[], IbkrSocketClient], *, host: str, port: int, client_id: int
+) -> tuple[GatewayState, str]:
+    """Build a client, connect, confirm the Gateway reports at least one account, and disconnect."""
+    client: IbkrSocketClient | None = None
     try:
+        client = build_client()
         client.connect(host, port, client_id=client_id)
         accounts = client.managed_accounts()
     except OSError as exc:
@@ -74,10 +78,11 @@ def check_gateway(client: IbkrSocketClient, *, host: str, port: int, client_id: 
         # persistent error would never alert.
         return GatewayState.REJECTED, f"{type(exc).__name__}: {exc}"
     finally:
-        try:
-            client.disconnect()
-        except Exception:
-            logger.warning("Disconnecting the IB Gateway health check failed.", exc_info=True)
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:
+                logger.warning("Disconnecting the IB Gateway health check failed.", exc_info=True)
     if not accounts:
         return GatewayState.REJECTED, "connected, but IBKR reported no account"
     return GatewayState.ALIVE, ""
@@ -155,7 +160,7 @@ def main(argv: list[str] | None = None) -> None:
     webhook_url = os.environ.get(RUNTIME_ALERT_WEBHOOK_ENV, "")
     email_config = resolve_email_config_from_env()
     run_health_check(
-        lambda: check_gateway(build_ibkr_socket_client(), host=args.host, port=args.port, client_id=args.client_id),
+        lambda: check_gateway(build_ibkr_socket_client, host=args.host, port=args.port, client_id=args.client_id),
         interval_seconds=args.interval_seconds,
         grace_seconds=args.grace_seconds,
         notify=lambda state, detail: send_state_alert(
