@@ -7,7 +7,7 @@
    before an actual downgrade.
 2. **Backup restore** — the only mechanism that recovers *data* discarded by a lossy revision
    (dropped columns/tables, destructive `UPDATE`s). `manage_db_migrations upgrade` creates a
-   timestamped backup in `local/db_backups/` before changing an existing database; fresh creation
+   timestamped backup in the backup folder (`$TRADING_DB_BACKUPS_DIR`, else `$TRADING_DATA_HOME/db_backups/`, else `local/db_backups/`) before changing an existing database; fresh creation
    and no-op targets are exceptions.
 
 ## Strategy by case
@@ -30,7 +30,7 @@ State this explicitly in the rollback plan.
 
 1. Run `python -m scripts.data_ops.manage_db_migrations status` — confirm the
    database revision.
-2. Confirm the pre-upgrade backup exists in `local/db_backups/` and note its timestamp.
+2. Confirm the pre-upgrade backup exists in the backup folder (see step above) and note its timestamp.
 3. Identify code paths that read/write the affected columns — application code must be reverted
    to the matching revision's expectations before or alongside the schema rollback.
 4. Stop every database writer for the rollback window, including scheduler jobs, web services, and

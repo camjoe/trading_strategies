@@ -1,6 +1,11 @@
 import pytest
 
-from tests.support.books import ensure_default_book_id, set_test_book_rotation_scheduling
+from tests.support.books import (
+    assign_test_book_strategy,
+    ensure_default_book_id,
+    insert_test_book,
+    set_test_book_rotation_scheduling,
+)
 from trading.repositories.rotation_decisions import RotationDecisionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
 from trading.services.accounts.mutations import create_account, get_account
@@ -107,3 +112,78 @@ def test_fetch_strategy_evaluation_reports_data_gaps_when_evidence_missing(conn)
         "missing_paper_live_evidence",
         "missing_walk_forward_evidence",
     ]
+
+
+def _second_book(
+    conn, account_id: int, *, status: str = "active", assigned: bool = True, snapshot: bool = False
+) -> int:
+    book_id = insert_test_book(conn, account_id=account_id, name="second", status=status)
+    if assigned:
+        assign_test_book_strategy(conn, book_id=book_id, strategy_name="mean_reversion")
+    if snapshot:
+        EquitySnapshotRepository(conn).insert_for_book(
+            book_id=book_id,
+            snapshot_time="2026-02-01T00:00:00Z",
+            cash=500.0,
+            market_value=0.0,
+            equity=500.0,
+            realized_pnl=0.0,
+            unrealized_pnl=0.0,
+        )
+    return book_id
+
+
+def _account_with_snapshot(conn, name: str) -> int:
+    create_account(conn, name, "trend_v1", 1000.0, "SPY")
+    account_id = int(get_account(conn, name)["id"])
+    _snapshot(conn, account_id, at="2026-02-01T00:00:00Z", equity=1000.0)
+    return account_id
+
+
+def test_account_snapshot_evidence_is_not_isolated_when_the_account_trades_several_books(conn) -> None:
+    account_id = _account_with_snapshot(conn, "acct_two_books")
+
+    single = fetch_strategy_evaluation(conn, account_name="acct_two_books")
+    assert single.paper_live.available is True
+    assert single.paper_live.strategy_isolated is True
+
+    _second_book(conn, account_id)
+
+    several = fetch_strategy_evaluation(conn, account_name="acct_two_books")
+    assert several.paper_live.available is True
+    assert several.paper_live.strategy_isolated is False
+
+
+def test_a_book_that_stopped_trading_but_held_equity_still_breaks_isolation(conn) -> None:
+    account_id = _account_with_snapshot(conn, "acct_retired_book")
+    _second_book(conn, account_id, status="paused", snapshot=True)
+
+    artifact = fetch_strategy_evaluation(conn, account_name="acct_retired_book")
+
+    assert artifact.paper_live.strategy_isolated is False
+
+
+def test_a_second_book_that_never_traded_leaves_the_evidence_isolated(conn) -> None:
+    account_id = _account_with_snapshot(conn, "acct_idle_book")
+    _second_book(conn, account_id, status="paused", assigned=False)
+
+    artifact = fetch_strategy_evaluation(conn, account_name="acct_idle_book")
+
+    assert artifact.paper_live.strategy_isolated is True
+
+
+def test_rotation_windows_are_not_isolated_when_the_account_has_several_books(conn) -> None:
+    create_account(conn, "acct_rotation_books", "trend_v1", 1000.0, "SPY")
+    _enable_rotation(conn, "acct_rotation_books", active="trend_v1")
+    account_id = int(get_account(conn, "acct_rotation_books")["id"])
+    book_id = ensure_default_book_id(conn, account_id)
+    _snapshot(conn, account_id, at="2026-02-01T00:00:00Z", equity=1000.0)
+    _snapshot(conn, account_id, at="2026-02-10T00:00:00Z", equity=1040.0)
+    _decision(conn, book_id, at="2026-02-01T00:00:00Z", incumbent="trend_v1", selected="mean_reversion")
+    _decision(conn, book_id, at="2026-02-10T00:00:00Z", incumbent="mean_reversion", selected="trend_v1")
+    _second_book(conn, account_id)
+
+    for strategy in ("mean_reversion", None):
+        artifact = fetch_strategy_evaluation(conn, account_name="acct_rotation_books", strategy_name=strategy)
+        assert artifact.paper_live.available is True
+        assert artifact.paper_live.strategy_isolated is False

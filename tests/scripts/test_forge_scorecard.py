@@ -1,8 +1,10 @@
+import argparse
 import json
 from collections import Counter
 from collections.abc import Collection, Sequence
 from pathlib import Path
 
+from common.paths import data_home
 from scripts.forge import cli as cli_module
 from scripts.forge.base import FINDING_MARKER, READINESS_MARKER, Comment, ForgeError, PullRequestDetails
 from scripts.forge.findings import parse_findings
@@ -624,3 +626,48 @@ class TestPredictionOnClosedLines:
         )
 
         assert score_comment(body)[0].needs == "info"
+
+
+class TestScorecardLocation:
+    @staticmethod
+    def _args(db: str | None = None) -> argparse.Namespace:
+        return argparse.Namespace(db=db)
+
+    def test_the_default_is_this_checkouts_local_folder(self) -> None:
+        assert cli_module._scorecard_db(self._args()) == Path("local/review_scorecard.db")
+
+    def test_the_shared_data_folder_moves_the_default(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path.resolve() / "review_scorecard.db"
+
+    def test_a_relative_shared_folder_resolves_like_the_backup_folder(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("TRADING_DATA_HOME", "shared")
+
+        assert cli_module._scorecard_db(self._args()) == data_home() / "review_scorecard.db"
+
+    def test_the_scorecard_setting_wins_over_the_shared_folder(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", str(tmp_path / "own.db"))
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path / "own.db"
+
+    def test_the_flag_wins_over_both(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("TRADING_DATA_HOME", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", str(tmp_path / "own.db"))
+
+        assert cli_module._scorecard_db(self._args(str(tmp_path / "flag.db"))) == tmp_path / "flag.db"
+
+    def test_blank_settings_count_as_unset(self, monkeypatch) -> None:
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", "  ")
+        monkeypatch.setenv("TRADING_DATA_HOME", "  ")
+
+        assert cli_module._scorecard_db(self._args()) == Path("local/review_scorecard.db")
+
+    def test_a_home_relative_setting_is_expanded(self, monkeypatch, tmp_path) -> None:
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.setenv("REVIEW_SCORECARD_DB", "~/own.db")
+
+        assert cli_module._scorecard_db(self._args()) == tmp_path / "own.db"

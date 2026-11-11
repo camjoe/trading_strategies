@@ -93,7 +93,7 @@ CI helper scripts (`scripts/ci/`):
 
 Data operation scripts (`scripts/data_ops/`):
 
-- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `common.paths.db_backups_dir()` (`$TRADING_DB_BACKUPS_DIR`, else `$TRADING_DATA_HOME/db_backups/`, else `local/db_backups/`).
 - `build_database_diagram_viewer.py`: Trading Strategies adapter that builds the checked-in interactive HTML database diagram viewer in `docs/reference/database-diagram-viewer.html` for table and FK relationship review.
 - `describe_db_schema.py`: prints the current database schema from either an in-memory database built from the Alembic migration chain or the configured live SQLite database.
 

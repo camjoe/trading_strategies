@@ -87,8 +87,8 @@ python -m scripts.forge review-scorecard --from-db               # report from t
 python -m scripts.forge review-scorecard --from-db --repo owner/name --json
 ```
 
-The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `local/review_scorecard.db`
-(`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
+The data goes to a SQLite file: `--db PATH`, else `$REVIEW_SCORECARD_DB`, else `review_scorecard.db` under
+`$TRADING_DATA_HOME` (the folder shared by every checkout), else `local/review_scorecard.db` (`local/` is gitignored). Timestamps in it are ISO UTC written with the standard library, not `common.time`, because
 the forge tool imports no project code that a pull request could change. `--from-db --json` lists `pull_requests` as `{repo, number, passes}` objects (the live run lists plain numbers), and a
 very large pull request may have an incomplete file list if the forge caps it. Saving a pull request again replaces its rows, so run it after each merge, or over
 `--merged 10` whenever you like. Each pull request is stored with its pass count (the header's pass number, which

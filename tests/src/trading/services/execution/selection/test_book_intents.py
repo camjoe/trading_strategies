@@ -377,3 +377,171 @@ def test_generate_book_trade_intents_respects_max_trades_per_run(conn) -> None:
     )
 
     assert len(intents) == 1
+
+
+ALL_SYMBOLS = ["AAPL", "MSFT", "NVDA"]
+SHARED_PRICES = {"AAPL": 10.0, "MSFT": 10.0, "NVDA": 10.0}
+
+
+def _books_on_one_account(
+    conn, *, account_name: str, symbols_by_book: dict[str, list[str]], cash: float = 100_000.0
+) -> tuple[object, dict[str, int]]:
+    account_id = insert_repository_account(conn, name=account_name)
+    book_ids: dict[str, int] = {}
+    for name, symbols in symbols_by_book.items():
+        book_id = _insert_book(conn, account_id=account_id, name=name, current_cash=cash)
+        BookRepository(conn).update_trade_symbols(
+            book_id=book_id,
+            trade_symbols=json.dumps(symbols),
+            updated_at="2026-05-03T00:00:00Z",
+        )
+        _assign(conn, book_id=book_id, strategy_name="trend")
+        book_ids[name] = book_id
+    return get_account(conn, account_name), book_ids
+
+
+def _generate(conn, account, *, max_trades: int, seed: str = ""):
+    return book_intents.generate_book_trade_intents(
+        conn,
+        account=account,
+        market=MarketInputs(universe=ALL_SYMBOLS, prices=SHARED_PRICES, histories=_rising_histories()),
+        max_trades=max_trades,
+        fee=0.0,
+        selection_seed=seed,
+    )
+
+
+def _counts(intents, book_ids: dict[str, int]) -> dict[str, int]:
+    return {name: sum(1 for intent in intents if intent.book_id == book_id) for name, book_id in book_ids.items()}
+
+
+def test_account_budget_is_shared_across_books_not_taken_by_the_first(conn) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_shared", symbols_by_book={"first": ALL_SYMBOLS, "second": ALL_SYMBOLS}
+    )
+
+    assert _counts(_generate(conn, account, max_trades=4), ids) == {"first": 2, "second": 2}
+
+
+def test_a_book_with_fewer_signals_does_not_pass_its_share_on(conn) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_unused", symbols_by_book={"wide": ALL_SYMBOLS, "narrow": ["AAPL"]}
+    )
+
+    for day in range(1, 15):
+        counts = _counts(_generate(conn, account, max_trades=4, seed=f"2026-07-{day:02d}"), ids)
+        assert counts == {"wide": 2, "narrow": 1}
+
+
+def test_an_odd_cap_gives_the_extra_trade_to_a_different_book_on_different_days(conn) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_odd", symbols_by_book={"first": ALL_SYMBOLS, "second": ALL_SYMBOLS}
+    )
+
+    seen = {
+        tuple(_counts(_generate(conn, account, max_trades=3, seed=f"2026-07-{day:02d}"), ids).values())
+        for day in range(1, 29)
+    }
+
+    assert seen == {(2, 1), (1, 2)}
+
+
+def test_a_books_own_limit_lowers_its_share(conn) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_limit", symbols_by_book={"limited": ALL_SYMBOLS, "open": ALL_SYMBOLS}
+    )
+    BookRepository(conn).update(book_id=ids["limited"], values={"max_trades_per_run": 1}, updated_at=utc_now_iso())
+
+    assert _counts(_generate(conn, account, max_trades=4), ids) == {"limited": 1, "open": 2}
+
+
+def test_a_zero_cap_selects_nothing(conn) -> None:
+    account, _ = _books_on_one_account(conn, account_name="acct_budget_zero", symbols_by_book={"only": ALL_SYMBOLS})
+
+    assert _generate(conn, account, max_trades=0) == []
+
+
+def test_buys_are_sized_for_the_books_share_of_the_cap(conn) -> None:
+    """Cash too small for three buys: a book with a share of two sizes them as it would alone with a cap of two."""
+    cash = 1_000.0
+    account, ids = _books_on_one_account(
+        conn,
+        account_name="acct_budget_sizing",
+        symbols_by_book={"first": ALL_SYMBOLS, "second": ALL_SYMBOLS},
+        cash=cash,
+    )
+    for book_id in ids.values():
+        BookRepository(conn).update(
+            book_id=book_id, values={"trade_size_pct": 40.0, "max_position_pct": 80.0}, updated_at=utc_now_iso()
+        )
+    alone, alone_ids = _books_on_one_account(
+        conn, account_name="acct_budget_sizing_alone", symbols_by_book={"solo": ALL_SYMBOLS}, cash=cash
+    )
+    BookRepository(conn).update(
+        book_id=alone_ids["solo"], values={"trade_size_pct": 40.0, "max_position_pct": 80.0}, updated_at=utc_now_iso()
+    )
+    expected = sorted(intent.qty for intent in _generate(conn, alone, max_trades=2))
+    undersized = sorted(intent.qty for intent in _generate(conn, alone, max_trades=3))
+    assert expected != undersized
+
+    shared = _generate(conn, account, max_trades=4)
+
+    for book_id in ids.values():
+        assert sorted(intent.qty for intent in shared if intent.book_id == book_id) == expected
+
+
+def _breached_book(conn, *, account_name: str):
+    """One book holding two positions past a 10% stop, beside a book with buy signals."""
+    account, ids = _books_on_one_account(
+        conn, account_name=account_name, symbols_by_book={"exiting": ["AAPL", "MSFT"], "buying": ALL_SYMBOLS}
+    )
+    BookRepository(conn).update(
+        book_id=ids["exiting"],
+        values={"risk_policy": "fixed_stop", "stop_loss_pct": 10.0},
+        updated_at=utc_now_iso(),
+    )
+    for symbol in ("AAPL", "MSFT"):
+        PositionRepository(conn).upsert(
+            book_id=ids["exiting"],
+            symbol=symbol,
+            qty=5.0,
+            avg_cost=100.0,
+            market_value=50.0,
+            unrealized_pnl=-450.0,
+            updated_at="2026-05-03T00:00:00Z",
+        )
+    return account, ids
+
+
+def test_risk_exits_are_not_limited_by_the_books_share(conn) -> None:
+    account, ids = _breached_book(conn, account_name="acct_budget_exits")
+
+    for day in range(1, 15):
+        intents = _generate(conn, account, max_trades=1, seed=f"2026-07-{day:02d}")
+        exits = [intent for intent in intents if intent.book_id == ids["exiting"]]
+        assert sorted(intent.symbol for intent in exits) == ["AAPL", "MSFT"]
+        assert all(intent.side == "sell" and intent.forced_sell for intent in exits)
+        assert sum(1 for intent in intents if intent.book_id == ids["buying"]) <= 1
+
+
+def test_a_zero_cap_trades_nothing_even_with_a_risk_exit_due(conn) -> None:
+    account, _ = _breached_book(conn, account_name="acct_budget_zero_exits")
+
+    assert _generate(conn, account, max_trades=0) == []
+
+
+def test_a_book_whose_strategy_does_not_resolve_takes_no_share(conn, monkeypatch) -> None:
+    account, ids = _books_on_one_account(
+        conn, account_name="acct_budget_unresolved", symbols_by_book={"good": ALL_SYMBOLS, "broken": ALL_SYMBOLS}
+    )
+    assign_test_book_strategy(conn, book_id=ids["broken"], strategy_name="mean_reversion")
+    real_resolve = book_intents.resolve_catalog_strategy
+
+    def resolve(connection, strategy_name):
+        if strategy_name == "mean_reversion":
+            raise book_intents.UnknownCatalogStrategyError(strategy_name)
+        return real_resolve(connection, strategy_name)
+
+    monkeypatch.setattr(book_intents, "resolve_catalog_strategy", resolve)
+
+    assert _counts(_generate(conn, account, max_trades=3), ids) == {"good": 3, "broken": 0}

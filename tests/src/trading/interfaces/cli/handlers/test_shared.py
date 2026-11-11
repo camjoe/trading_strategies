@@ -103,3 +103,12 @@ def test_common_account_config_kwargs_contains_all_expected_keys() -> None:
 def test_common_account_config_kwargs_maps_display_name_to_descriptive_name() -> None:
     result = common_account_config_kwargs(_args(display_name="Test Account"), include_learning_disabled=False)
     assert result.descriptive_name == "Test Account"
+
+
+def test_common_account_config_kwargs_carries_book_limit_and_universes() -> None:
+    result = common_account_config_kwargs(
+        _args(max_trades_per_run=4, trade_universes=["growth"]), include_learning_disabled=True
+    )
+
+    assert result.max_trades_per_run == 4
+    assert result.trade_universes == ["growth"]

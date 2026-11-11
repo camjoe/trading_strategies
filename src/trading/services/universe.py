@@ -11,9 +11,14 @@ an existing book is already trading.
 
 from __future__ import annotations
 
+import re
+
 from common.paths import TRADE_UNIVERSES_DIR
 from common.tickers import load_tickers_from_file
 from trading.domain.exceptions import ValidationError
+
+# A universe name is a bare filename stem; anything else could point outside TRADE_UNIVERSES_DIR.
+_UNIVERSE_NAME_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 
 # The universe a book starts on when a caller names none.
 DEFAULT_UNIVERSE_NAME = "default"
@@ -34,13 +39,15 @@ def resolve_named_universes(names: list[str]) -> list[str]:
 
     Raises:
         FileNotFoundError: If any named universe file does not exist.
-        ValueError: If *names* is empty.
+        ValueError: If *names* is empty or a name is not a bare identifier.
     """
     if not names:
         raise ValueError("At least one universe name must be provided.")
 
     seen: dict[str, None] = {}
     for name in names:
+        if not _UNIVERSE_NAME_PATTERN.fullmatch(name):
+            raise ValueError(f"Universe name {name!r} may contain only letters, digits, '_' and '-'.")
         path = TRADE_UNIVERSES_DIR / f"{name}.txt"
         if not path.exists():
             available = ", ".join(list_available_universes()) or "(none)"

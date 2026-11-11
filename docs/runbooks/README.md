@@ -5,7 +5,7 @@ Status: Active
 Created: 2026-03-01
 Last Reviewed: 2026-10-09
 Purpose: Index of operational runbooks for the paper-trading runtime with quick-start commands.
-Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md)
+Related: [Runtime Operations](runtime-operations.md), [Production Runtime Host](production-runtime-host.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Burn-In Protocol](burn-in-protocol.md), [Governance Review Guide](governance-review.md), [Differentiating Books](differentiating-books.md)
 
 ## Overview
 
@@ -26,6 +26,7 @@ assume an activated shell.
 | [governance-review.md](governance-review.md) | Weekly and monthly governance job procedures |
 | [ibkr-operations.md](ibkr-operations.md) | Starting and confirming IB Gateway, its health alert, and the daily trader, and what alerts go out when one fails |
 | [ibkr-paper-trading.md](ibkr-paper-trading.md) | Moving a book off the internal simulator onto real IBKR paper-account order mechanics |
+| [differentiating-books.md](differentiating-books.md) | Giving accounts and books different universes, sizing, and trade limits |
 | [pr-readiness-workflow.md](pr-readiness-workflow.md) | The GitHub workflow that runs `pr ready` on pull requests: setup, variables, and failures |
 
 ## Quick Start

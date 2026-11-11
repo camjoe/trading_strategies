@@ -1,6 +1,7 @@
 """Where this repository's files live, and how to display a path relative to it.
 
-Path *constants* resolved from the repository root, plus the one formatting
+Path *constants* resolved from the repository root, the folders that can move
+out of the checkout through environment variables, and the one formatting
 helper used when a path is logged, compared, or written into a report.
 
 Locating the root itself is git's job — see :func:`common.git.get_repo_root`.
@@ -8,6 +9,7 @@ Locating the root itself is git's job — see :func:`common.git.get_repo_root`.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from common.git import get_repo_root
@@ -33,10 +35,33 @@ PAPER_TRADING_DB_PATH = LOCAL_DIR / "paper_trading.db"
 # Current registered-vs-desired schedule drift, written by manage_job_schedules and
 # read by the web Admin panel. Overwritten each write — it is current state, not history.
 SCHEDULE_STATUS_ARTIFACT_PATH = LOCAL_DIR / "artifacts" / "schedule_status.json"
-DB_BACKUPS_DIR = LOCAL_DIR / "db_backups"
 LOGS_DIR = LOCAL_DIR / "logs"
 EXPORTS_DIR = LOCAL_DIR / "exports"
 SCREENSHOTS_DIR = LOCAL_DIR / "screenshots"
+
+# Folder for data every checkout of this repository may share (database backups,
+# the market-data cache, the review scorecard). Unset means this checkout's local/.
+DATA_HOME_ENV = "TRADING_DATA_HOME"
+# Overrides the database-backup folder alone, ahead of TRADING_DATA_HOME.
+DB_BACKUPS_DIR_ENV = "TRADING_DB_BACKUPS_DIR"
+
+
+def env_path(name: str) -> Path | None:
+    """The path in environment variable *name*, expanded and absolute, or None when unset or blank."""
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    return Path(raw).expanduser().resolve()
+
+
+def data_home() -> Path:
+    """The shared data folder: ``$TRADING_DATA_HOME``, else this checkout's ``local/``."""
+    return env_path(DATA_HOME_ENV) or LOCAL_DIR
+
+
+def db_backups_dir() -> Path:
+    """Where database backups go: ``$TRADING_DB_BACKUPS_DIR``, else ``db_backups/`` under :func:`data_home`."""
+    return env_path(DB_BACKUPS_DIR_ENV) or data_home() / "db_backups"
 
 
 def relative_posix(path: Path, root: Path) -> str:

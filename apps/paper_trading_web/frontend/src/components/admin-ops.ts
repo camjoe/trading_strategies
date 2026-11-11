@@ -127,7 +127,7 @@ export function renderOperationsOverview(data: OperationsOverviewResponse): stri
       ${renderScheduleStatusPanel(data.scheduleStatus)}
       ${renderArtifactPanel(
         "Database Backups",
-        "No database backups found in local/db_backups yet.",
+        "No database backups found yet.",
         data.databaseBackups,
       )}
     </div>

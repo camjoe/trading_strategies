@@ -309,7 +309,9 @@ time out.
 - `place_order` sets `SUBMITTED` on the returned order locally, without consulting IBKR. The
   authoritative view is whatever the next `get_open_trades()` reports.
 
-`get_account_info()` has no runtime consumer — only the socket smoke test reads it. IBKR's
+`get_account_info()` has one runtime consumer: the daily run's cash check reads its `TotalCashValue`
+(`docs/runbooks/ibkr-paper-trading.md`, "Books hold more cash than the broker"), and the Web adapter
+raises when the ledger has no cash figure rather than reporting zero. IBKR's
 `NetLiquidation` carries paper-account accruals that will not match book equity, and the equity
 reconciliation deliberately compares book equity against this repo's own snapshots instead.
 

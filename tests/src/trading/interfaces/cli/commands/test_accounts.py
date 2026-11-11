@@ -42,6 +42,33 @@ def test_configure_account_defaults_do_not_force_values() -> None:
     assert args.learning_disabled is False
 
 
+def test_configure_account_parses_book_limit_and_universes() -> None:
+    args = build_parser().parse_args(
+        [
+            "configure-account",
+            "--account",
+            "acct1",
+            "--book",
+            "momentum",
+            "--max-trades-per-run",
+            "3",
+            "--trade-universes",
+            "default, growth",
+        ]
+    )
+
+    assert args.book == "momentum"
+    assert args.max_trades_per_run == 3
+    assert args.trade_universes == ["default", "growth"]
+
+
+def test_create_account_has_no_book_limit_or_universe_flags() -> None:
+    args = build_parser().parse_args(["create-account", "--name", "a", "--strategy", "s", "--initial-cash", "1"])
+
+    assert not hasattr(args, "max_trades_per_run")
+    assert not hasattr(args, "trade_universes")
+
+
 @pytest.mark.parametrize("option_type", ["call", "put", "both"])
 def test_option_type_choices_parse_for_create_account(option_type: str) -> None:
     parser = build_parser()

@@ -53,7 +53,8 @@ The socket transport needs IB Gateway running and logged in whenever a run touch
 - **Before each daily run**, step 00 connects every run account's broker. An account whose session is
   unavailable is skipped, named in the log, the artifact and a `warn` alert, and the others trade. If
   every account is unavailable the run fails there, before any step runs. Run a skipped account later
-  with `--accounts <name> --force-run`.
+  with `--accounts <name> --force-run`. An account the cash check skips needs its cause fixed first; see
+  [Books hold more cash than the broker](#books-hold-more-cash-than-the-broker).
 - **Between runs**, IB Gateway holds its own session; the host stays awake for the trading week and a
   health alert watches the Gateway. Set both up in
   [Production Runtime Host Runbook, Part 6](production-runtime-host.md#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
@@ -204,6 +205,51 @@ To apply fills that arrive after a run has finished, without a full run:
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
 ```
 
+## Books hold more cash than the broker
+
+Accounts that reach one IBKR account share its real cash balance: every Web API account does, and
+every socket account that connects to the same host and port. After the pre-trade reconcile has
+posted outstanding fills (for the run's accounts and for any other account in the pool), the daily
+run adds up every book's cash, paused or not, across the accounts
+in each such pool and compares it with the broker's cash balance (`TotalCashValue`). When the books
+hold more than the broker (beyond a $1.00 tolerance), it skips every run account in that pool for
+the day and sends a `warn` alert; when that leaves no account to trade, the run fails with `No run
+account can trade today`. No orders go out in either case. Simulator accounts are not checked.
+
+The log line gives both figures: `WARN: skipping <account> before trading (the books hold <books>
+cash and the broker holds <broker>)`.
+
+Find why they differ before you re-run. Read the `UNRESOLVED_ORDERS` lines in the same log first:
+the pre-trade reconcile posts the fills it can see, but an order it left unresolved (filled at the
+broker, not yet reported) leaves the books holding more cash than the broker. If none is listed, the
+gap is one of these:
+
+- Cash withdrawn or moved at the broker, or another system trading the same IBKR account.
+- A book funded with more starting cash than the account holds. Compare each book's cash with
+  `python -m trading.interfaces.cli.main report --account <account>`.
+- Broker-side charges the books do not record (market-data fees, interest). They add up, so a $1.00
+  drift can build over weeks. No command sets a book's cash yet (see `plan/distinct-books.md`), so
+  bringing the books back to the broker's cash is a manual database change for now.
+- A paused book that still holds cash; it counts.
+- An account you have stopped running whose books still hold cash. Accounts have no inactive status, so every
+  account in the pool counts, run or not: delete the account, or empty its books' cash (also by hand today).
+- A fill that landed at the broker between the reconcile and the cash read. The window is seconds;
+  a re-run reads both again.
+
+The broker's figure is the `cashbalance` of the Web API ledger's `BASE` or `USD` row (`settledcash`
+when that is absent; a ledger with neither row falls back to its first currency row, so check that
+row is USD), or the socket account summary's `TotalCashValue`. An answer with no usable cash figure,
+including a ledger with neither field, is not read as zero, and neither is a gateway or network error
+during the read: every account in that pool is skipped with `could not read the broker's cash: ...`.
+The reason carries the underlying error text, so read it to tell a missing field from a dropped
+session, and look at the gateway and the ledger, not at the books. When every run account is skipped
+that way, the run fails with `No run account can trade today` and the message says to check the
+gateway session instead.
+
+Accounts with an unset host and port are one socket pool, separate from accounts that name the
+default host and port explicitly. Two accounts that reach one IBKR account through different
+settings are counted as two pools and are not checked against each other.
+
 ## Rolling back
 
 ```sql
@@ -320,8 +366,8 @@ venue — steps 2 and 3 above, not the smoke test.
   `OrderStatus.PENDING`, so a cancel in flight looks identical to an order waiting to transmit. Both
   mean *still open, keep polling*, so reconciliation resolves either way — the cost is operator
   legibility, not correctness.
-- **Do not reconcile against IBKR's `NetLiquidation`.** `get_account_info()` has no runtime consumer
-  (only the smoke test reads it), and IBKR's paper accounting carries accruals that will not match
+- **Do not reconcile against IBKR's `NetLiquidation`.** The daily run's cash check reads only
+  `get_account_info()`'s `TotalCashValue` (see "Books hold more cash than the broker"), and IBKR's paper accounting carries accruals that will not match
   book equity. The equity reconciliation compares book equity against *our own* snapshots.
 - **The account assertion is not a capital guarantee.** It verifies the account *identifier*, not the
   gateway it reaches — see the Consequences section of [ADR 017](../adr/017-ibkr-paper-broker-type.md).

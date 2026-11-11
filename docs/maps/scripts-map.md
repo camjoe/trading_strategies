@@ -152,6 +152,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `capture_scenario_fixture.py` | Capture a real-history scenario-bench fixture into the untracked `local/scenario_bench/` (one episode, or all) |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
+| `probe_intraday_bars.py` | Read-only probe of what the market-data provider returns for today's daily bar in session: whether it is dated today, whether the last bar changes between back-to-back fetches, and whether a later fetch moves it |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
 
@@ -197,6 +198,7 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `launch_demo.py` | Atomically rebuild `local/demo.db` with synthetic data and launch the offline demo UI |
 | `launch_sandbox.py` | Restore the disposable `local/sandbox.db` test bed from its golden build and launch the UI |
+| `dev_run_daily.py` | Restore the sandbox and run the daily paper-trading job against it offline; `--ignore-market-hours` trades when the market is closed |
 | `fixture_db.py` | Build/publish helpers for generated fixture databases (migrate + seed, golden fingerprint, throwaway checkout) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |

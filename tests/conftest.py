@@ -29,6 +29,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker("e2e")
 
 
+@pytest.fixture(autouse=True)
+def _ignore_shared_data_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep a developer's shared-data folder settings from pointing test writes at real data."""
+    for name in ("TRADING_DATA_HOME", "TRADING_DB_BACKUPS_DIR", "REVIEW_SCORECARD_DB"):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _guard_sqlite_uri_readonly() -> None:
     """Abort the session if SQLite URI read-only mode is not functional.

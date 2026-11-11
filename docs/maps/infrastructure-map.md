@@ -90,7 +90,7 @@ feature provider stay in `src/trading/services/market_data/`.
 
 | Env var | Effect |
 |---|---|
-| `TRADING_MARKET_DATA_CACHE_DIR` | Override the on-disk cache directory (default `local/cache/market_data/`) |
+| `TRADING_MARKET_DATA_CACHE_DIR` | Override the on-disk cache directory (default `cache/market_data/` under `$TRADING_DATA_HOME`, else `local/cache/market_data/`) |
 | `TRADING_MARKET_DATA_CACHE_DISABLED` | Truthy disables the 24h disk cache (forces every fetch to hit the provider) |
 | `TRADING_YF_MAX_CALLS` | Per-run cumulative ceiling on live Yahoo requests before `RateLimitExceeded` (default `1000`; `0` disables). The deterministic runaway-loop backstop |
 | `TRADING_YF_MIN_INTERVAL_SECONDS` | Minimum spacing between live Yahoo requests (default `0` = off). Set e.g. `0.5` to pace a large cold research sweep |

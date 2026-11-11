@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from typing import NamedTuple
 
 from trading.domain.auto_trading.exits import order_risk_breaches
-from trading.domain.auto_trading.fairness import order_capacity_claimants
+from trading.domain.auto_trading.fairness import order_capacity_claimants, split_trade_budget_evenly
 from trading.models import AccountRecord
+from trading.models.books import TradingBook
 from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.models.market_data import MarketInputs
 from trading.repositories.books import BookRepository
@@ -13,11 +15,18 @@ from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
 from trading.services.execution.selection.selection import FeatureHistoryFn, prepare_book_trades
 from trading.services.strategy_catalog.resolution import (
+    ResolvedStrategy,
     UnknownCatalogStrategyError,
     resolve_catalog_strategy,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _ResolvableBook(NamedTuple):
+    trading_book: TradingBook
+    strategy_name: str
+    resolved: ResolvedStrategy
 
 
 def _build_book_state(conn: sqlite3.Connection, *, book_id: int) -> BookTradeState:
@@ -53,6 +62,8 @@ def generate_book_trade_intents(
     # Intents come only from strategy signals — no forced minimum; a run with no
     # signals produces no trades.
     account_id = account.id
+    if max_trades <= 0:
+        return []
 
     # Book-native enumeration: active, openly assigned books — including the
     # default book, which trades like any other (ADR 010/014). Unassigned or
@@ -61,29 +72,32 @@ def generate_book_trade_intents(
     if not trading_books:
         return []
 
-    # `max_trades` caps trades for the account, not books. Book order therefore
-    # decides who gets that budget — and again downstream, where the risk gate
-    # consumes its account caps in intent order — so it is rotated per run.
+    # `max_trades` caps trades for the account, not books. Each book gets an even
+    # share of it, and a book's own limit can only lower that. Claim order is
+    # rotated per run, so it decides who gets any odd trade — and, downstream, the
+    # order in which the risk gate consumes its account caps.
     books_by_id = {trading_book.book.id: trading_book for trading_book in trading_books}
     claim_order = order_capacity_claimants(list(books_by_id), seed=selection_seed)
 
-    intents: list[BookTradeCandidate] = []
+    resolvable: list[_ResolvableBook] = []
     for trading_book in (books_by_id[book_id] for book_id in claim_order):
-        remaining = max_trades - len(intents)
-        if remaining <= 0:
-            break
-        book = trading_book.book
-        book_id = book.id
         strategy_name = trading_book.assignment.strategy_name.strip()
         try:
             resolved = resolve_catalog_strategy(conn, strategy_name)
         except UnknownCatalogStrategyError:
             logger.warning(
                 "Book %s: strategy %r does not resolve to a code primitive; skipping (no trades).",
-                book_id,
+                trading_book.book.id,
                 strategy_name,
             )
             continue
+        resolvable.append(_ResolvableBook(trading_book, strategy_name, resolved))
+    shares = split_trade_budget_evenly([entry.trading_book.book.id for entry in resolvable], budget=max_trades)
+
+    intents: list[BookTradeCandidate] = []
+    for trading_book, strategy_name, resolved in resolvable:
+        book = trading_book.book
+        book_id = book.id
         # Signals resolve through the catalog row's canonical primitive,
         # so a data variant runs the right primitive; the intent keeps the
         # assigned label for display and rotation bookkeeping.
@@ -105,9 +119,11 @@ def generate_book_trade_intents(
             book.stop_loss_pct,
             book.take_profit_pct,
         )
-        # A book's own limit binds within whatever the account has left;
-        # NULL means the book adds no limit of its own.
-        book_budget = remaining if book.max_trades_per_run is None else min(remaining, book.max_trades_per_run)
+        # A book's own limit binds within its share; NULL means the book adds no
+        # limit of its own. Stop-loss and take-profit exits are not counted against it.
+        book_budget = shares[book_id]
+        if book.max_trades_per_run is not None:
+            book_budget = min(book_budget, book.max_trades_per_run)
         # The book is the settings mapping: option/leaps knobs are book
         # columns since revision 0005.
         selections = prepare_book_trades(
@@ -122,14 +138,16 @@ def generate_book_trade_intents(
             market.iv_rank_proxy,
             instrument_mode,
             fee,
-            max_trades=book_budget,
+            max_trades=book_budget + len(forced_sells),
             trade_size_pct=book.trade_size_pct,
             max_position_pct=book.max_position_pct,
             feature_history_fn=feature_history_fn,
             selection_seed=selection_seed,
         )
         forced_sell_set = set(forced_sells)
-        for side, symbol, qty, requested_price, delta_est, iv_est in selections:
+        exits = [item for item in selections if item[0] == "sell" and item[1] in forced_sell_set]
+        others = [item for item in selections if item not in exits]
+        for side, symbol, qty, requested_price, delta_est, iv_est in [*exits, *others[:book_budget]]:
             intents.append(
                 BookTradeCandidate(
                     account_id=account_id,
