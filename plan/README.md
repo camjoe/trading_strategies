@@ -23,4 +23,6 @@ Plans are tracked so every branch, worktree, and agent sees the same ones.
 | [distinct-books.md](distinct-books.md) | Items 1-4 merged (#332-#335); item 5 (broker cash check) built on feature/broker-cash-check, not yet run on the host. See its "Left to do". | none (more-trading-evidence.md is related) |
 | [ib-gateway-socket-switch.md](ib-gateway-socket-switch.md) | In progress on `feature/ib-gateway-socket-switch`; host trial partly run 2026-11-11. | none (the socket adapter is merged) |
 | [legibility-shared-types.md](legibility-shared-types.md) | Drafted 2026-11-11. Item 1 built on `feature/side-and-gate-action-vocabulary`, not committed; items 2-5 not started; no owner question open. | none |
+| [daily-run-steps.md](daily-run-steps.md) | Drafted 2026-11-11. Nothing built. Item 4 (two step display names) waits for an owner decision. | none (legibility-shared-types.md is related) |
+| [architecture-doc-drift.md](architecture-doc-drift.md) | Drafted 2026-11-11. Nothing built. Item 3 (package docstrings) is optional and waits for an owner decision. | none |
 | [contract-trading-rules.md](contract-trading-rules.md) | Drafted 2026-10-09. IBKR rules endpoint not yet checked on the host. | PR #294 (reconcile lookup) merged; PR #293 is merged |
