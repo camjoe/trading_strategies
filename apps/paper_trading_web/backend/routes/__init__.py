@@ -6,6 +6,7 @@ from .admin import router as admin_router
 from .analysis import router as analysis_router
 from .autonomy_monitor import router as autonomy_monitor_router
 from .backtests import router as backtests_router
+from .catalog import router as catalog_router
 from .features import router as features_router
 from .health import router as health_router
 from .logs import router as logs_router
@@ -18,6 +19,7 @@ __all__ = [
     "admin_router",
     "analysis_router",
     "backtests_router",
+    "catalog_router",
     "features_router",
     "health_router",
     "autonomy_monitor_router",

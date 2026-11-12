@@ -21,6 +21,7 @@ Navigation index for the `docs/` folder. See [`docs/maps/docs-map.md`](maps/docs
 | [`maps/`](maps/) | **Where** things live — file/directory maps, updated frequently |
 | [`reference/`](reference/) | **What** a subsystem does — deep-dive notes, plans, and glossaries |
 | [`runbooks/`](runbooks/) | **How to operate** — step-by-step procedures for humans or agents |
+| [`plans/`](plans/) | **What is next** — forward-looking plans that are not yet built |
 
 ## Quick Start
 

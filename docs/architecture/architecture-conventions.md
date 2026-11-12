@@ -3,9 +3,9 @@
 Type: architecture
 Status: Active
 Created: 2026-03-29
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-10-03
 Purpose: Preserve consistent dependency direction, module ownership, naming, and API-contract rules across all edits to the codebase.
-Related: [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Service Ownership Map](service-ownership.md), [Trading Package Map](../maps/trading-package-map.md)
+Related: [ADR 021](../adr/021-ui-runs-read-only-catalog-entries.md), [General Style](../conventions/general-style.md), [Service/Repository Boundary](service-repository-boundary.md), [Service Ownership Map](service-ownership.md), [Trading Package Map](../maps/trading-package-map.md)
 
 Scope:
 
@@ -365,6 +365,8 @@ It must contain only:
 - HTTP request → domain model conversion
 - FastAPI-specific error handling (`raise HTTPException`)
 - Response payload shaping (producing camelCase dicts for the frontend)
+- Starting a catalog-listed, read-only entry point as a subprocess, with its argument validation and
+  process limits (`catalog_runner.py`; see [ADR 021](../adr/021-ui-runs-read-only-catalog-entries.md))
 
 It must **not** contain:
 - Domain calculations (equity math, return computations, benchmark overlays)

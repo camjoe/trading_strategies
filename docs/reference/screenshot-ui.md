@@ -47,13 +47,16 @@ Output is saved to `local/screenshots/<tab>_<timestamp>.png` (gitignored).
 `apps/paper_trading_web/frontend/src/views/nav.html`:
 
 ```
-accounts        backtesting       alt-strategies
-compare         strategy-lab      admin
-portfolio       autonomy-monitor  docs
+about           backtesting       docs-markets      catalog-cli
+accounts        strategy-lab      docs-software     catalog-job
+compare         alt-strategies    docs-api          catalog-tool
+portfolio       autonomy-monitor  admin
 ```
 
 Two UI labels differ from their tab name: `compare` is shown as **Overview**, `alt-strategies` as
-**Sentiment**.
+**Sentiment**. The `docs-*` and `catalog-*` tabs are shown under the **Reference** group as Markets, Software,
+API, CLI, Jobs, and Tools. The script opens a
+tab's group first, because a sub-tab is hidden until its group is open.
 
 ## Troubleshooting
 

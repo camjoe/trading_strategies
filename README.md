@@ -29,6 +29,21 @@ experimental surfaces and are not required for ordinary development or backtesti
 See the [project overview](docs/overview.md) for the current concepts, capabilities, limitations, and
 architecture.
 
+## Web Dashboard
+
+The optional local dashboard shows the whole system. These screenshots use the offline demo
+(`python -m scripts.launch_demo`), which runs on synthetic data and needs no credentials.
+
+![About page: platform summary, repository facts, workflow, architecture, and safety](docs/images/ui-about.png)
+
+The **Catalog** tab lists every CLI command, runtime job, script, and check. Each entry shows its
+arguments, a copyable example, and a risk label. Read-only entries have a **Run** button that shows
+the real output. The page is generated from the code, so it cannot drift.
+
+![Catalog page: searchable list of commands with risk labels](docs/images/ui-catalog.png)
+
+![Account workspace: equity, benchmark comparison, and book operations for a demo account](docs/images/ui-account.png)
+
 ## Directory Structure
 
 | Folder | Purpose |

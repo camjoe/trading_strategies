@@ -1,7 +1,7 @@
 import { initDocsAccordion } from "./accordion";
-import { initDocsMenu } from "./menu";
+import { initDocsSectionLinks } from "./section-links";
 
 export function initDocsFeature(openTab: (target: string) => void): void {
   initDocsAccordion();
-  initDocsMenu(openTab);
+  initDocsSectionLinks(openTab);
 }

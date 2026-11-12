@@ -1,0 +1,422 @@
+import commandsData from "../assets/commands.json";
+import { findAll } from "../lib/dom";
+import { handleShowcaseClick, renderShowcase } from "./catalog-showcases";
+import { esc } from "../lib/format";
+import { errorMessage, postJson } from "../lib/http";
+import type {
+  CatalogArgument,
+  CatalogData,
+  CatalogEntry,
+  CatalogFamily,
+  CatalogFilter,
+  CatalogKind,
+  CatalogRisk,
+  CatalogRunResult,
+} from "../types/catalog";
+import catalogPanelTemplate from "../views/catalog.html?raw";
+
+export interface CatalogFeature {
+  wireActions: () => void;
+}
+
+export const CATALOG_KINDS: CatalogKind[] = ["cli", "job", "tool"];
+
+const COUNT_LABELS: Record<CatalogKind, string> = {
+  cli: "CLI commands",
+  job: "runtime jobs",
+  tool: "scripts and tools",
+};
+
+const KIND_PAGES: Record<CatalogKind, { title: string; copy: string; noun: string }> = {
+  cli: {
+    title: "CLI Commands",
+    copy: "Every subcommand of the trading CLI, read from its parser. Each entry shows its arguments, a ready-to-copy example, and what it can change.",
+    noun: "commands",
+  },
+  job: {
+    title: "Runtime Jobs",
+    copy: "Every scheduled and manual runtime job, read from the code, with its schedule, arguments, and what it can change.",
+    noun: "jobs",
+  },
+  tool: {
+    title: "Scripts and Tools",
+    copy: "Every script and check in the repository, read from the code. Related tools open from one row.",
+    noun: "tools",
+  },
+};
+
+/** One tab panel per kind; each panel is opened by the nav tab `catalog-<kind>`. */
+export function buildCatalogTemplate(): string {
+  return CATALOG_KINDS.map((kind) =>
+    catalogPanelTemplate
+      .replaceAll("__KIND__", kind)
+      .replaceAll("__TITLE__", KIND_PAGES[kind].title)
+      .replaceAll("__COPY__", KIND_PAGES[kind].copy)
+      .replaceAll("__NOUN__", KIND_PAGES[kind].noun),
+  ).join("\n");
+}
+
+export const RISK_LABELS: Record<CatalogRisk, string> = {
+  "read-only": "Read-only",
+  "writes-local": "Writes local data",
+  broker: "Broker",
+};
+
+const RISK_ORDER: CatalogRisk[] = ["read-only", "writes-local", "broker"];
+
+/** A family row lists its member names inline only up to this size. */
+const FAMILY_INLINE_MEMBER_LIMIT = 6;
+
+const RISK_PILL_CLASS: Record<CatalogRisk, string> = {
+  "read-only": "ok",
+  "writes-local": "warning",
+  broker: "missing",
+};
+
+const RISK_HINTS: Record<CatalogRisk, string> = {
+  "read-only": "Changes no trading data.",
+  "writes-local": "Writes to the local database, logs, or files.",
+  broker: "Can submit or reconcile broker orders.",
+};
+
+
+function searchText(entry: CatalogEntry): string {
+  const argumentText = entry.arguments.flatMap((argument) => [...argument.flags, argument.help]);
+  return [entry.name, entry.help, entry.group, entry.module ?? "", ...argumentText].join(" ").toLowerCase();
+}
+
+export function filterEntries(entries: CatalogEntry[], filter: CatalogFilter): CatalogEntry[] {
+  const terms = filter.query.toLowerCase().split(/\s+/).filter(Boolean);
+  return entries.filter((entry) => {
+    if (entry.kind !== filter.kind) {
+      return false;
+    }
+    const haystack = searchText(entry);
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
+export function formatDefault(value: unknown): string {
+  if (value === null || value === undefined || value === false || value === "") {
+    return "";
+  }
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
+
+function renderArgumentRow(argument: CatalogArgument): string {
+  const flags = argument.flags.map((flag) => `<code>${esc(flag)}</code>`).join(" ");
+  const requirement = argument.required ? `<span class="catalog-required">required</span>` : "optional";
+  const choices = argument.choices ? `<div class="catalog-choices">Choices: ${esc(argument.choices.join(", "))}</div>` : "";
+  const defaultValue = formatDefault(argument.default);
+  return `
+    <tr>
+      <td>${flags}</td>
+      <td>${esc(argument.type)}</td>
+      <td>${requirement}</td>
+      <td>${defaultValue ? `<code>${esc(defaultValue)}</code>` : ""}</td>
+      <td>${esc(argument.help)}${choices}</td>
+    </tr>
+  `;
+}
+
+function renderArguments(entry: CatalogEntry): string {
+  if (!entry.arguments.length) {
+    return `<p class="catalog-no-arguments">Takes no arguments.</p>`;
+  }
+  return `
+    <div class="catalog-table-wrap">
+      <table class="catalog-table">
+        <thead>
+          <tr><th>Argument</th><th>Type</th><th>Use</th><th>Default</th><th>Description</th></tr>
+        </thead>
+        <tbody>${entry.arguments.map(renderArgumentRow).join("")}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+const NOT_RUNNABLE_NOTES: Record<CatalogRisk, string> = {
+  "read-only": "This one takes too long for the page. Run it from a terminal with the example above.",
+  "writes-local": "This command changes data, so run it from a terminal with the example above.",
+  broker: "This command can reach a broker, so run it from a terminal with the example above.",
+};
+
+function renderField(argument: CatalogArgument): string {
+  const requiredTag = argument.required ? ` <span class="catalog-required">required</span>` : "";
+  const label = `<span class="catalog-field-label">${esc(argument.flags.join(" "))}${requiredTag}</span>`;
+  const common = `name="${esc(argument.dest)}" title="${esc(argument.help)}"${argument.required ? " required" : ""}`;
+  if (argument.kind === "flag") {
+    return `<label class="catalog-field catalog-field--flag"><input type="checkbox" ${common} /> ${label}</label>`;
+  }
+  if (argument.choices) {
+    const options = argument.choices.map((choice) => `<option value="${esc(choice)}">${esc(choice)}</option>`).join("");
+    return `<label class="catalog-field">${label}<select ${common}><option value=""></option>${options}</select></label>`;
+  }
+  const inputType = argument.type === "int" || argument.type === "float" ? "number" : "text";
+  const step = argument.type === "float" ? ' step="any"' : "";
+  const placeholder = formatDefault(argument.default);
+  return `<label class="catalog-field">${label}<input type="${inputType}"${step} ${common} placeholder="${esc(placeholder)}" /></label>`;
+}
+
+export function renderRunPanel(entry: CatalogEntry): string {
+  if (!entry.runnable) {
+    return `<p class="catalog-run-note">${esc(NOT_RUNNABLE_NOTES[entry.risk])}</p>`;
+  }
+  const required = entry.arguments.filter((argument) => argument.required);
+  const optional = entry.arguments.filter((argument) => !argument.required);
+  const optionalFields = optional.map(renderField).join("");
+  const optionalBlock = optional.length
+    ? `<details class="catalog-run-optional"><summary>Optional arguments (${optional.length})</summary><div class="catalog-run-fields">${optionalFields}</div></details>`
+    : "";
+  return `
+    <form class="catalog-run" data-catalog-run="${esc(entry.name)}">
+      <p class="catalog-run-note">Read-only. This changes no trading data.</p>
+      <div class="catalog-run-fields">${required.map(renderField).join("")}</div>
+      ${optionalBlock}
+      <button type="submit" class="catalog-filter active catalog-run-btn">Run</button>
+      <p class="catalog-run-status" role="status" hidden></p>
+      <pre class="catalog-run-output" hidden></pre>
+    </form>
+  `;
+}
+
+/** Read a run form into the values the API expects: checked flags as true, filled fields as text. */
+export function collectRunValues(form: HTMLFormElement): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const element of Array.from(form.elements)) {
+    if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement) || !element.name) {
+      continue;
+    }
+    if (element instanceof HTMLInputElement && element.type === "checkbox") {
+      if (element.checked) {
+        values[element.name] = true;
+      }
+    } else if (element.value.trim() !== "") {
+      values[element.name] = element.value.trim();
+    }
+  }
+  return values;
+}
+
+export function describeRunResult(result: CatalogRunResult): { text: string; ok: boolean } {
+  if (result.timedOut) {
+    return { text: `Stopped: it ran longer than the time limit (${result.durationSeconds}s).`, ok: false };
+  }
+  const note = result.truncated ? " Output was cut to fit." : "";
+  return {
+    text: `Exit code ${result.exitCode} in ${result.durationSeconds}s.${note}`,
+    ok: result.exitCode === 0,
+  };
+}
+
+export function renderEntry(entry: CatalogEntry): string {
+  const schedule = entry.schedule ? `<span class="chip">${esc(entry.schedule)}</span>` : "";
+  return `
+    <details class="catalog-entry" data-catalog-entry="${esc(entry.name)}">
+      <summary>
+        <span class="catalog-entry-name"><code>${esc(entry.name)}</code></span>
+        <span class="catalog-entry-help">${esc(entry.help)}</span>
+        <span class="catalog-entry-tags">
+          ${schedule}
+          ${renderRiskPill(entry.risk)}
+        </span>
+      </summary>
+      <div class="catalog-entry-body">
+        <div class="catalog-example">
+          <code>${esc(entry.example)}</code>
+          <button type="button" class="catalog-filter catalog-copy-btn" data-catalog-copy="${esc(entry.example)}">Copy</button>
+        </div>
+        ${renderRunPanel(entry)}
+        ${renderArguments(entry)}
+      </div>
+    </details>
+  `;
+}
+
+function renderRiskPill(risk: CatalogRisk): string {
+  return `<span class="status-pill ${RISK_PILL_CLASS[risk]}" title="${esc(RISK_HINTS[risk])}">${esc(RISK_LABELS[risk])}</span>`;
+}
+
+/** The member's name without the family prefix, so `run-checks docs` shows as `docs`. */
+function memberLabel(familyName: string, entry: CatalogEntry): string {
+  return entry.name.startsWith(`${familyName} `) ? entry.name.slice(familyName.length + 1) : entry.name;
+}
+
+export function renderFamily(family: CatalogFamily, entries: CatalogEntry[], open = false): string {
+  const risks = RISK_ORDER.filter((risk) => entries.some((entry) => entry.risk === risk));
+  const leadSchedule = entries[0]?.schedule;
+  const schedule = leadSchedule ? `<span class="chip">${esc(leadSchedule)}</span>` : "";
+  const members =
+    entries.length <= FAMILY_INLINE_MEMBER_LIMIT
+      ? `<span class="catalog-family-members">${entries
+          .map((entry) => `<code>${esc(memberLabel(family.name, entry))}</code>`)
+          .join("")}</span>`
+      : "";
+  return `
+    <details class="catalog-entry catalog-family" data-catalog-family="${esc(family.name)}"${open ? " open" : ""}>
+      <summary>
+        <span class="catalog-entry-name catalog-family-name">${esc(family.name)}<span class="catalog-count">${entries.length}</span></span>
+        <span class="catalog-entry-help">${esc(family.help)}${members}</span>
+        <span class="catalog-entry-tags">${schedule}${risks.map(renderRiskPill).join("")}</span>
+      </summary>
+      <div class="catalog-family-body">${entries.map(renderEntry).join("")}</div>
+    </details>
+  `;
+}
+
+/** Render entries in order; the members of a family render together, as one row at the first member. */
+function renderGroupRows(entries: CatalogEntry[], families: Map<string, CatalogFamily>, openFamilies: boolean): string {
+  const members = new Map<string, CatalogEntry[]>();
+  for (const entry of entries) {
+    if (entry.family) {
+      members.set(entry.family, [...(members.get(entry.family) ?? []), entry]);
+    }
+  }
+  const rendered = new Set<string>();
+  return entries
+    .map((entry) => {
+      if (!entry.family) {
+        return renderEntry(entry);
+      }
+      if (rendered.has(entry.family)) {
+        return "";
+      }
+      rendered.add(entry.family);
+      const family = families.get(entry.family) ?? { name: entry.family, help: "" };
+      return renderFamily(family, members.get(entry.family) ?? [], openFamilies);
+    })
+    .join("");
+}
+
+function renderGroup(
+  groupName: string,
+  entries: CatalogEntry[],
+  families: Map<string, CatalogFamily>,
+  openFamilies: boolean,
+): string {
+  return `
+    <section class="catalog-group">
+      <h4 class="catalog-group-title">${esc(groupName)} <span class="catalog-count">${entries.length}</span></h4>
+      ${openFamilies ? "" : renderShowcase(groupName, entries)}
+      ${renderGroupRows(entries, families, openFamilies)}
+    </section>
+  `;
+}
+
+export function renderCatalog(data: CatalogData, filter: CatalogFilter): string {
+  const matches = filterEntries(data.commands, filter);
+  if (!matches.length) {
+    return `<div class="empty">No commands match the current filters.</div>`;
+  }
+  const families = new Map(data.families.map((family) => [family.name, family]));
+  const openFamilies = filter.query.trim() !== "";
+
+  return data.groups
+    .filter((group) => group.kind === filter.kind)
+    .map((group) => ({ name: group.name, entries: matches.filter((entry) => entry.group === group.name) }))
+    .filter((group) => group.entries.length)
+    .map((group) => renderGroup(group.name, group.entries, families, openFamilies))
+    .join("");
+}
+
+export function renderSummary(data: CatalogData, kind: CatalogKind, shown: number): string {
+  const total = data.commands.filter((entry) => entry.kind === kind).length;
+  return shown === total ? `${total} ${COUNT_LABELS[kind]}` : `Showing ${shown} of ${total} ${COUNT_LABELS[kind]}`;
+}
+
+export function createCatalogFeature(data: CatalogData = commandsData as CatalogData): CatalogFeature {
+  function render(panel: HTMLElement, filter: CatalogFilter): void {
+    const list = panel.querySelector<HTMLElement>("[data-catalog-list]");
+    const summary = panel.querySelector<HTMLElement>("[data-catalog-summary]");
+    if (!list || !summary) {
+      return;
+    }
+    list.innerHTML = renderCatalog(data, filter);
+    summary.textContent = renderSummary(data, filter.kind, filterEntries(data.commands, filter).length);
+  }
+
+  function setAllOpen(panel: HTMLElement, open: boolean): void {
+    for (const entry of panel.querySelectorAll<HTMLDetailsElement>(".catalog-entry")) {
+      entry.open = open;
+    }
+  }
+
+  async function copyExample(button: HTMLButtonElement): Promise<void> {
+    const text = button.dataset.catalogCopy ?? "";
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Copy failed";
+    }
+    window.setTimeout(() => {
+      button.textContent = "Copy";
+    }, 1500);
+  }
+
+  async function runForm(form: HTMLFormElement): Promise<void> {
+    const status = form.querySelector<HTMLElement>(".catalog-run-status");
+    const output = form.querySelector<HTMLElement>(".catalog-run-output");
+    const button = form.querySelector<HTMLButtonElement>(".catalog-run-btn");
+    if (!status || !output || !button) {
+      return;
+    }
+    button.disabled = true;
+    status.hidden = false;
+    status.className = "catalog-run-status";
+    status.textContent = "Running...";
+    output.hidden = true;
+    try {
+      const result = await postJson<CatalogRunResult>("/api/catalog/run", {
+        name: form.dataset.catalogRun,
+        values: collectRunValues(form),
+      });
+      const summary = describeRunResult(result);
+      status.textContent = summary.text;
+      status.classList.add(summary.ok ? "catalog-run-status--ok" : "catalog-run-status--error");
+      output.textContent = result.output || "(no output)";
+      output.hidden = false;
+    } catch (error) {
+      status.textContent = errorMessage(error, "The command could not be run.");
+      status.classList.add("catalog-run-status--error");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function wirePanel(panel: HTMLElement): void {
+    const filter: CatalogFilter = { query: "", kind: panel.dataset.catalogPanel as CatalogKind };
+    panel.querySelector<HTMLInputElement>("[data-catalog-search]")?.addEventListener("input", (event) => {
+      filter.query = (event.target as HTMLInputElement).value;
+      render(panel, filter);
+    });
+    panel.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement;
+      if (handleShowcaseClick(target)) {
+        return;
+      }
+      const copyButton = target.closest<HTMLButtonElement>("[data-catalog-copy]");
+      if (copyButton) {
+        void copyExample(copyButton);
+      } else if (target.closest("[data-catalog-expand-all]")) {
+        setAllOpen(panel, true);
+      } else if (target.closest("[data-catalog-collapse-all]")) {
+        setAllOpen(panel, false);
+      }
+    });
+    panel.addEventListener("submit", (event) => {
+      const form = (event.target as HTMLElement).closest<HTMLFormElement>("[data-catalog-run]");
+      if (form) {
+        event.preventDefault();
+        void runForm(form);
+      }
+    });
+    render(panel, filter);
+  }
+
+  function wireActions(): void {
+    findAll<HTMLElement>("[data-catalog-panel]").forEach(wirePanel);
+  }
+
+  return { wireActions };
+}
