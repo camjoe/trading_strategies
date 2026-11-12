@@ -8,11 +8,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from common.paths import DB_BACKUPS_DIR
+from common.paths import db_backups_dir
 from infrastructure.database.backend import SQLiteBackend, get_backend
 from infrastructure.database.connection import db_session
 from trading.services.accounts.deletions import delete_account, preview_account_deletion
 from trading.services.accounts.listing import fetch_account_listing_lines
+
+# Timestamp in a generated backup file name, after ``<db_stem>_``.
+BACKUP_STAMP_FORMAT = "%Y%m%d_%H%M%S"
+# Backups that can share one stamp in one folder before the name search gives up.
+_MAX_BACKUP_NAME_ATTEMPTS = 100
 
 
 def _sqlite_db_path() -> Path:
@@ -22,16 +27,33 @@ def _sqlite_db_path() -> Path:
     return backend.db_path
 
 
+def _claim_backup_path(directory: Path, stem: str, stamp: str) -> Path:
+    """A new, empty file in *directory* named for *stem* and *stamp*, never one that already exists.
+
+    Several checkouts can share one backup folder, so two backups may get the same stamp; the later one
+    takes the first free ``_<n>`` suffix.
+    """
+    for attempt in range(_MAX_BACKUP_NAME_ATTEMPTS):
+        suffix = f"_{attempt}" if attempt else ""
+        target = directory / f"{stem}_{stamp}{suffix}.db"
+        try:
+            target.open("x").close()
+        except FileExistsError:
+            continue
+        return target
+    raise FileExistsError(f"No free backup name for {stem}_{stamp} in {directory}")
+
+
 def backup_database(destination: str | None = None) -> Path:
     source = _sqlite_db_path()
     if not source.exists():
         raise FileNotFoundError(f"Database file not found: {source}")
 
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now().strftime(BACKUP_STAMP_FORMAT)
     if destination is None:
-        backups_dir = DB_BACKUPS_DIR
+        backups_dir = db_backups_dir()
         backups_dir.mkdir(parents=True, exist_ok=True)
-        target = backups_dir / f"{source.stem}_{stamp}.db"
+        target = _claim_backup_path(backups_dir, source.stem, stamp)
     else:
         raw_target = Path(destination)
         if raw_target.suffix.lower() == ".db":
@@ -39,7 +61,7 @@ def backup_database(destination: str | None = None) -> Path:
             target = raw_target
         else:
             raw_target.mkdir(parents=True, exist_ok=True)
-            target = raw_target / f"{source.stem}_{stamp}.db"
+            target = _claim_backup_path(raw_target, source.stem, stamp)
 
     # Not a file copy: in WAL mode, commits live in the -wal sidecar until a
     # checkpoint, so copying the .db alone silently drops them. backup() reads

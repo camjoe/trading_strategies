@@ -43,6 +43,27 @@ from trading.services.operational_settings.enforcement import enforce_runtime_tr
 
 # Risk-decision reason when the global trade throttle blocks further submissions.
 RISK_REASON_TRADE_THROTTLE_EXCEEDED = "trade_throttle_exceeded"
+# The in-process simulator's broker_type; the broker factory also routes an empty value there.
+SIMULATOR_BROKER_TYPE = "paper"
+
+
+class MarketHoursOverrideRefusedError(RuntimeError):
+    """The market-hours override was requested for an account that can reach a real broker."""
+
+
+def ensure_market_hours_override_allowed(conn: sqlite3.Connection, account_names: list[str]) -> None:
+    """Raise unless every named account trades on the in-process simulator.
+
+    Submitting outside regular hours is for development runs only: a broker
+    rejects or queues such orders, so the override never applies to one.
+    """
+    for account_name in account_names:
+        broker_type = str(get_account(conn, account_name).broker_type or SIMULATOR_BROKER_TYPE).strip().lower()
+        if broker_type != SIMULATOR_BROKER_TYPE:
+            raise MarketHoursOverrideRefusedError(
+                f"Account '{account_name}' uses broker_type '{broker_type}'; the market-hours override "
+                f"applies only to '{SIMULATOR_BROKER_TYPE}' (simulator) accounts."
+            )
 
 
 def is_runtime_submission_window_open(now_iso: str | None = None) -> bool:
@@ -217,14 +238,19 @@ def run_for_account(
     fee: float,
     broker_factory: Callable[[AccountRecord], BrokerConnection],
     feature_fetchers: FeatureFetcherSet,
+    ignore_market_hours: bool = False,
 ) -> AccountRunResult:
     """Run the account's trading books (the one execution path, ADR 014).
 
     Every active, openly assigned book — the default book included — trades
     through the book flow. Books without an open assignment do not trade.
+    ``ignore_market_hours`` submits outside regular hours and raises
+    ``MarketHoursOverrideRefusedError`` unless the account is a simulator account.
     """
+    if ignore_market_hours:
+        ensure_market_hours_override_allowed(conn, [account_name])
     now_iso = utc_now_iso()
-    if not is_runtime_submission_window_open(now_iso):
+    if not ignore_market_hours and not is_runtime_submission_window_open(now_iso):
         return AccountRunResult(account_name=account_name, submitted_count=0, submission_window_closed=True)
     feature_history_fn = build_feature_history_fn(feature_fetchers)
     account = get_account(conn, account_name)

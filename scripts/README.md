@@ -43,7 +43,7 @@ Repository workflow scripts (`scripts/`):
 - `launch_sandbox.py`: restores the disposable sandbox database (`sandbox` fixture profile) from its cached golden build and launches the UI stack. Nothing written to the sandbox survives the next run; `--rebuild` regenerates the golden, `--no-ui` restores it without starting the UI.
 - `fixture_db.py`: shared build/publish helpers behind both launchers (migrate-and-seed, golden fingerprinting, throwaway checkout).
 - `ibkr_web_api_smoke_test.py`: manual IBKR Client Portal Gateway smoke test. Keep detailed setup, safety notes, and usage in `docs/reference/broker-integration.md`; this README only lists the entrypoint.
-- `ibkr_socket_smoke_test.py`: manual IBKR socket/TWS connectivity check against a local TWS or IB Gateway. Takes host/port/client-id as flags and never touches the database. Read-only by default; `--paper-order-check` additionally exercises the submit/read-back/cancel round trip against a paper account only. Usage notes live in `docs/runbooks/ibkr-paper-trading.md`.
+- `ibkr_socket_smoke_test.py`: manual IBKR socket/TWS connectivity check against a local TWS or IB Gateway. Takes host/port/client-id as flags and never touches the database. Read-only by default; `--paper-order-check` additionally exercises the submit/read-back/cancel round trip against a paper account only. Usage notes live in `docs/runbooks/ibkr-paper-trading.md`. `--fill-lookup-check` submits one small MARKET order, waits for the fill, reconnects, and looks the order up with `get_order`, printing each fill; paper accounts only, market hours.
 
 Documentation page workflows:
 
@@ -91,7 +91,7 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/docs/docs_check.py`: human-facing aggregate runner for documentation and documentation-drift checks.
 - `scripts/checks/repo/repo_check.py`: human-facing aggregate runner for repository safety and structure checks.
 - `scripts/checks/python/python_check.py`: human-facing aggregate runner for Python conventions, lint, types, and tests.
-- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, and scope notes.
+- `scripts/checks/repo/review_scope_check.py`: advisory classifier for suggested review modes, high-risk triggers, scope notes, and the reviewers a diff needs (none for documentation-only diffs; more for broker, fill, sizing, and scheduler paths and for large diffs).
 - `scripts/checks/docs/readme_check.py`: standalone README consistency runner. Ignores vendored or local
   virtualenv trees such as `.venv/` and `venv/` so third-party README files do not
   pollute repository documentation audits.
@@ -99,11 +99,16 @@ Modular check scripts (`scripts/checks/`):
 - `scripts/checks/python/pytest_check.py`: standalone pytest runner with passthrough args.
 - `quick.py`: fast aggregate checks (README consistency + layer check + ruff + mypy + pytest, optional frontend).
 - `ci.py`: broader CI-shaped checks (documentation drift, repo safety, dependency installs, ruff, mypy, pytest, frontend).
+- `pr.py`: the pre-PR gate: enforced docs checks, repo checks, branch-targeted Python checks, and frontend checks when the diff touches the frontend.
 - `_runner.py`: internal check-runner helpers for step execution and tool resolution.
+
+CI helper scripts (`scripts/ci/`):
+
+- `changed_scope.py`: prints `<group>=true` or `false` for each group of paths a pull request changed, so the `changes` jobs of `ci.yml` and `security-checks.yml` can skip jobs; standard library only.
 
 Data operation scripts (`scripts/data_ops/`):
 
-- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `local/db_backups/`.
+- `backup_db.py`: convenience wrapper for the canonical backup flow in `trading.interfaces.runtime.data_ops.admin`, writing to `common.paths.db_backups_dir()` (`$TRADING_DB_BACKUPS_DIR`, else `$TRADING_DATA_HOME/db_backups/`, else `local/db_backups/`).
 - `build_database_diagram_viewer.py`: Trading Strategies adapter that builds the checked-in interactive HTML database diagram viewer in `docs/reference/database-diagram-viewer.html` for table and FK relationship review.
 - `describe_db_schema.py`: prints the current database schema from either an in-memory database built from the Alembic migration chain or the configured live SQLite database.
 
@@ -155,6 +160,7 @@ python -m scripts.run_checks repo
 python -m scripts.run_checks python
 python -m scripts.run_checks quick
 python -m scripts.run_checks ci
+python -m scripts.run_checks pr --base develop
 python -m scripts.fix_checks
 
 # Standalone docs drift fixers (also run as part of fix_checks)
@@ -186,6 +192,7 @@ python -m scripts.checks.docs.docs_check
 python -m scripts.checks.repo.repo_check
 python -m scripts.checks.python.python_check
 python -m scripts.checks.repo.review_scope_check --base main
+python -m scripts.checks.repo.review_scope_check --base origin/develop --head origin/<branch>  # a branch read by ref
 python -m scripts.checks.quick
 python -m scripts.checks.ci
 

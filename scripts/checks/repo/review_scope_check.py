@@ -5,7 +5,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from common.git import get_repo_root
+from common.git import changed_paths, diff_range, get_repo_root, git_output, split_nul
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,29 @@ SCOPE_RULES = (
     ScopeRule("src/trading/interfaces/runtime/scheduling/", "aggressive", "runtime job or scheduler change", True),
     ScopeRule("src/infrastructure/brokers/", "aggressive", "broker adapter change", True),
     ScopeRule("src/infrastructure/database/", "aggressive", "database schema or migration change", True),
+    ScopeRule(
+        "src/trading/services/execution/", "aggressive", "order submission, fill, or reconciliation change", True
+    ),
+    ScopeRule("src/trading/services/auto_trading/", "aggressive", "auto-trading decision change", True),
+    ScopeRule("src/trading/domain/auto_trading/", "aggressive", "sizing or order policy change", True),
+    ScopeRule("src/trading/domain/risk_gate.py", "aggressive", "risk gate change", True),
+    ScopeRule("src/trading/domain/broker_connection.py", "aggressive", "broker port change", True),
+    ScopeRule("src/trading/repositories/orders.py", "aggressive", "order or fill persistence change", True),
+    ScopeRule("src/trading/repositories/books.py", "aggressive", "book persistence change", True),
+    ScopeRule("src/trading/repositories/ledger.py", "aggressive", "ledger persistence change", True),
+    ScopeRule("src/trading/repositories/positions.py", "aggressive", "position persistence change", True),
+    ScopeRule("src/trading/persistence/", "aggressive", "money encoding or transaction change", True),
+    ScopeRule("src/trading/domain/accounting/", "aggressive", "book or ledger accounting change", True),
+    ScopeRule("src/trading/domain/rotation/", "aggressive", "book rotation policy change", True),
+    ScopeRule("src/trading/services/books/", "aggressive", "book setup, assignment, or rotation change", True),
+    ScopeRule("src/trading/services/accounts/", "aggressive", "account setup or mutation change", True),
+    ScopeRule("src/trading/repositories/accounts.py", "aggressive", "account persistence change", True),
+    ScopeRule(
+        "src/trading/repositories/book_rotation_settings.py", "aggressive", "rotation setting persistence change", True
+    ),
+    ScopeRule("src/trading/repositories/rotation_decisions.py", "aggressive", "rotation decision record change", True),
+    ScopeRule("src/trading/repositories/book_strategy_history.py", "aggressive", "book strategy history change", True),
+    ScopeRule("src/trading/repositories/strategy_decisions.py", "aggressive", "strategy decision record change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/admin.py", "aggressive", "admin route change", True),
     ScopeRule("apps/paper_trading_web/backend/routes/", "contract", "backend API route change"),
     ScopeRule("apps/paper_trading_web/backend/schemas/", "contract", "backend API schema change"),
@@ -39,7 +62,14 @@ SCOPE_RULES = (
 NOTE_RULES = (
     ScopeRule("docs/", "standard", "documentation change"),
     ScopeRule(".ai/skills/", "standard", "skill workflow change"),
+    ScopeRule("plan/", "standard", "plan document change"),
 )
+
+# A diff with at least this many changed lines outside documentation gets the Simplifier.
+LARGE_DIFF_LINES = 200
+
+DOC_PREFIXES = tuple(rule.prefix for rule in NOTE_RULES)
+MODULE_SUFFIXES = (".py", ".ts", ".tsx")
 
 
 def classify_paths(paths: list[str]) -> ScopeReport:
@@ -69,18 +99,83 @@ def classify_paths(paths: list[str]) -> ScopeReport:
     return report
 
 
-def changed_files(repo_root: Path, base_ref: str | None = None) -> list[str]:
-    if base_ref:
-        command = ["git", "diff", "--name-only", f"{base_ref}...HEAD"]
-    else:
-        command = ["git", "diff", "--name-only", "HEAD"]
-    completed = subprocess.run(command, cwd=repo_root, check=True, capture_output=True, text=True)
-    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+def _is_documentation(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    return normalized.endswith(".md") or normalized.startswith(DOC_PREFIXES)
 
 
-def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quiet: bool = False) -> int:
+def suggest_reviewers(
+    report: ScopeReport,
+    changed_lines: int = 0,
+    added_modules: list[str] | None = None,
+) -> list[tuple[str, str]]:
+    """Pairs of (reviewer, reason) for the diff; empty for a documentation-only or empty diff."""
+    if not report.changed_files or all(_is_documentation(path) for path in report.changed_files):
+        return []
+
+    reviewers = [
+        ("Architecture and conventions", "code change"),
+        ("Break it", "code change"),
+        ("Test skeptic", "code change"),
+    ]
+    if "aggressive" in report.modes:
+        reviewers.append(("Break it, second sample on Opus", "aggressive-mode paths"))
+        reviewers.append(("Operator", "aggressive-mode paths"))
+    if changed_lines >= LARGE_DIFF_LINES:
+        reviewers.append(("Simplifier", f"{changed_lines} changed lines outside documentation"))
+    elif added_modules:
+        reviewers.append(("Simplifier", f"new module: {', '.join(sorted(added_modules))}"))
+    return reviewers
+
+
+def _numstat_entries(output: str) -> list[tuple[int, int, str]]:
+    """(added, deleted, path) per text file from ``git diff --numstat -z``; a rename reports its new path."""
+    tokens = output.split("\0")
+    entries: list[tuple[int, int, str]] = []
+    index = 0
+    while index < len(tokens):
+        fields = tokens[index].split("\t", 2)
+        index += 1
+        if len(fields) != 3:
+            continue
+        added, deleted, path = fields
+        if not path:
+            if index + 1 >= len(tokens):
+                break
+            path = tokens[index + 1]
+            index += 2
+        if added.isdigit() and deleted.isdigit():
+            entries.append((int(added), int(deleted), path))
+    return entries
+
+
+def diff_stats(repo_root: Path, base_ref: str | None = None, head_ref: str = "HEAD") -> tuple[int, list[str]]:
+    """Changed lines outside documentation, and the source modules the diff adds."""
+    revisions = diff_range(base_ref, head_ref)
+    numstat = git_output(repo_root, "diff", "--numstat", "-z", *revisions)
+    changed_lines = sum(
+        added + deleted for added, deleted, path in _numstat_entries(numstat) if not _is_documentation(path)
+    )
+
+    added_output = git_output(repo_root, "diff", "--diff-filter=A", "--name-only", "-z", *revisions)
+    added_modules = [
+        path
+        for path in (name.replace("\\", "/") for name in split_nul(added_output))
+        if path.endswith(MODULE_SUFFIXES) and not path.startswith("tests/") and not path.endswith("__init__.py")
+    ]
+    return changed_lines, added_modules
+
+
+def run_review_scope_check(
+    repo_root: Path,
+    *,
+    base_ref: str | None = None,
+    head_ref: str = "HEAD",
+    quiet: bool = False,
+) -> int:
     try:
-        report = classify_paths(changed_files(repo_root, base_ref=base_ref))
+        report = classify_paths(changed_paths(repo_root, base_ref=base_ref, head_ref=head_ref))
+        changed_lines, added_modules = diff_stats(repo_root, base_ref=base_ref, head_ref=head_ref)
     except subprocess.CalledProcessError as exc:
         print(f"ERROR: failed to inspect git diff: {' '.join(exc.cmd)}")
         return exc.returncode
@@ -91,7 +186,7 @@ def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quie
 
     print("Review Scope Check")
     print(f"Repo root: {repo_root}")
-    print(f"Diff: {base_ref + '...HEAD' if base_ref else 'HEAD'}")
+    print(f"Diff: {base_ref + '...' + head_ref if base_ref else 'HEAD'}")
     print(f"Changed files: {len(report.changed_files)}")
     print(
         "Suggested review modes: " + ", ".join(sorted(report.modes))
@@ -109,23 +204,40 @@ def run_review_scope_check(repo_root: Path, *, base_ref: str | None = None, quie
         for note in sorted(report.notes):
             print(f"- {note}")
 
+    reviewers = suggest_reviewers(report, changed_lines=changed_lines, added_modules=added_modules)
+    if reviewers:
+        print("\nSuggested reviewers:")
+        for name, reason in reviewers:
+            print(f"- {name}: {reason}")
+    else:
+        print("\nSuggested reviewers: none (documentation-only or empty diff)")
+
     return 0
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Classify changed files into suggested code-review modes and high-risk triggers.",
+        description="Classify changed files into suggested code-review modes, high-risk triggers, and reviewers.",
     )
     parser.add_argument("--repo-root", default=None, help="Repository root. Defaults to detected workspace root.")
     parser.add_argument("--base", metavar="REF", default=None, help="Classify changes vs a git ref.")
+    parser.add_argument(
+        "--head",
+        metavar="REF",
+        default="HEAD",
+        help="Head ref to classify with --base (default HEAD). Read by ref; nothing is checked out.",
+    )
     parser.add_argument("--quiet", action="store_true", help="Collapse empty output to one PASS line.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.head != "HEAD" and not args.base:
+        parser.error("--head requires --base")
+    return args
 
 
 def main() -> int:
     args = parse_args()
     repo_root = Path(args.repo_root).resolve() if args.repo_root else get_repo_root(__file__)
-    return run_review_scope_check(repo_root=repo_root, base_ref=args.base, quiet=args.quiet)
+    return run_review_scope_check(repo_root=repo_root, base_ref=args.base, head_ref=args.head, quiet=args.quiet)
 
 
 if __name__ == "__main__":

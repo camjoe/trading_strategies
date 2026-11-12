@@ -127,7 +127,9 @@ python -m scripts.launch_sandbox
 
 The sandbox restores `local/sandbox.db` from a cached golden build on every run, so it is identical
 each launch and nothing written to it persists. Add `--no-ui` to restore it without starting the UI
-and point other tooling at it via `TRADING_DB_PATH`.
+and point other tooling at it via `TRADING_DB_PATH`. To run the daily trading job against a fresh
+sandbox, use `python -m scripts.dev_run_daily` (see
+[Runtime Jobs](docs/reference/runtime-jobs.md#development-runs)).
 
 ## Stability
 

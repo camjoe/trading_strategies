@@ -67,6 +67,9 @@ Use `pathlib.Path` for filesystem paths. For repo-relative paths, logging, and c
 
 - `common.paths.relative_posix(path, root)` when displaying/logging/comparing repo-relative paths.
 - `common.git.get_repo_root(start)` to resolve the repository root.
+- `common.paths.data_home()` for data every checkout may share (`$TRADING_DATA_HOME`, else `local/`), and
+  `common.paths.env_path(name)` to read a path from an environment variable. Per-checkout state (the live
+  database, logs, artifacts, exports) stays under `common.paths.LOCAL_DIR`.
 - `common.files.modified_at_utc(path)` / `modified_at_iso(path)` for timezone-aware file mtimes.
 - `common.files.sorted_by_mtime_desc(paths)` / `latest_by_mtime(paths)` for newest-file selection.
 
@@ -84,6 +87,10 @@ Any timestamp written to a database column goes through `src/common/time.py`:
   execution reports, imports). Raises on input it cannot parse rather than storing it.
 - `common.time.parse_utc_iso(text)` to read one back.
 - `common.time.next_date_str(date_str)` for the exclusive upper bound of a calendar day.
+
+The one exception is the review scorecard file (`review_scorecard.db` under `$TRADING_DATA_HOME` or `local/`, written by
+`scripts/forge/scorecard_store.py`): it is not application data, and the forge tool imports no project code that a
+pull request could change, so it writes ISO UTC with the standard library.
 
 Do not call `datetime.isoformat()` directly on a value headed for a column. Stored timestamps are
 compared as **strings** in SQL, so a column holding a mix of `Z`, `+00:00`, and bare-naive spellings

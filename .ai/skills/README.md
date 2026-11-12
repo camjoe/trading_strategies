@@ -26,8 +26,10 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 
 | Skill folder | Covers |
 |---|---|
-| `check-pr-readiness/` | Full pre-PR workflow: validation + AI review + docs advisory + report |
-| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review |
+| `check-pr-readiness/` | Full pre-PR workflow: the gate, independent reviewers chosen by the diff, a docs drift review, and one readiness comment on the PR |
+| `fix-pr-readiness/` | Resolve a readiness comment's findings that need no decision: one commit each, every attempt recorded on the comment |
+| `implement-plan/` | Implement one plan from `plan/` on its own branch: commits with tests, questions instead of guesses, nothing pushed by the agent |
+| `code-review/` | All review modes: standard, baseline, aggressive, architecture, cleanup, contract, PR review, and the independent lens reviewers |
 | `create-runtime-job/` | Scaffold a new runtime job (module + test + sentinel + schedule + inventory) against the shared runner |
 | `db-migration/` | Schema migration lifecycle: create, validate, estimate risk, generate rollback |
 | `finance-strategy/` | Financial terminology, strategy classification, market mechanics, and evaluation honesty |
@@ -38,8 +40,8 @@ One folder per skill, lowercase hyphenated name. `SKILL.md` is the entry point. 
 ## Workflows vs skills
 
 Some skills are executable workflows that orchestrate other skills and commands. For example,
-`check-pr-readiness/` runs deterministic validation, invokes code-review judgment, runs advisory
-docs checks, and saves a report. Keep workflow skills when ordering, stop conditions, or output
+`check-pr-readiness/` runs the deterministic gate, invokes code-review's independent reviewers, runs
+a docs drift review, and keeps one readiness comment on the pull request up to date. Keep workflow skills when ordering, stop conditions, or output
 artifacts matter; keep capability skills like `validate-code/` and `code-review/` focused on one
 kind of work.
 

@@ -32,7 +32,8 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import (
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.workflow import run_workflow
 from trading.interfaces.runtime.jobs.job_helpers import (
-    latest_log_contains_sentinel,
+    already_completed_for_period,
+    day_tag,
     logs_dir_for_repo,
     ts,
 )
@@ -64,11 +65,12 @@ COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
 
 
 def already_completed_today(log_dir: Path, *, today: dt.date | None = None) -> bool:
-    today_tag = (today or dt.date.today()).strftime("%Y%m%d")
-    return latest_log_contains_sentinel(
-        log_dir,
-        f"daily_paper_trading_{today_tag}_*.log",
-        COMPLETE_SENTINEL,
+    report_day = dt.datetime.combine(today or dt.date.today(), dt.time())
+    return already_completed_for_period(
+        log_dir=log_dir,
+        job_name="daily_paper_trading",
+        period_tag=day_tag(report_day),
+        sentinel=COMPLETE_SENTINEL,
     )
 
 

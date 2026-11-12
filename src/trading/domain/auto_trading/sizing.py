@@ -3,11 +3,12 @@
 Sizing rounds down to a tradeable increment, ``quantity_step``. The default is
 whole shares (``WHOLE_SHARE_STEP``), which the backtest and options/leaps use;
 the live equity path passes ``FRACTIONAL_SHARE_STEP`` so it can size fractional
-shares at the storage precision.
+shares at the broker's increment. Closing sells use ``STORAGE_SHARE_STEP`` so a
+position held at the storage precision is exited whole.
 """
 
-import math
 from collections.abc import Sequence
+from decimal import ROUND_FLOOR, Decimal
 
 from common.constants import QUANTITY_MINOR_UNITS_PER_SHARE
 
@@ -17,9 +18,16 @@ DEFAULT_TRADE_SIZE_PCT = 10.0
 DEFAULT_MAX_POSITION_PCT = 20.0
 
 # The tradeable share increment sizing rounds down to. Whole shares is the
-# default; the fractional step is the smallest storable share fraction.
+# default.
 WHOLE_SHARE_STEP = 1.0
-FRACTIONAL_SHARE_STEP = 1.0 / QUANTITY_MINOR_UNITS_PER_SHARE
+
+# Smallest fractional equity order IBKR accepts: a larger size with more decimals is
+# rejected as not conforming to the contract's minimum variation. Coarser than the
+# storage grid, so every sized quantity stores exactly.
+FRACTIONAL_SHARE_STEP = 0.0001
+
+# The smallest share fraction the database stores.
+STORAGE_SHARE_STEP = 1.0 / QUANTITY_MINOR_UNITS_PER_SHARE
 
 
 def quantity_step_for(instrument_mode: str) -> float:
@@ -27,11 +35,23 @@ def quantity_step_for(instrument_mode: str) -> float:
     return WHOLE_SHARE_STEP if instrument_mode == "leaps" else FRACTIONAL_SHARE_STEP
 
 
+def closing_quantity_step_for(instrument_mode: str) -> float:
+    """The increment a closing sell rounds to: whole contracts for leaps, the storage grid for equity."""
+    return WHOLE_SHARE_STEP if instrument_mode == "leaps" else STORAGE_SHARE_STEP
+
+
 def _truncate_to_step(quantity: float, step: float) -> float:
-    """The largest multiple of ``step`` not exceeding ``quantity`` (never negative)."""
+    """The largest multiple of ``step`` not exceeding ``quantity`` (never negative).
+
+    The division and the multiple are done in decimal, so a result carries no float noise
+    (``3 * 0.0001`` is not ``0.0003``, and ``9.7 / 0.0001`` is not ``97000``), which a broker
+    would reject as a size off its increment.
+    """
     if quantity <= 0 or step <= 0:
         return 0.0
-    return math.floor(quantity / step) * step
+    decimal_step = Decimal(str(step))
+    steps = (Decimal(str(quantity)) / decimal_step).to_integral_value(rounding=ROUND_FLOOR)
+    return float(steps * decimal_step)
 
 
 def _resolve_sizing_pct(value: float | None, *, default: float, field_name: str) -> float:

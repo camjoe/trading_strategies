@@ -1,27 +1,49 @@
 from __future__ import annotations
 
 import argparse
+import os
 import random
 
 from common.git import get_repo_root
 from common.logging_setup import bind_run_id, configure_logging, resolve_run_id
+from common.paths import PAPER_TRADING_DB_PATH
 from common.tickers import load_tickers_from_file
 from infrastructure.brokers.factory import get_broker_for_account
+from infrastructure.database.config import get_db_path
 from infrastructure.database.connection import db_session
 from infrastructure.feature_providers.policy_provider import PolicyFeatureProvider
 from infrastructure.market_data.factory import build_provider
 from trading.domain.feature_provider import FeatureFetcherSet
+from trading.interfaces.runtime.jobs.job_helpers import BROKER_ANOMALY_LINE_PREFIX
 from trading.services.auto_trading.inputs import (
     resolve_account_names,
     resolve_market_inputs,
     resolve_run_universe,
     run_accounts,
 )
-from trading.services.auto_trading.runtime import is_runtime_submission_window_open
+from trading.services.auto_trading.runtime import (
+    MarketHoursOverrideRefusedError,
+    is_runtime_submission_window_open,
+)
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 
 REPO_ROOT = get_repo_root(__file__)
-__all__ = ["parse_args", "main"]
+# Set to 1 to submit outside US regular hours. Development only: refused against the
+# default database and for any account that is not on the in-process simulator.
+DEV_IGNORE_MARKET_HOURS_ENV = "TRADING_DEV_IGNORE_MARKET_HOURS"
+__all__ = ["DEV_IGNORE_MARKET_HOURS_ENV", "parse_args", "main"]
+
+
+def resolve_ignore_market_hours() -> bool:
+    """Read the development market-hours override; refuse it against the default database."""
+    if os.environ.get(DEV_IGNORE_MARKET_HOURS_ENV, "").strip() != "1":
+        return False
+    if get_db_path() == PAPER_TRADING_DB_PATH.resolve():
+        raise MarketHoursOverrideRefusedError(
+            f"{DEV_IGNORE_MARKET_HOURS_ENV} is refused against the default database {PAPER_TRADING_DB_PATH}; "
+            "point TRADING_DB_PATH at a disposable copy such as the sandbox."
+        )
+    return True
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,10 +88,13 @@ def main() -> int:
         random.seed(args.seed)
 
     accounts = resolve_account_names(args.accounts)
+    ignore_market_hours = resolve_ignore_market_hours()
     # The runtime declines to submit outside US regular equity hours. Say so up
     # front — otherwise a closed market and a genuine no-signal day both read as
     # "executed 0 trades".
-    if not is_runtime_submission_window_open():
+    if ignore_market_hours:
+        print(f"{DEV_IGNORE_MARKET_HOURS_ENV}=1: submitting regardless of market hours (simulator accounts only).")
+    elif not is_runtime_submission_window_open():
         print("Market closed: no orders will be submitted (US regular equity hours only).")
 
     # Composition root: build the market-data provider once and inject it through
@@ -91,6 +116,7 @@ def main() -> int:
             fee=args.fee,
             broker_factory=get_broker_for_account,
             feature_fetchers=feature_fetchers,
+            ignore_market_hours=ignore_market_hours,
         )
 
     for result in results:
@@ -107,6 +133,7 @@ def main() -> int:
     ]
     if broker_anomalies:
         print(f"Broker API anomaly during submission for: {', '.join(broker_anomalies)}")
+        print(f"{BROKER_ANOMALY_LINE_PREFIX}{','.join(broker_anomalies)}")
         return 1
     return 0
 

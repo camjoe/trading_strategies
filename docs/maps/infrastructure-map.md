@@ -42,6 +42,7 @@ Broker connection adapters and routing. The factory is the sole `broker_type` ro
 |---|---|
 | `factory.py` | `broker_type` → `BrokerConnection` routing; `live_trading_enabled` safety guard |
 | `paper_adapter.py` | Simulated immediate-fill paper broker (default) |
+| `session.py` | `BrokerSession`: leases one held socket connection per account in place of `broker_factory`, reconnecting through the factory when it drops or the account row changes. No job uses it yet |
 | `ibkr_web/adapter.py` | Interactive Brokers Client Portal / Web API `BrokerConnection` adapter |
 | `ibkr_web/client.py` | IBKR Web API HTTP client: session validation/keepalive, account and market-data queries, contract lookup, and order operations |
 | `ibkr_web/pacing.py` | Process-wide IBKR Web API global and endpoint-specific request pacing guard |
@@ -53,12 +54,12 @@ TWS/IB Gateway socket support with interchangeable `ib_async` and native `ibapi`
 
 | Module | Responsibility |
 |---|---|
-| `adapter.py` | Backend-neutral socket `BrokerConnection` adapter |
+| `adapter.py` | Backend-neutral socket `BrokerConnection` adapter, with a bounded connect retry and `get_order` |
 | `contracts.py` | Project-owned normalized socket client records |
-| `protocol.py` | Backend-neutral socket client protocol |
-| `ib_async_client.py` | Working `ib_async` socket client |
+| `protocol.py` | Backend-neutral socket client protocol, including `find_trade` and `errors` |
+| `ib_async_client.py` | Working `ib_async` socket client; `find_trade` rebuilds an order that filled while no job was connected |
 | `ibapi_client.py` | Native `ibapi` connection, order, position, account-summary, and snapshot-quote callbacks |
-| `factory.py` | Socket backend selection and broker construction |
+| `factory.py` | Socket backend selection, unconnected client construction, and connected broker construction |
 
 ### `src/infrastructure/feature_providers/`
 
@@ -89,7 +90,7 @@ feature provider stay in `src/trading/services/market_data/`.
 
 | Env var | Effect |
 |---|---|
-| `TRADING_MARKET_DATA_CACHE_DIR` | Override the on-disk cache directory (default `local/cache/market_data/`) |
+| `TRADING_MARKET_DATA_CACHE_DIR` | Override the on-disk cache directory (default `cache/market_data/` under `$TRADING_DATA_HOME`, else `local/cache/market_data/`) |
 | `TRADING_MARKET_DATA_CACHE_DISABLED` | Truthy disables the 24h disk cache (forces every fetch to hit the provider) |
 | `TRADING_YF_MAX_CALLS` | Per-run cumulative ceiling on live Yahoo requests before `RateLimitExceeded` (default `1000`; `0` disables). The deterministic runaway-loop backstop |
 | `TRADING_YF_MIN_INTERVAL_SECONDS` | Minimum spacing between live Yahoo requests (default `0` = off). Set e.g. `0.5` to pace a large cold research sweep |

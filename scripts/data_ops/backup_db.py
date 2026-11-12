@@ -1,8 +1,9 @@
 """
 Database backup script with retention management.
 
-The live database now lives in local/paper_trading.db (gitignored).
-Backups are written to a configurable directory (default: local/db_backups/).
+The live database lives in local/paper_trading.db (gitignored).
+Backups go to ``$TRADING_DB_BACKUPS_DIR``, else ``db_backups/`` under
+``$TRADING_DATA_HOME``, else local/db_backups/ (see ``common.paths.db_backups_dir``).
 
 Retention policy
 ----------------
@@ -10,13 +11,8 @@ Retention policy
 - Keep one permanent archive per calendar month (the oldest backup taken that
   month is never deleted regardless of the rolling-window limit).
 
-Configuration
--------------
-Edit the CONFIG block below to adjust paths and retention counts.
-To store backups on an external drive or network share,
-change BACKUP_DIR, e.g.:
-    BACKUP_DIR = Path("D:/Backups/trading_db")
-    BACKUP_DIR = Path.home() / "trading_db_backups"
+Retention counts every ``paper_trading_*.db`` in the folder, so checkouts that
+share one backup folder prune each other's backups together.
 """
 
 from __future__ import annotations
@@ -24,36 +20,31 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from common.git import get_repo_root
-from trading.interfaces.runtime.data_ops.admin import backup_database
-
-# ---------------------------------------------------------------------------
-# CONFIG — edit this block to reconfigure without touching any logic below
-# ---------------------------------------------------------------------------
-REPO_ROOT = get_repo_root(__file__)
-
-# Where backups are written.  Defaults to local/db_backups/ (gitignored).
-BACKUP_DIR: Path = REPO_ROOT / "local" / "db_backups"
+from common.paths import db_backups_dir
+from trading.interfaces.runtime.data_ops.admin import BACKUP_STAMP_FORMAT, backup_database
 
 # Rolling window: how many recent copies to keep (monthly archives are on top of this).
 KEEP_RECENT: int = 30
-# ---------------------------------------------------------------------------
 
 
 _STEM_PREFIX = "paper_trading_"
-_STAMP_FMT = "%Y%m%d_%H%M%S"
 
 
 def _parse_stamp(path: Path) -> datetime | None:
-    """Extract the datetime embedded in a backup filename, or None if unparseable."""
+    """Extract the datetime embedded in a backup filename, or None if unparseable.
+
+    A name may end in ``_<n>`` after the stamp when an earlier backup took the same stamp.
+    """
     stem = path.stem
     if not stem.startswith(_STEM_PREFIX):
         return None
     raw = stem[len(_STEM_PREFIX) :]
-    try:
-        return datetime.strptime(raw, _STAMP_FMT)
-    except ValueError:
-        return None
+    for candidate in (raw, raw.rpartition("_")[0]):
+        try:
+            return datetime.strptime(candidate, BACKUP_STAMP_FORMAT)
+        except ValueError:
+            continue
+    return None
 
 
 def _prune(directory: Path, keep_recent: int) -> list[Path]:
@@ -105,9 +96,10 @@ def run_backup(*, verbose: bool = True) -> dict[str, object]:
 
     Returns a summary dict with the backup path and pruned files.
     """
-    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    backup_path = backup_database(destination=str(BACKUP_DIR))
-    deleted = _prune(BACKUP_DIR, KEEP_RECENT)
+    backup_dir = db_backups_dir()
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_database(destination=str(backup_dir))
+    deleted = _prune(backup_dir, KEEP_RECENT)
 
     summary: dict[str, object] = {
         "backup": backup_path,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Sequence
 
@@ -271,6 +272,28 @@ def test_partial_fill_records_fills_but_defers_position_and_ledger(conn, book_en
     # Position + ledger only move on a completed fill (reconciliation completes partials).
     assert PositionRepository(conn).fetch(book_id=book_id, symbol="AAPL") is None
     assert LedgerRepository(conn).fetch_for_book(book_id=book_id) == []
+
+
+def test_broker_exception_is_logged_with_its_message_and_the_order(conn, book_env, caplog):
+    account_id, book_id = book_env
+    broker = FakeBroker(raises=True)
+
+    with caplog.at_level(logging.ERROR, logger="trading.services.execution.submission"):
+        submit_book_intents(
+            conn,
+            book_id=book_id,
+            account_id=account_id,
+            intents=[_intent(book_id, account_id, symbol="AAPL")],
+            broker=broker,
+            gate=AllowAllGate(),
+            fee=0.0,
+        )
+
+    [record] = caplog.records
+    assert "AAPL" in record.getMessage()
+    assert "client_order_id=ts-AAPL-" in record.getMessage()
+    assert "broker unavailable" in record.getMessage()
+    assert record.exc_info is not None
 
 
 def test_broker_exception_appends_anomaly_and_stops(conn, book_env):

@@ -26,7 +26,7 @@ def run_build(repo_root: Path) -> None:
     except Exception:
         api_basics = []
     payload = {"schema_version": 1, "api_basics": api_basics, "endpoints": endpoints}
-    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote API registry: {registry_path}")
     print(f"Endpoints: {len(endpoints)}")
 
@@ -58,7 +58,7 @@ def main() -> int:
         "api_basics": api_basics,
         "endpoints": endpoints,
     }
-    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    registry_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Wrote API registry: {registry_path}")
     print(f"Endpoints: {len(endpoints)}")
     return 0

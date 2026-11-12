@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-24
-Last Reviewed: 2026-07-13
+Last Reviewed: 2026-10-06
 Purpose: Operator setup and connection checklist for Interactive Brokers via the Client Portal Gateway.
 Related: [Broker Integration Reference](broker-integration.md), [Runtime Operations Runbook](../runbooks/runtime-operations.md)
 
@@ -49,6 +49,10 @@ export TRADING_IBKR_WEB_API_CONFIG="$HOME/Desktop/brokers/config.json"
 ```
 
 Or set individual environment variables — see [Broker Integration Reference — IBKR Web API Configuration](broker-integration.md#ibkr-web-api-configuration) for the full list.
+
+Nothing in this repo keeps this gateway's session open between runs, and there is no host setup for it.
+On a host that runs scheduled jobs, use the IB Gateway socket transport instead — see
+[Production Runtime Host Runbook, Part 6](../runbooks/production-runtime-host.md#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
 
 4. **Verify connectivity** with the smoke test:
 

@@ -64,6 +64,8 @@ def _seed_open_order(db_path: Path) -> int:
 class _FillReportingBroker:
     """Reports the persisted open order as filled, the way an async broker would."""
 
+    reports_executions = True
+
     def get_open_trades(self) -> list[BrokerOrder]:
         return [
             BrokerOrder(

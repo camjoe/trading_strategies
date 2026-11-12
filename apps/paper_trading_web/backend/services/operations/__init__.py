@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from common.paths import DB_BACKUPS_DIR, SCHEDULE_STATUS_ARTIFACT_PATH
+from common.paths import SCHEDULE_STATUS_ARTIFACT_PATH, db_backups_dir
 from common.runtime_job_status import (
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL as DAILY_PAPER_TRADING_SENTINEL,
     WEEKLY_DB_BACKUP_COMPLETE_SENTINEL as WEEKLY_DB_BACKUP_SENTINEL,
@@ -74,7 +74,7 @@ def list_operations_overview() -> dict[str, object]:
         "jobs": [_job_status_payload(status) for status in evaluate_all_jobs(logs_dir=LOGS_DIR)],
         "scheduleStatus": _schedule_status_payload(fetch_schedule_status(SCHEDULE_STATUS_PATH)),
         "databaseBackups": list_artifacts(
-            DB_BACKUPS_DIR,
+            db_backups_dir(),
             suffixes=(".db", ".sqlite", ".sqlite3"),
         ),
     }

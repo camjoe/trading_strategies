@@ -3,7 +3,7 @@
 Type: runbook
 Status: Active
 Created: 2026-07-27
-Last Reviewed: 2026-07-27
+Last Reviewed: 2026-10-09
 Purpose: Operator procedure for moving a book off the internal simulator onto real IBKR paper-account order mechanics, over either the Web API or the socket/TWS transport.
 Related: [ADR 017: IBKR paper broker type](../adr/017-ibkr-paper-broker-type.md), [ADR 018: broker transport/venue matrix](../adr/018-broker-transport-venue-matrix.md), [Broker Integration Reference](../reference/broker-integration.md), [IBKR Client Portal Gateway Setup](../reference/broker-setup-ibkr.md), [Runtime Jobs Reference](../reference/runtime-jobs.md)
 
@@ -30,35 +30,40 @@ Both paper venues connect without it and assert the account instead.
 
 ### Choosing a transport
 
-- **Web API** (`interactive_brokers_web_paper`) — needs the Client Portal Gateway running and
-  browser-authenticated. Its session expires and must be re-authenticated periodically.
-- **Socket** (`interactive_brokers_socket_paper`) — needs TWS or IB Gateway running and logged in.
-  Uses `broker_host` / `broker_port` / `broker_client_id` on the account row, so different accounts
-  can hold different client ids against the same gateway.
+- **Socket** (`interactive_brokers_socket_paper`) � needs IB Gateway (or TWS) running and logged in.
+  This is the transport the host runbooks set up and operate. It uses `broker_host` / `broker_port` /
+  `broker_client_id` on the account row, so different accounts can hold different client ids against the
+  same Gateway. IB Gateway stays logged in through the week on IBKR's own auto-restart, with one manual
+  login a week.
+- **Web API** (`interactive_brokers_web_paper`) � still supported in code, but nothing in this repo keeps
+  its session open between runs or sets up its host. Its setup checklist is
+  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
 
-Both are supported. If you have no strong preference, the Web API path has the longer history in
-this repo; the socket path has the more complete client (snapshot quotes, structured rejections).
+Both reach **the same IBKR account** � same positions, same orders, same statements. Only the local
+plumbing differs. IBKR restricts concurrent sessions per username, so a Client Portal Gateway and IB
+Gateway logged in with the same login may disconnect one another.
 
-Whichever you pick, both reach **the same IBKR account** — same positions, same orders, same
-statements. Only the local plumbing differs.
+"Client Portal" also names IBKR's website: where you create the paper account, set market-data
+subscriptions, and view the account's orders. That is shared by both transports.
 
-### "Client Portal" names two different things
+## Gateway session
 
-Worth separating, because the collision causes real confusion:
+The socket transport needs IB Gateway running and logged in whenever a run touches an IBKR account.
 
-- **Client Portal** (the website) — IBKR account management. Where you create the paper account, set
-  market-data subscriptions, and view the account's orders. Shared by both transports.
-- **Client Portal Gateway** (`clientportal.gw`) — a local Java proxy exposing IBKR's REST API on
-  `https://localhost:5000`. **Web API path only.** The socket path never touches it; it uses TWS or
-  IB Gateway on `7497` / `4002` instead.
+- **Before each daily run**, step 00 connects every run account's broker. An account whose session is
+  unavailable is skipped, named in the log, the artifact and a `warn` alert, and the others trade. If
+  every account is unavailable the run fails there, before any step runs. Run a skipped account later
+  with `--accounts <name> --force-run`. An account the cash check skips needs its cause fixed first; see
+  [Books hold more cash than the broker](#books-hold-more-cash-than-the-broker).
+- **Between runs**, IB Gateway holds its own session; the host stays awake for the trading week and a
+  health alert watches the Gateway. Set both up in
+  [Production Runtime Host Runbook, Part 6](production-runtime-host.md#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
+- **Logging in** is manual, on the host's desktop, with the paper login: once on Sunday night, and after
+  a reboot or any alert that does not clear.
+- **Check** the session with `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99`.
 
-The two also authenticate differently: the Client Portal Gateway holds a browser-established session
-that expires and needs re-authentication, while TWS/IB Gateway stays logged in until its daily
-forced restart.
-
-IBKR restricts concurrent sessions per username, so running the Client Portal Gateway and TWS
-against the same login simultaneously may disconnect one of them. Test that before depending on
-having both available.
+The start, confirm, and failure-alert commands for the whole stack are in
+[ibkr-operations.md](ibkr-operations.md).
 
 ## What changes when you switch
 
@@ -168,10 +173,12 @@ Socket:
 UPDATE accounts
 SET broker_type = 'interactive_brokers_socket_paper',
     broker_host = '127.0.0.1',
-    broker_port = 7497,
+    broker_port = 4002,
     broker_client_id = 11
 WHERE name = 'momentum_5k';
 ```
+
+`4002` is IB Gateway paper, the port the host runbook sets up; TWS paper is `7497`.
 
 Switch one account first. Leave the rest on `paper` until you trust the path.
 
@@ -197,6 +204,51 @@ To apply fills that arrive after a run has finished, without a full run:
 ```bash
 python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders --accounts momentum_5k
 ```
+
+## Books hold more cash than the broker
+
+Accounts that reach one IBKR account share its real cash balance: every Web API account does, and
+every socket account that connects to the same host and port. After the pre-trade reconcile has
+posted outstanding fills (for the run's accounts and for any other account in the pool), the daily
+run adds up every book's cash, paused or not, across the accounts
+in each such pool and compares it with the broker's cash balance (`TotalCashValue`). When the books
+hold more than the broker (beyond a $1.00 tolerance), it skips every run account in that pool for
+the day and sends a `warn` alert; when that leaves no account to trade, the run fails with `No run
+account can trade today`. No orders go out in either case. Simulator accounts are not checked.
+
+The log line gives both figures: `WARN: skipping <account> before trading (the books hold <books>
+cash and the broker holds <broker>)`.
+
+Find why they differ before you re-run. Read the `UNRESOLVED_ORDERS` lines in the same log first:
+the pre-trade reconcile posts the fills it can see, but an order it left unresolved (filled at the
+broker, not yet reported) leaves the books holding more cash than the broker. If none is listed, the
+gap is one of these:
+
+- Cash withdrawn or moved at the broker, or another system trading the same IBKR account.
+- A book funded with more starting cash than the account holds. Compare each book's cash with
+  `python -m trading.interfaces.cli.main report --account <account>`.
+- Broker-side charges the books do not record (market-data fees, interest). They add up, so a $1.00
+  drift can build over weeks. No command sets a book's cash yet (see `plan/distinct-books.md`), so
+  bringing the books back to the broker's cash is a manual database change for now.
+- A paused book that still holds cash; it counts.
+- An account you have stopped running whose books still hold cash. Accounts have no inactive status, so every
+  account in the pool counts, run or not: delete the account, or empty its books' cash (also by hand today).
+- A fill that landed at the broker between the reconcile and the cash read. The window is seconds;
+  a re-run reads both again.
+
+The broker's figure is the `cashbalance` of the Web API ledger's `BASE` or `USD` row (`settledcash`
+when that is absent; a ledger with neither row falls back to its first currency row, so check that
+row is USD), or the socket account summary's `TotalCashValue`. An answer with no usable cash figure,
+including a ledger with neither field, is not read as zero, and neither is a gateway or network error
+during the read: every account in that pool is skipped with `could not read the broker's cash: ...`.
+The reason carries the underlying error text, so read it to tell a missing field from a dropped
+session, and look at the gateway and the ledger, not at the books. When every run account is skipped
+that way, the run fails with `No run account can trade today` and the message says to check the
+gateway session instead.
+
+Accounts with an unset host and port are one socket pool, separate from accounts that name the
+default host and port explicitly. Two accounts that reach one IBKR account through different
+settings are counted as two pools and are not checked against each other.
 
 ## Rolling back
 
@@ -239,18 +291,30 @@ Confirm no orders remain open, then change `broker_type`.
 here needs to — and deliberately does not — issue an end-of-run cancel sweep.
 
 **What this repo can lose track of is its own rows.** IBKR's `/iserver/account/orders` covers the
-current day. A DAY order that expired at a previous session's close simply stops being reported, so
-reconciliation never sees it again and the persisted `orders` row would sit at `submitted`
-indefinitely.
+current day, and can omit an order that has already filled. For each open order the list omits,
+reconciliation asks IBKR for that order's status by id (`BrokerConnection.get_order`). If the status
+reply shows a fill, the fill is posted to the book and the row closed automatically; a cancel or
+reject closes the row with IBKR's reason. A lookup that fails logs `Lookup of broker order <id> failed`
+and leaves the row alone.
+
+What remains is an order IBKR no longer reports at all, such as a DAY order that expired at a previous
+session's close: the row would sit at `submitted` indefinitely. An order whose reply could not be
+applied (a fill with no price, less filled than recorded, `Filled` with no size) is left the same way,
+and a warning line names the reason.
 
 Reconciliation reports those rather than resolving them. An unreported order might have expired
-unfilled, or might have filled on a day nothing ran — and marking a filled order cancelled would
+unfilled, or might have filled on a day nothing ran � and marking a filled order cancelled would
 silently corrupt the book. That call needs a human, so:
 
-- `reconcile_orders` prints a `WARNING … not reported by the broker and left unresolved` line to
-  stderr, naming each broker order id. The daily run captures stderr into its run log.
+- `reconcile_orders` prints a `WARNING � not reported by the broker and left unresolved` line to
+  stderr, naming each broker order id. The daily run captures stderr into its run log. Read the
+  warnings printed above the `UNRESOLVED_ORDERS` lines for why the order could not be resolved before treating it
+  as expired.
+- `reconcile_orders` also prints one `UNRESOLVED_ORDERS: {...}` line per affected account, and the daily run records them
+  under `unresolved_orders` in its artifact and ends with a `warn` (a `fail` if the run failed). The `warn` repeats on every run until the order is
+  closed (see below).
 - The daily run artifact's step `07_submit_ibkr_orders` carries `stale_open_count` and a
-  `stale_open` list — open orders carried over from an earlier session, per account.
+  `stale_open` list � open orders carried over from an earlier session, per account.
 
 ### Resolving a stale open order
 
@@ -302,8 +366,8 @@ venue — steps 2 and 3 above, not the smoke test.
   `OrderStatus.PENDING`, so a cancel in flight looks identical to an order waiting to transmit. Both
   mean *still open, keep polling*, so reconciliation resolves either way — the cost is operator
   legibility, not correctness.
-- **Do not reconcile against IBKR's `NetLiquidation`.** `get_account_info()` has no runtime consumer
-  (only the smoke test reads it), and IBKR's paper accounting carries accruals that will not match
+- **Do not reconcile against IBKR's `NetLiquidation`.** The daily run's cash check reads only
+  `get_account_info()`'s `TotalCashValue` (see "Books hold more cash than the broker"), and IBKR's paper accounting carries accruals that will not match
   book equity. The equity reconciliation compares book equity against *our own* snapshots.
 - **The account assertion is not a capital guarantee.** It verifies the account *identifier*, not the
   gateway it reaches — see the Consequences section of [ADR 017](../adr/017-ibkr-paper-broker-type.md).

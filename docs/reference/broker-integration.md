@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-04-03
-Last Reviewed: 2026-08-02
+Last Reviewed: 2026-10-09
 Purpose: Define the current broker architecture, safety guardrails, and operator workflow for live and paper trading.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Service Cookbook](../architecture/service-cookbook.md)
 
@@ -229,7 +229,35 @@ The daily paper-trading job drives it via
 `trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders`, once before the pre-trade
 snapshot and again before the post-trade snapshot, so recorded equity always reflects the fills the
 broker has reported so far. It is a no-op for `paper` accounts (synchronous fills, no open trades)
-and load-bearing for the socket path.
+and load-bearing for the socket path. It also prints an `UNRESOLVED_ORDERS` line per account with orders it could not
+resolve, which the daily run records in its artifact and alerts on.
+
+A broker's open-order list can omit an order that has filled. The IBKR Web API's list returned
+nothing for three fractional market orders that its per-order status reported as `Filled`. So after
+the list pass, reconciliation asks the broker about each open order the list left out, through
+`BrokerConnection.get_order(broker_order_id)`. The default returns `None`. The Web adapter implements
+it from the order status reply. The socket adapter implements it for the `ib_async` backend by
+rebuilding the order from its executions and the day's completed orders (one bounded request per
+connection); the native `ibapi` backend returns `None`. IBKR reports completed orders for the current
+day only.
+
+- Both the Web API's open-order list and its status reply state the cumulative filled size and average
+  price, not executions, and the Web adapter does not invent one. Reconciliation posts a single fill for
+  the size and commission beyond what the order's recorded fills already sum to. Polling the same state
+  twice posts nothing, and a partial fill followed by the rest posts each part once, the later part priced
+  at what it cost (from the cumulative average and the notional already recorded), not at the average. An
+  adapter opts in by setting `reports_executions = False`; any other adapter (the socket path) applies
+  its executions as reported, deduplicated by exec id, and never gets an invented fill.
+- The status reply has no commission and no execution time, so those fills carry commission `0.0` and
+  the order's own timestamp.
+- An order the lookup cannot find (status cache miss), a lookup that fails, a fill with no price, and a
+  report of less than is recorded, and a `Filled` reply with no filled size all leave the row untouched and
+  reported as unreported. Each logs a warning naming the reason, and the pass logs a summary of how many
+  omitted orders were resolved, not found, or failed.
+
+When the Web API answers an order with cautionary messages that need a "yes", the client confirms them
+(up to five per order) and logs a warning with the order's client id, the message text, and the IBKR
+message ids. Nothing yet restricts which messages are confirmed.
 
 The shared order contract and `orders.status_reason` retain broker-provided rejection and
 cancellation explanations when IBKR supplies one. The Web adapter reads
@@ -281,7 +309,9 @@ time out.
 - `place_order` sets `SUBMITTED` on the returned order locally, without consulting IBKR. The
   authoritative view is whatever the next `get_open_trades()` reports.
 
-`get_account_info()` has no runtime consumer — only the socket smoke test reads it. IBKR's
+`get_account_info()` has one runtime consumer: the daily run's cash check reads its `TotalCashValue`
+(`docs/runbooks/ibkr-paper-trading.md`, "Books hold more cash than the broker"), and the Web adapter
+raises when the ledger has no cash figure rather than reporting zero. IBKR's
 `NetLiquidation` carries paper-account accruals that will not match book equity, and the equity
 reconciliation deliberately compares book equity against this repo's own snapshots instead.
 

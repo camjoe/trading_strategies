@@ -3,9 +3,9 @@
 Type: runbook
 Status: Draft
 Created: 2026-06-27
-Last Reviewed: 2026-07-22
+Last Reviewed: 2026-10-17
 Purpose: Step-by-step setup of the recommended dedicated Linux runtime host and the ongoing test-and-deploy workflow that promotes code to it.
-Related: [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
+Related: [IBKR Operations Runbook](ibkr-operations.md), [IBKR Paper Trading Runbook](ibkr-paper-trading.md), [Production Runtime Hosting ADR](../adr/008-production-runtime-hosting-and-deployment.md), [Runtime Operations Runbook](runtime-operations.md), [Runtime Jobs Reference](../reference/runtime-jobs.md), [Branching](../conventions/branching.md), [DB Migration System](../reference/db-migration-system.md)
 
 This runbook implements the project's recommended deployment model from
 [ADR 008](../adr/008-production-runtime-hosting-and-deployment.md): one dedicated Linux host runs the
@@ -162,8 +162,10 @@ At minimum set:
 - Runtime notifications so missed/failed runs are visible: either `TRADING_RUNTIME_ALERT_WEBHOOK_URL`
   or the SMTP variables documented in
   [runtime-operations.md](runtime-operations.md#runtime-notifications).
-- `TRADING_IBKR_WEB_API_ACCOUNT_ID` (required) — configure the rest of the IBKR connection per
-  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md).
+- `TRADING_IBKR_WEB_API_ACCOUNT_ID`, only for accounts on the Web API transport
+  (`interactive_brokers_web*`) — configure the rest of that connection per
+  [broker-setup-ibkr.md](../reference/broker-setup-ibkr.md). Socket accounts read their host, port and
+  client id from the account row; see [Part 6](#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert).
 
 ### 1.4 Seed the database
 
@@ -214,6 +216,10 @@ cd ~/trading-prod
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
+
+The health check also reads the database. On a fresh deploy every account is "never snapshotted", which
+prints `[WARN]`, exits 0, and sends an `account-freshness` alert; a database behind the schema head prints
+`[FAIL] Account freshness check could not run: ...` and exits 1.
 
 Then confirm monitoring per [runtime-operations.md](runtime-operations.md): logs land in `local/logs/`,
 artifacts in `local/exports/`, and `python -m scripts.check_jobs` summarizes status.
@@ -289,6 +295,8 @@ python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m scripts.check_jobs
 ```
 
+The health check also reads the database; see the expected output in 1.6.
+
 Watch the next scheduled run complete (look for the `COMPLETE` sentinel per
 [runtime-operations.md](runtime-operations.md)).
 
@@ -320,6 +328,8 @@ python -m scripts.run_checks ci
 python -m trading.interfaces.runtime.jobs.daily.trader_health
 python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status --force-run
 ```
+
+The health check also reads the database; a staging database with no snapshots warns (see 1.6).
 
 Do not run `daily.paper_trading` from staging with real broker credentials unless you intentionally
 want a paper-broker execution test. The job has no `--dry-run` flag.
@@ -399,3 +409,201 @@ runbooks describe reusable procedures; they do not record the state of a particu
 
 The private installation checklist should also record whether another host still has these jobs
 registered. Unregister any superseded schedule before enabling this host so jobs cannot run twice.
+
+---
+
+## Part 6 — IB Gateway, the weekday awake window, and the health alert
+
+For accounts on `interactive_brokers_socket_paper`. Nothing here is verified on a host yet. Each
+assumption that decides whether it works is marked UNVERIFIED, and 6.6 is how to settle them.
+
+The design: IB Gateway stays logged in
+all week through IBKR's own auto-restart, so the host stays awake from Sunday evening until after
+Friday's close, and you log in to the Gateway once, on Sunday night. Between Friday's close and Sunday
+evening the host may suspend.
+
+### 6.1 Install and configure IB Gateway
+
+Install IB Gateway (the stable build) from IBKR's own installer on the host, as the user that runs the
+jobs. Start it from the desktop session and log in with the IBKR **paper** login. IBKR does not support a
+headless Gateway, so it needs the desktop session; the owner starts and logs in to it, and nothing in
+this repo starts it. IB Gateway logs in through its own desktop window. A browser login at
+`localhost:5000` means the Client Portal Gateway is running instead; stop it and start IB Gateway.
+
+In the Gateway's settings:
+
+| Setting | Value |
+|---|---|
+| API > Enable ActiveX and Socket Clients | on |
+| API > Read-Only API | off (orders are sent through it) |
+| API > Socket port | `4002` (paper) |
+| API > Trusted IPs | `127.0.0.1` only |
+| Lock and Exit > Auto restart | on, at a time outside IBKR's own maintenance window |
+| Lock and Exit > Never lock | on |
+
+The Gateway's window can be minimised; do not quit it. IBKR allows one session per username, so a Client
+Portal Gateway logged in with the same login may disconnect this one; stop it first.
+
+### 6.2 The awake window
+
+Three system units plus a stop service. A system unit is needed because only the system manager can set
+the RTC alarm that wakes a suspended host. Replace `<user>`, `<repo>`, and `<env-file>` (an absolute path
+to `.env`). All times are Pacific; the explicit time zone keeps them right if the host's zone changes.
+
+`/etc/systemd/system/trading-awake.service`, which holds a sleep inhibitor for as long as it runs:
+
+```ini
+[Unit]
+Description=Keep the host awake for the IBKR trading week
+
+[Service]
+ExecStart=/usr/bin/systemd-inhibit --what=sleep:idle:handle-lid-switch --who=trading --why="IBKR trading week" --mode=block /usr/bin/sleep infinity
+```
+
+`/etc/systemd/system/trading-awake-start.timer`, which wakes the host on Sunday and starts the window:
+
+```ini
+[Unit]
+Description=Start the IBKR trading week awake window
+
+[Timer]
+OnCalendar=Sun *-*-* 18:00:00 America/Los_Angeles
+WakeSystem=true
+Persistent=true
+Unit=trading-awake.service
+
+[Install]
+WantedBy=timers.target
+```
+
+`/etc/systemd/system/trading-awake-stop.timer` and its service, which end the window after the close
+(Friday's 16:00 ET close is 13:00 PT; the half hour covers the post-trade reconcile):
+
+```ini
+[Unit]
+Description=End the IBKR trading week awake window
+
+[Timer]
+OnCalendar=Fri *-*-* 13:30:00 America/Los_Angeles
+Unit=trading-awake-stop.service
+
+[Install]
+WantedBy=timers.target
+```
+
+`/etc/systemd/system/trading-awake-stop.service`:
+
+```ini
+[Unit]
+Description=Stop the IBKR trading week awake window
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl stop trading-awake.service
+```
+
+The Sunday time is when the host wakes, not when you must log in: log in before the health alert's
+grace period ends (6.3). Choose the time you want.
+
+`systemd-inhibit` holds a `sleep` block, which makes logind refuse a suspend request while it is held.
+UNVERIFIED that the desktop's idle suspend and the lid switch respect it on this host; 6.6 checks it.
+If they do not, mask the targets for the week instead (`systemctl mask sleep.target suspend.target
+hibernate.target hybrid-sleep.target` from the start unit, `unmask` from the stop one).
+
+If the window is not running (the host rebooted mid-week, or a report is missing for a day), one command
+starts it again, together with the health alert, which is bound to it:
+
+```bash
+sudo systemctl restart trading-awake.service
+```
+
+It is safe at any time. A window started outside Sunday to Friday ends at the next Friday stop timer.
+Confirm with `systemctl is-active trading-awake.service ibkr-gateway-health.service`. Then check the
+Gateway is logged in: a reboot leaves it logged out. UNVERIFIED on the host that `restart` brings the
+health unit back up with the window; 6.6 checks it.
+
+### 6.3 The health alert
+
+`/etc/systemd/system/ibkr-gateway-health.service`, which runs only while the awake window does:
+
+```ini
+[Unit]
+Description=IB Gateway health alert
+BindsTo=trading-awake.service
+After=trading-awake.service
+
+[Service]
+User=<user>
+WorkingDirectory=<repo>
+EnvironmentFile=-<env-file>
+ExecStart=<repo>/.venv/bin/python -m trading.interfaces.runtime.jobs.maintenance.ibkr_gateway_health --port 4002 --client-id 901
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=trading-awake.service
+```
+
+Install the units, enable the timers, and enable the health unit so the window starts it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now trading-awake-start.timer trading-awake-stop.timer
+sudo systemctl enable ibkr-gateway-health.service
+```
+
+The worker connects to the API port every 300 seconds, reads the managed accounts, and alerts through
+the webhook and SMTP settings in `.env` once a failure has lasted 900 seconds (`--grace-seconds`), so
+the Gateway's nightly restart passes without an alert. A Gateway that is down or at its login screen on
+Sunday evening alerts after that grace period: that is the reminder to log in. It sends one more alert
+when the Gateway is back. Its options are in the [runtime jobs reference](../reference/runtime-jobs.md).
+
+### 6.4 Client ids
+
+IBKR allows one API connection per client id. Do not reuse these:
+
+| Client id | Used by |
+|---|---|
+| each account row's `broker_client_id` (default `1`) | the daily run, and any operator tool that builds a broker for that account |
+| `901` | the health alert |
+| `99` | `scripts.ibkr_socket_smoke_test`, as in the paper-trading runbook |
+
+Today every phase of the daily run connects and disconnects, so an operator tool can run between phases.
+A job that holds a connection open (not built) would keep the account's id, and tools would need another.
+
+### 6.5 Moving an account onto the socket venue
+
+1. If the host still has the retired Client Portal units, remove them so they stop failing every 30
+   seconds: `systemctl --user disable --now ibkr-keepalive.service ibkr-gateway.service`, then delete
+   their unit files from `~/.config/systemd/user/`.
+2. Log in to IB Gateway (6.1).
+3. Point the account at the socket venue with `broker_type = 'interactive_brokers_socket_paper'`, its
+   `broker_port` set to `4002`, and a `broker_client_id`; the SQL and the in-flight order caveat are in the
+   [IBKR paper trading runbook](ibkr-paper-trading.md). Do this only when the account has no open orders.
+4. Run `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99` before the first daily run.
+
+### 6.6 First-week checks
+
+These settle what is UNVERIFIED above. Record the answers in `local/operations/production-host-checklist.md`.
+
+If the smoke test cannot connect: `Connection refused` on 4002 means IB Gateway is not running, not logged in,
+or has the API off (`ss -ltn | grep -E '4001|4002|7496|7497'` shows what listens; 7497 is TWS). A timeout
+means something listens that is not the socket API; port 5000 is the Client Portal Gateway.
+
+| Check | How | Settles |
+|---|---|---|
+| The restart command works | Stop the window with `sudo systemctl stop trading-awake.service`, then run `sudo systemctl restart trading-awake.service` | the window and the health alert both come back |
+| The inhibitor holds | Sunday after the window starts: `systemd-inhibit --list` shows `trading`; leave the host idle past the desktop's suspend timeout and confirm it stays up | the idle suspend and lid switch respect it |
+| The host wakes | Suspend it before Sunday 18:00: `systemctl list-timers trading-awake-start.timer` shows the next run; it should be awake at that time | `WakeSystem` works on this hardware |
+| Login survives the week | Log in Sunday; each morning check `journalctl -u ibkr-gateway-health.service -n 5` shows no alert and the daily run connected | the Gateway's auto-restart needs no login mid-week |
+| Login after a weekend suspend | Sunday evening: is the Gateway still logged in, or at its login screen? | whether the Sunday login is a fresh one every week |
+| A fill that lands while no job is connected, and fractional sizes | During market hours: `python -m scripts.ibkr_socket_smoke_test --port 4002 --client-id 99 --fill-lookup-check --fill-order-symbol <SYM> --fill-order-qty 0.5`. It fills a small paper order, reconnects, and prints what `get_order` rebuilds. Paper accounts only, and it changes the broker's cash (see below) | `get_order` rebuilds the fill from executions and completed orders, and the socket accepts a fractional size |
+| A fill that arrives in two parts | The same command prints each fill's price when the fill came in parts; compare them with IBKR's statement | each fill is priced at its own execution price |
+
+The fill check trades the paper account for real, and no book records the order. Afterwards the broker holds
+less cash than the books by the order's cost plus commission, and from the next daily run the pre-trade cash
+check skips every account that draws on that IBKR account, through either transport, until the two agree
+again. Selling the shares back does not undo it: the commissions and the spread stay. Run the check on a paper
+account that no account row uses, or before any book is funded; otherwise bring the books' cash back in line
+afterwards, as described in
+[Books hold more cash than the broker](ibkr-paper-trading.md#books-hold-more-cash-than-the-broker).

@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-17
+Last Reviewed: 2026-10-15
 Purpose: Inventory of all scripts/ modules — what each does and when to reach for it.
 Related: [Docs Map](docs-map.md), [Navigation Guide](../architecture/nav-guide.md)
 
@@ -36,6 +36,48 @@ Applies deterministic, behavior-preserving cleanup before re-running checks.
 
 ---
 
+## Forge Interface (`scripts/forge/`)
+
+Platform-neutral pull-request operations for the readiness workflow. Run via
+`python -m scripts.forge <operation>`; every operation prints JSON except `review-scorecard`, which prints a table (`--json` for JSON), and the only
+comment it writes is the `<!-- pr-readiness -->` readiness comment. The GitHub adapter calls `gh`; another host needs one new adapter.
+
+| Operation | What it returns or does |
+|---|---|
+| `pr-info [--pr N]` | Number, refs, head sha, draft flag, state, and `diff_base_ref` (`origin/<base>`) |
+| `comment-get [--pr N] [--author L]` | The readiness comment from a trusted author, or `null` |
+| `comment-upsert --body-file F [--pr N]` | Edits the readiness comment in place or creates it; refuses a body without the marker |
+| `review-scorecard [--pr N]... [--merged N] [--author L] [--json] [--save] [--from-db [--human]] [--db P] [--repo R]` | Per lens, the findings reported and how they ended (fixed, decided, left open), with thumbs up and down on their inline comments; reads GitHub only, and `--save` stores the result in a local SQLite file that `--from-db` reports from |
+| `inline-sync --body-file F [--pr N] [--head-sha S]` | Keeps one review comment per open blocker or concern on its changed line: creates, edits, and resolves; only comments with a finding marker |
+| `implement-plan --plan F [--base develop] [--model sonnet] [--depends-ok] [--no-ready] [--no-fix] [--no-container] [--agent-container] [--wait-minutes 45]` | Claims a plan from `plan/` with a draft pull request, has an agent implement it, runs the gate, and takes the pull request out of draft only when nothing needs the owner, then waits for the first review and runs the fixer loop unless `--no-fix` |
+| `fix-loop --pr N [--max-rounds 3] [--wait-minutes 45] [--model sonnet] [--agent-container]` | Runs fixer rounds on a pull request from the owner's machine until its comment says READY, only owner decisions are left, or the round cap is reached; at READY it first removes the plan file the branch claimed (and its index row), pushes, and waits for the confirming pass; emails the owner at the end |
+| `review-context [--pr N] [--expect-sha S] [--max-passes N]` | Pull request, previous readiness comment and its pass number, CI state, and whether the pass cap is reached; fails if the head is not `S` or the previous pass cannot be read |
+| `check-body --body-file F [--previous-pass N \| --edit-of OLD] [--forbid-env NAME]` | Refuses a comment body with no marker, a wrong pass number, a local path, or credential-like text; with `--edit-of`, the pass must be unchanged and only status lines may be added to `OLD` |
+
+| Module | Responsibility |
+|---|---|
+| `base.py` | Forge-neutral types, the `Forge` and `InlineForge` interfaces, CI aggregation, and the readiness and finding marker rules |
+| `github.py` | GitHub adapter over the `gh` CLI: the readiness comment, CI state, and the review threads and comments behind `inline-sync` |
+| `service.py` | Trusted-author resolution, CI waiting, and the review context |
+| `readiness.py` | Pass-number parsing, the pre-post checks on a comment body, and the scan of an agent's commits and changed paths for the Claude token |
+| `findings.py` | The verdict and findings of a readiness comment, and which open findings a fixer can still work |
+| `scorecard_store.py` | A standard-library SQLite store for scored pull requests, keyed by a repo label |
+| `scorecard.py` | Tallies the findings of readiness comments per lens by outcome and reaction, and renders the table |
+| `inline.py` | Which findings get a review comment on their line, and the create, edit, and resolve steps that keep those comments matching the readiness comment |
+| `guarded_paths.py` | Paths an unattended fixer must never change |
+| `plans.py` | Reading a plan and its index row, deciding whether it can be picked up, marking it claimed, and finding the plans a branch claimed |
+| `implement.py` | The plan pickup: claim, agent, push, gate, path check, a scan of the agent's commits for the Claude token, plain-file reads of its summary and questions, and the decision to leave draft |
+| `pipeline.py` | The join: pickup, then the wait for the first review, then the fixer loop, with one final notification |
+| `fix_loop.py` | The fixer loop: one round, its checks (path guard, token scan, plain-file read of the comment body), the post and push, the wait for the next pass |
+| `sandbox.py` | A throwaway clone with its own venv for the agent to work in; only its commits come back. `harden_clone` resets the clone's git configuration and hooks before the controller runs git there, `read_agent_text` reads a file the agent wrote only when it is a plain file, and the no-exec git options and secret-name pattern live here |
+| `container.py` | Runs the gate (no network, no credentials) and the agent (open network, one Claude token) in Docker containers with only the clone mounted; builds the images from the owner's checkout through an injected Docker runner |
+| `local.py` | The owner's real git (importing and fast-forwarding a sandbox's commits, and `outgoing_text`, the added lines and messages the token scan reads), the headless `claude` runner with a scrubbed environment, the result reporting the container runner shares, the gate runner, and the email notifier |
+| `tools.py` | What an unattended agent may run: the allow and deny tool lists, the prompt note that names them, and the options that make the runners deny-by-default, built from one set of constants |
+| `cli.py` | Argument parsing and JSON output |
+| `__main__.py` | Entry point for `python -m scripts.forge` |
+
+---
+
 ## Fixes (`scripts/fixes/`)
 
 Fix counterparts of checks under `scripts/checks/`. Each fixer applies only the mechanical
@@ -56,6 +98,7 @@ Root files are orchestration and shared helpers. Concrete checks live under `doc
 |---|---|
 | `quick.py` | Quick aggregate: repository checks + Python checks, with optional frontend |
 | `ci.py` | CI aggregate: docs + repo + Python + frontend |
+| `pr.py` | Pre-PR gate: enforced docs + repo + branch-targeted Python, plus frontend when the diff touches it |
 | `run_suite.py` | Targeted suite runner — run tests for a specific path prefix (e.g. `src/trading/services/reporting`) |
 | `_runner.py` | Internal shared check-runner helpers for steps and tool executable resolution |
 
@@ -77,13 +120,23 @@ python -m scripts.run_checks docs
 python -m scripts.run_checks repo
 python -m scripts.run_checks python
 python -m scripts.run_checks ci
+python -m scripts.run_checks pr --base develop
 ```
 
 **Deterministic pre-PR gate (no AI, no tokens):**
 ```
-python -m scripts.run_checks repo
-python -m scripts.run_checks python --base main --no-cov
+python -m scripts.run_checks pr --base develop
 ```
+
+---
+
+## CI Helpers (`scripts/ci/`)
+
+Called from the GitHub workflows with the system Python, so standard library only.
+
+| Module | Responsibility |
+|---|---|
+| `changed_scope.py` | Prints `<group>=true` or `false` for each group of paths a pull request changed, using `git diff --quiet` against the merge base; a git error counts as changed. The `changes` jobs of `ci.yml` and `security-checks.yml` call it |
 
 ---
 
@@ -99,6 +152,7 @@ One-off data operations. Safe to run on the live DB when noted.
 | `capture_scenario_fixture.py` | Capture a real-history scenario-bench fixture into the untracked `local/scenario_bench/` (one episode, or all) |
 | `describe_db_schema.py` | Print current DB schema (tables, columns, types); use `--source live` for the live DB |
 | `manage_db_migrations.py` | Migration lifecycle: status, upgrade (creates missing/empty DBs, backs up existing ones), downgrade, history |
+| `probe_intraday_bars.py` | Read-only probe of what the market-data provider returns for today's daily bar in session: whether it is dated today, whether the last bar changes between back-to-back fetches, and whether a later fetch moves it |
 
 ## Database Diagrams (`scripts/database_diagrams/`)
 
@@ -147,12 +201,13 @@ Tools for syncing the in-app documentation assets (`apps/paper_trading_web/front
 | `launch_ui.py` | Launch the paper trading UI (backend + frontend dev server) |
 | `launch_demo.py` | Atomically rebuild `local/demo.db` with synthetic data and launch the offline demo UI |
 | `launch_sandbox.py` | Restore the disposable `local/sandbox.db` test bed from its golden build and launch the UI |
+| `dev_run_daily.py` | Restore the sandbox and run the daily paper-trading job against it offline; `--ignore-market-hours` trades when the market is closed |
 | `fixture_db.py` | Build/publish helpers for generated fixture databases (migrate + seed, golden fingerprint, throwaway checkout) |
 | `ui_config.py` | UI launch configuration (ports, paths) |
 | `screenshot_ui.py` | Capture UI screenshots (used for docs/reference) |
 | `check_jobs.py` | Report each monitored runtime job's run status from its logs (shared source with the web Admin panel); `--run-missing` triggers unhealthy jobs |
 | `ibkr_web_api_smoke_test.py` | IBKR Web API connectivity smoke test |
-| `ibkr_socket_smoke_test.py` | Operator-run IBKR socket/TWS smoke test: read-only connectivity checks against a local TWS/Gateway paper port, with an opt-in paper order round trip |
+| `ibkr_socket_smoke_test.py` | Operator-run IBKR socket/TWS smoke test: read-only connectivity checks against a local TWS/Gateway paper port, with an opt-in paper order round trip and an opt-in market-order fill lookup after a reconnect |
 | `benchmark_sweep.py` | Time the walk-forward optimizer against a DB copy so sweep candidate budgets can be sized from measured cost |
 
 ---

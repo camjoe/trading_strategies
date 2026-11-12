@@ -7,16 +7,20 @@ config via ``load_ib_web_api_settings`` — they are not stored in the app DB.
 
 from __future__ import annotations
 
+import logging
 import time
+from datetime import datetime, timezone
 
 from common.coercion import coerce_bool, coerce_float
-from common.time import utc_now_iso
+from common.time import as_utc_iso, normalize_utc_iso, utc_now_iso
 from infrastructure.brokers.ibkr_web import (
     IbWebOrderStatusUnavailableError,
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType
+
+logger = logging.getLogger(__name__)
 
 # Account summary fields expected by the service layer.
 _ACCOUNT_INFO_FIELDS = (
@@ -29,9 +33,15 @@ _ACCOUNT_INFO_FIELDS = (
 # IBKR requires a unique customer order id for each order within a 24-hour span.
 _WEB_ORDER_ID_PREFIX = "ts-web"
 
+# IBKR rejects a fractional-share order routed to a listing exchange: "Only IBKR
+# SmartRouting supports fractional shares".
+_SMART_ROUTING_EXCHANGE = "SMART"
+
 
 class InteractiveBrokersWebAdapter(BrokerConnection):
     """Live broker adapter backed by the IBKR Web API."""
+
+    reports_executions = False
 
     def __init__(self, client: InteractiveBrokersWebClient) -> None:
         self._client = client
@@ -51,7 +61,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
             "conid": int(contract.conid),
             "secType": f"{contract.conid}:{contract.sec_type}",
             "cOID": _build_customer_order_id(order),
-            "listingExchange": contract.listing_exchange,
+            "listingExchange": _order_exchange(contract.listing_exchange, order.qty),
             "side": order.side.upper(),
             "orderType": "MKT" if order.order_type == OrderType.MARKET else "LMT",
             "ticker": contract.ticker,
@@ -96,18 +106,7 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                 order_status = OrderStatus.PARTIALLY_FILLED
             status_reason = self._fetch_terminal_status_reason(broker_order_id, order_status)
 
-            fills: list[OrderFill] = []
             fill_time = _normalize_fill_time(row.get("lastExecutionTime") or row.get("lastExecutionTime_r"))
-            if filled_qty > 0 and avg_fill_price is not None:
-                fills.append(
-                    OrderFill(
-                        filled_qty=filled_qty,
-                        fill_price=avg_fill_price,
-                        fill_time=fill_time,
-                        commission=_coerce_number(row.get("commission")) or 0.0,
-                        exec_id=f"web-{broker_order_id}-{filled_qty}-{fill_time}",
-                    )
-                )
 
             result.append(
                 BrokerOrder(
@@ -124,11 +123,20 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
                     filled_qty=filled_qty,
                     avg_fill_price=avg_fill_price,
                     commission=_coerce_number(row.get("commission")) or 0.0,
-                    fills=fills,
+                    updated_at=fill_time,
                     status_reason=status_reason,
                 )
             )
         return result
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        self._require_connected()
+        try:
+            payload = self._client.fetch_order_status(broker_order_id)
+        except IbWebOrderStatusUnavailableError:
+            # IBKR documents that completed orders may disappear from its status cache.
+            return None
+        return _broker_order_from_status(broker_order_id, payload)
 
     def get_positions(self) -> dict[str, float]:
         self._require_connected()
@@ -149,8 +157,13 @@ class InteractiveBrokersWebAdapter(BrokerConnection):
         summary = self._client.fetch_summary()
 
         ledger_row = _select_ledger_row(ledger)
+        cash = _coerce_number(ledger_row.get("cashbalance"))
+        if cash is None:
+            cash = _coerce_number(ledger_row.get("settledcash"))
+        if cash is None:
+            raise RuntimeError("IBKR Web API ledger has no cashbalance or settledcash.")
         account_info = {
-            "TotalCashValue": _coerce_number(ledger_row.get("cashbalance") or ledger_row.get("settledcash")) or 0.0,
+            "TotalCashValue": cash,
             "BuyingPower": (
                 _summary_amount(summary, "buyingpower")
                 or _summary_amount(summary, "availablefunds")
@@ -222,6 +235,14 @@ _IB_WEB_STATUS_MAP: dict[str, OrderStatus] = {
 _TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJECTED))
 
 
+# Side codes on the order status reply.
+_STATUS_SIDE = {"B": "buy", "S": "sell"}
+
+# Compact UTC layout ``yymmddHHMMSS`` of the status reply's ``order_time`` and the order
+# list's ``lastExecutionTime``.
+_COMPACT_UTC_FORMAT = "%y%m%d%H%M%S"
+
+
 def _map_ib_web_status(status: str) -> OrderStatus:
     normalized = status.strip().replace(" ", "").lower()
     return _IB_WEB_STATUS_MAP.get(normalized, OrderStatus.SUBMITTED)
@@ -237,10 +258,59 @@ def _coerce_number(value: object | None) -> float | None:
 
 
 def _normalize_fill_time(value: object | None) -> str:
-    if value is None:
+    text = str(value or "").strip()
+    if (compact := _compact_utc_time(text)) is not None:
+        return compact
+    try:
+        return normalize_utc_iso(text)
+    except ValueError:
+        if text:
+            logger.warning("Unreadable IBKR execution time %r; stamping the fill with the poll time.", text)
         return utc_now_iso()
-    text = str(value).strip()
-    return text or utc_now_iso()
+
+
+def _compact_utc_time(value: object | None) -> str | None:
+    """A ``yymmddHHMMSS`` UTC timestamp as a stored UTC timestamp, or None when unreadable."""
+    try:
+        parsed = datetime.strptime(str(value or "").strip(), _COMPACT_UTC_FORMAT)
+    except ValueError:
+        return None
+    return as_utc_iso(parsed.replace(tzinfo=timezone.utc))
+
+
+def _broker_order_from_status(broker_order_id: str, payload: dict[str, object]) -> BrokerOrder | None:
+    """Map an order status reply onto a ``BrokerOrder`` carrying the cumulative fill, or None.
+
+    The reply states the cumulative filled size and average price, not individual
+    executions, so ``fills`` is empty and commission is 0.0 (the reply has none).
+    """
+    raw_status = payload.get("order_status")
+    if not isinstance(raw_status, str) or not raw_status.strip():
+        return None
+
+    qty = _coerce_number(payload.get("total_size")) or 0.0
+    filled_qty = _coerce_number(payload.get("cum_fill")) or 0.0
+    status = _map_ib_web_status(raw_status)
+    if status == OrderStatus.SUBMITTED and 0.0 < filled_qty < qty:
+        status = OrderStatus.PARTIALLY_FILLED
+
+    description = payload.get("order_status_description")
+    status_reason: str | None = None
+    if status in _TERMINAL_NON_FILL_STATUSES and isinstance(description, str):
+        status_reason = description.strip() or None
+    return BrokerOrder(
+        account_id=0,
+        ticker=str(payload.get("symbol") or "").strip(),
+        side=_STATUS_SIDE.get(str(payload.get("side") or "").strip().upper(), ""),
+        qty=qty,
+        price=_coerce_number(payload.get("limit_price")) or 0.0,
+        broker_order_id=broker_order_id,
+        status=status,
+        filled_qty=filled_qty,
+        avg_fill_price=_coerce_number(payload.get("average_price")) if filled_qty > 0 else None,
+        updated_at=_compact_utc_time(payload.get("order_time")),
+        status_reason=status_reason,
+    )
 
 
 def _select_ledger_row(ledger: dict[str, object]) -> dict[str, object]:
@@ -259,6 +329,11 @@ def _summary_amount(summary: dict[str, object], key: str) -> float | None:
     if not isinstance(entry, dict):
         return None
     return _coerce_number(entry.get("amount") or entry.get("value"))
+
+
+def _order_exchange(listing_exchange: str, qty: float) -> str:
+    """The exchange to route an order of ``qty`` shares to: SMART when the size is fractional."""
+    return listing_exchange if float(qty).is_integer() else _SMART_ROUTING_EXCHANGE
 
 
 def _requires_manual_order_time(accounts_payload: dict[str, object], account_id: str) -> bool:

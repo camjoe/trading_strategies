@@ -3,7 +3,7 @@
 Type: notes
 Status: Active
 Created: 2026-06-25
-Last Reviewed: 2026-08-02
+Last Reviewed: 2026-10-06
 Purpose: Single catalog of runtime job entrypoints — what each job is, how to run it, and how to register it on a scheduler.
 Related: [Runtime Operations Runbook](../runbooks/runtime-operations.md), [Governance Review Guide](../runbooks/governance-review.md), [Trading Package Map](../maps/trading-package-map.md)
 
@@ -27,7 +27,7 @@ in `job_schedule.json`).
 |---|---|---|---|---|---|
 | Daily paper trading | `daily_paper_trading` | `python -m trading.interfaces.runtime.jobs.daily.paper_trading` | `Trading\DailyPaperTrading` | Weekdays | Main daily workflow: shadow eval, auto trades, snapshots, report, notifications. Runs Monday–Friday; the market-closed path still completes and writes the success sentinel. |
 | Challenger shadow evaluation | `daily_challenger_shadow_eval` | `python -m trading.interfaces.runtime.jobs.daily.challenger_shadow_eval` | `Trading\DailyChallengerShadowEval` | Daily | Scores challengers against incumbents per account. No-op without `--enable-run` (set it in the entry's `args`) or `DAILY_CHALLENGER_SHADOW_EVAL_ENABLED=1`. |
-| Daily trader health check | `daily_trader_health` | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Weekdays | Checks the latest daily log is recent and carries the success sentinel. Runs Monday–Friday to match the trading job, so a weekend does not read as a stale run. |
+| Daily trader health check | `daily_trader_health` | `python -m trading.interfaces.runtime.jobs.daily.trader_health` | `Trading\DailyTraderHealthCheck` | Weekdays | Checks the latest daily log is recent and carries the success sentinel, then that every account has a recent equity snapshot (`account-freshness` digest; a `fail` exits 1). With `--json` the output keeps the log check's fields, whose `status` covers the log only, and adds a `freshness` object; the exit code is 1 when either fails. Runs Monday–Friday to match the trading job, so a weekend does not read as a stale run. |
 | Weekly DB backup | `weekly_db_backup` | `python -m trading.interfaces.runtime.jobs.maintenance.weekly_db_backup` | `Trading\WeeklyDbBackup` | Weekly | Database backup with a same-week duplicate guard. |
 
 ## Manual or indirect jobs
@@ -35,8 +35,9 @@ in `job_schedule.json`).
 | Job | Entrypoint | Frequency | What it does |
 |---|---|---|---|
 | Run auto trades | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.run_auto_trades` | Indirect/manual | Per-account signal-driven trades, up to `--max-trades`. The daily job shells out to it. |
-| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc | Counts consecutive successful daily artifacts to report go-live readiness. |
-| Reconcile broker fills | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders` | Indirect/manual | Applies outstanding broker fills to the books. No-op for `paper` accounts. |
+| Burn-in status | `python -m trading.interfaces.runtime.jobs.maintenance.burn_in_status` | Manual/ad hoc | Counts consecutive successful daily artifacts to report go-live readiness; with `--accounts` it judges each named account separately (traded, not skipped, no kill switch). |
+| Reconcile broker fills | `python -m trading.interfaces.runtime.jobs.daily.paper_trading.reconcile_orders` | Indirect/manual | Applies outstanding broker fills to the books and prints an `UNRESOLVED_ORDERS` line per account with orders it could not resolve. No-op for `paper` accounts. |
+| IB Gateway health | `python -m trading.interfaces.runtime.jobs.maintenance.ibkr_gateway_health --port 4002` | Long-running service | Connects to IB Gateway's API port every `--interval-seconds` (default 300) with its own `--client-id` (default 901), reads the managed accounts, and alerts when the Gateway has been unreachable or reporting none for `--grace-seconds` (default 900, so its nightly restart passes quietly), and when it returns. Runs as a system unit bound to the weekday awake window; see [Production Runtime Host Runbook](../runbooks/production-runtime-host.md#part-6--ib-gateway-the-weekday-awake-window-and-the-health-alert). |
 | Replay daily runs | `python -m trading.interfaces.runtime.jobs.maintenance.replay_daily_runs` | Manual recovery | Replays dates in a range that have no successful daily log. |
 
 ## Governance jobs
@@ -75,6 +76,27 @@ US regular equity hours and otherwise completes every other step; it snapshots a
 than depending on a separate job; and it skips a date that already succeeded. Pass `--force-run` for a
 deliberate re-run — that is a second full trading pass, not a retry. The reasoning behind the guard
 and the snapshot placement is in the `paper_trading` package docstring and `workflow.py`.
+
+### Development runs
+
+To check a change on a development machine, run the daily job against a fresh copy of the sandbox
+database. No broker, credentials, or network are needed:
+
+```sh
+python -m scripts.dev_run_daily
+python -m scripts.dev_run_daily --ignore-market-hours   # trade even when the market is closed
+```
+
+The script restores `local/sandbox.db`, uses the offline demo market data, turns off notifications,
+and runs the job with `--run-source dev-sandbox --force-run`. Any other arguments, such as
+`--accounts sandbox_core`, go to the daily job. Its logs and artifacts go under `local/dev_runs/`
+(passed as the job's `--repo-root`). The duplicate-run guard, `trader_health`, and `burn_in_status`
+never read that folder, so a development run cannot make a scheduled run skip or count as a burn-in day.
+
+`--ignore-market-hours` sets `TRADING_DEV_IGNORE_MARKET_HOURS=1`. The auto trader refuses that
+variable when the database is the default `local/paper_trading.db`, or when any account in the run
+is not on the in-process simulator (`broker_type` `paper`). Testing against IBKR stays on the
+runtime host.
 
 ## When a reinstall is needed
 

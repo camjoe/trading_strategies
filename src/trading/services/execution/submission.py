@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 import time
 from collections.abc import Callable, Sequence
@@ -19,6 +20,8 @@ from trading.repositories.orders import OrderRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.execution.constants import KILL_SWITCH_REASON_BROKER_API_ANOMALY
 from trading.services.execution.gate import PreSubmitGate
+
+logger = logging.getLogger(__name__)
 
 # Marks a client order id as this system's when read back off a broker's order list.
 _CLIENT_ORDER_ID_PREFIX = "ts"
@@ -267,9 +270,17 @@ def submit_book_intents(
         )
         try:
             placed = broker.place_order(request)
-        except Exception:
+        except Exception as exc:
             # The row stays pending: reconciliation adopts it if the broker took the
             # order, and reports it if no broker order carries its client id.
+            logger.error(
+                "Broker rejected or failed the %s %s order (client_order_id=%s): %s",
+                intent.side,
+                intent.symbol,
+                client_order_id,
+                exc,
+                exc_info=True,
+            )
             kill_switch_reasons.append(KILL_SWITCH_REASON_BROKER_API_ANOMALY)
             break
 

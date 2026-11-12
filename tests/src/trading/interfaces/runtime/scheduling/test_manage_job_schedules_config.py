@@ -88,7 +88,29 @@ def test_apply_from_config_forwards_scheduler_options_and_env_file(
     )
     assert captured["scheduler_type"] == "systemd"
     assert captured["wake_system"] is False
-    assert captured["env_file"] == Path("/etc/trading/.env")
+    assert captured["env_file"] == Path("/etc/trading/.env").resolve()
+
+
+def test_apply_from_config_resolves_a_relative_env_file_to_an_absolute_path(
+    monkeypatch, tmp_path: Path, _run_main_with_args
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(module, "get_repo_root", lambda _file: tmp_path)
+    monkeypatch.setattr(
+        module, "resolve_schedule_config", lambda _path: ScheduleResolution(to_register=[_paper_spec()])
+    )
+    monkeypatch.setattr(module, "registered_task_names", lambda names, **_kwargs: set())
+
+    def fake_register(tasks, *, env_file, **_kwargs):
+        captured["env_file"] = env_file
+        return 0
+
+    monkeypatch.setattr(module, "register_tasks_for_platform", fake_register)
+    monkeypatch.chdir(tmp_path)
+
+    assert _run_main_with_args(config="/cfg/job_schedule.json", scheduler="systemd", env_file=".env") == 0
+    assert captured["env_file"] == tmp_path.resolve() / ".env"
+    assert captured["env_file"].is_absolute()
 
 
 def test_apply_from_config_converts_empty_env_file_to_none(monkeypatch, tmp_path: Path, _run_main_with_args) -> None:

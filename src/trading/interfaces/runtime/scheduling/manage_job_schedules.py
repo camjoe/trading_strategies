@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help=(
             "Path to a .env file to inject into each systemd service unit via EnvironmentFile=. "
+            "A relative path is resolved against the current directory. "
             "The file is treated as optional (missing file is not an error). "
             "Has no effect when using cron or Windows Task Scheduler."
         ),
@@ -252,7 +253,7 @@ def main() -> int:
             dry_run=args.dry_run,
             scheduler_type=args.scheduler,
             wake_system=args.wake_system,
-            env_file=Path(args.env_file) if args.env_file else None,
+            env_file=Path(args.env_file).expanduser().resolve() if args.env_file else None,
         )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)

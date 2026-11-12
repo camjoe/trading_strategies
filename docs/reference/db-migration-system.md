@@ -144,7 +144,8 @@ say so. All paths use `pathlib` — never hardcode slash direction.
 
 Backup logic lives in `src/trading/interfaces/runtime/data_ops/admin.py`
 (`backup_database(destination=None) -> Path`, default destination
-`local/db_backups/<db_stem>_<YYYYMMDD_HHMMSS>.db`). `manage_db_migrations upgrade`/`downgrade`
+`<db_stem>_<YYYYMMDD_HHMMSS>.db`, or `..._<n>.db` when that name is taken, in `common.paths.db_backups_dir()`: `$TRADING_DB_BACKUPS_DIR`, else
+`db_backups/` under `$TRADING_DATA_HOME`, else `local/db_backups/`). `manage_db_migrations upgrade`/`downgrade`
 call it automatically before changing a database. Backups remain the recovery mechanism for data
 discarded by lossy downgrades.
 

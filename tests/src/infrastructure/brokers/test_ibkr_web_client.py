@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -257,6 +258,37 @@ class TestInteractiveBrokersWebClient:
         rows = client.fetch_marketdata_snapshot(["265598"])
 
         assert rows[0]["31"] == "168.42"
+
+    def test_submit_order_logs_the_warning_it_confirms(self, caplog):
+        responses = [
+            httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": "reply-1",
+                        "message": ["The order price is outside the allowed range."],
+                        "messageIds": ["o163"],
+                    }
+                ],
+            ),
+            httpx.Response(200, json=[{"order_id": "42", "order_status": "Submitted"}]),
+        ]
+        client = InteractiveBrokersWebClient(
+            settings=IbWebApiSettings(base_url="https://example.test", account_id="U1234567", headers={}),
+            http_client=httpx.Client(
+                transport=httpx.MockTransport(lambda request: responses.pop(0)),
+                base_url="https://example.test",
+            ),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="infrastructure.brokers.ibkr_web.client"):
+            client.submit_order({"conid": 265598, "side": "BUY", "cOID": "ts-AAPL-BUY-1", "quantity": 1})
+
+        [record] = caplog.records
+        assert record.levelno == logging.WARNING
+        assert "ts-AAPL-BUY-1" in record.getMessage()
+        assert "The order price is outside the allowed range." in record.getMessage()
+        assert "o163" in record.getMessage()
 
     def test_submit_order_confirms_reply_message(self):
         responses = [
@@ -625,6 +657,27 @@ class TestInteractiveBrokersWebClient:
         monkeypatch.setattr(client, "_request_json", lambda *args, **kwargs: [{"conid": "1", "31": "123.45"}, "skip"])
 
         assert client.fetch_marketdata_snapshot(["1"]) == [{"conid": "1", "31": "123.45"}]
+
+    def test_submit_order_confirms_up_to_five_warnings_and_no_more(self, monkeypatch):
+        warning = [{"id": "reply-1", "message": ["confirm"]}]
+        for warnings, expect_error in ((5, False), (6, True)):
+            posts: list[str] = []
+            responses = iter([warning] * warnings + [{"order_id": "9"}])
+
+            def fake_request(method, path, **kwargs):
+                posts.append(path)
+                return next(responses)
+
+            client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())
+            monkeypatch.setattr(client, "_request_json", fake_request)
+
+            if expect_error:
+                with pytest.raises(RuntimeError, match="safety limit"):
+                    client.submit_order({"cOID": "c1"})
+                assert len(posts) == 1 + 5
+            else:
+                assert client.submit_order({"cOID": "c1"}) == {"order_id": "9"}
+                assert len(posts) == 1 + 5
 
     def test_submit_order_rejects_confirmation_loops_and_error_payloads(self, monkeypatch):
         client = InteractiveBrokersWebClient(settings=_make_settings(), http_client=MagicMock())

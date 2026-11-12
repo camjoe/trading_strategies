@@ -36,21 +36,21 @@ def resolve_ibkr_socket_client_backend() -> str:
     return backend
 
 
+def build_ibkr_socket_client() -> IbkrSocketClient:
+    """Build the configured, unconnected socket client backend."""
+    # Annotated as the protocol, not either concrete class: callers depend only on
+    # IbkrSocketClient, and binding the name to whichever branch runs first would
+    # make the other backend a type error.
+    if resolve_ibkr_socket_client_backend() == _SOCKET_BACKEND_IBAPI:
+        return IbApiClient()
+    return IbAsyncClient()
+
+
 def build_ibkr_socket_broker(account: AccountRecord) -> IbkrSocketAdapter:
     """Build and connect the socket/TWS Interactive Brokers adapter for *account*."""
-    backend = resolve_ibkr_socket_client_backend()
-    # Annotated as the protocol, not either concrete class: the adapter depends
-    # only on IbkrSocketClient, and binding the name to whichever branch runs
-    # first would make the other backend a type error.
-    client: IbkrSocketClient
-    if backend == _SOCKET_BACKEND_IBAPI:
-        client = IbApiClient()
-    else:
-        client = IbAsyncClient()
-
     host = account.broker_host or _IB_DEFAULT_HOST
     port = account.broker_port or _IB_DEFAULT_PORT
     client_id = account.broker_client_id or _IB_DEFAULT_CLIENT_ID
-    adapter = IbkrSocketAdapter(client=client, host=host, port=port, client_id=client_id)
+    adapter = IbkrSocketAdapter(client=build_ibkr_socket_client(), host=host, port=port, client_id=client_id)
     adapter.connect()
     return adapter

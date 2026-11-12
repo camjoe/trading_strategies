@@ -10,19 +10,34 @@ returns the process exit code.
 from __future__ import annotations
 
 import argparse
+import json
+import shlex
+import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 
 from common.logging_setup import log_counts
 from common.runtime_job_status import (
+    BROKER_ANOMALY_ACCOUNTS_KEY,
     DAILY_PAPER_TRADING_COMPLETE_SENTINEL,
     DAILY_RUN_STATUS_FAILED,
     DAILY_RUN_STATUS_SUCCESS,
+    FIRST_ORDER_STEP_ID,
+    UNRESOLVED_ORDERS_KEY,
+)
+from trading.interfaces.runtime.jobs.daily.paper_trading.broker_preflight import (
+    NoAccountCanTradeError,
+    check_broker_cash,
+    check_broker_sessions,
+    pool_mates_outside_run,
 )
 from trading.interfaces.runtime.jobs.daily.paper_trading.caps import group_accounts_by_caps
 from trading.interfaces.runtime.jobs.daily.paper_trading.dag import (
+    POST_TRADE_RECONCILE_STEP_ID,
+    PRE_TRADE_RECONCILE_STEP_ID,
     DagStepResult,
+    StepFailedError,
     completed_steps_from_dag,
     failed_step_id,
     new_step_results,
@@ -38,13 +53,18 @@ from trading.interfaces.runtime.jobs.daily.paper_trading.reporting import (
     risk_gate_step_result as _risk_gate_step_result,
     submission_step_result as _submission_step_result,
 )
-from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext
+from trading.interfaces.runtime.jobs.daily.paper_trading.run_context import DailyRunContext, exclude_accounts
 from trading.interfaces.runtime.jobs.job_helpers import (
+    BROKER_ANOMALY_LINE_PREFIX,
     CLI_MAIN_MODULE,
     DAILY_CHALLENGER_SHADOW_EVAL_MODULE,
+    DAILY_PAPER_TRADING_MODULE,
     RECONCILE_ORDERS_MODULE,
     RUN_AUTO_TRADES_MODULE,
+    UNRESOLVED_ORDERS_LINE_PREFIX,
+    CommandFailedError,
     resolve_email_config_from_env,
+    run_command,
     stream_command,
     tee_line,
     ts,
@@ -53,6 +73,7 @@ from trading.interfaces.runtime.jobs.job_helpers import (
 from trading.interfaces.runtime.notifications import notify_runtime_event
 
 COMPLETE_SENTINEL = DAILY_PAPER_TRADING_COMPLETE_SENTINEL
+
 
 # Snapshot attempts per account before the step fails. Snapshots reach market data
 # and the DB, which fail transiently far more often than permanently, and the
@@ -63,6 +84,14 @@ SNAPSHOT_MAX_ATTEMPTS = 3
 SNAPSHOT_BACKOFF_SECONDS = 2.0
 
 
+class BrokerAnomalyError(RuntimeError):
+    """The trading step failed after a broker API anomaly; ``accounts`` are the anomalous accounts so far."""
+
+    def __init__(self, message: str, accounts: list[str]) -> None:
+        super().__init__(message)
+        self.accounts = accounts
+
+
 def run_auto_trader_group(
     log_path: Path,
     repo_root: Path,
@@ -71,9 +100,15 @@ def run_auto_trader_group(
     max_trades: int,
     fee: float,
     seed: int | None,
-) -> None:
+) -> list[str]:
+    """Run one cap group and return the accounts that hit a broker API anomaly.
+
+    An anomaly is the one failure the group reports by name (exit 1 plus the
+    ``BROKER_ANOMALY_LINE_PREFIX`` line), so the other groups can still trade.
+    Any other non-zero exit raises, as does exit 1 without that line.
+    """
     if not group_accounts:
-        return
+        return []
     auto_trader_args = [
         "-m",
         RUN_AUTO_TRADES_MODULE,
@@ -86,7 +121,21 @@ def run_auto_trader_group(
     ]
     if seed is not None:
         auto_trader_args.extend(["--seed", str(seed)])
-    stream_command(log_path, label, auto_trader_args, repo_root)
+    exit_code, output = run_command(log_path, label, auto_trader_args, repo_root)
+    if exit_code == 0:
+        return []
+    anomalies = _broker_anomaly_accounts(output)
+    if exit_code == 1 and anomalies:
+        return anomalies
+    raise RuntimeError(f"Step failed: {label} (exit={exit_code})")
+
+
+def _broker_anomaly_accounts(output: str) -> list[str]:
+    for line in reversed(output.splitlines()):
+        if line.startswith(BROKER_ANOMALY_LINE_PREFIX):
+            names = line[len(BROKER_ANOMALY_LINE_PREFIX) :].split(",")
+            return [name.strip() for name in names if name.strip()]
+    return []
 
 
 def snapshot_account_with_retry(
@@ -122,6 +171,25 @@ def snapshot_account_with_retry(
             sleep_fn(SNAPSHOT_BACKOFF_SECONDS * (2 ** (attempt - 1)))
 
 
+def reconcile_fills(
+    log_path: Path,
+    repo_root: Path,
+    accounts: list[str],
+    label: str,
+) -> dict[str, dict[str, list[str]]]:
+    """Apply outstanding broker fills for *accounts*; return the orders reconcile could not resolve."""
+    try:
+        output = stream_command(
+            log_path,
+            f"{label} reconcile fills",
+            ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
+            repo_root,
+        )
+    except CommandFailedError as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: _unresolved_orders(log_path, exc.output)}) from exc
+    return _unresolved_orders(log_path, output)
+
+
 def reconcile_and_snapshot(
     log_path: Path,
     repo_root: Path,
@@ -138,15 +206,30 @@ def reconcile_and_snapshot(
     Snapshots retry on transient failure; an account that still fails after
     ``SNAPSHOT_MAX_ATTEMPTS`` propagates, failing the step.
     """
-    stream_command(
-        log_path,
-        f"{label} reconcile fills",
-        ["-m", RECONCILE_ORDERS_MODULE, "--accounts", ",".join(accounts)],
-        repo_root,
-    )
-    for account in accounts:
-        snapshot_account_with_retry(log_path, repo_root, account, label)
-    return {"accounts": list(accounts), "count": len(accounts)}
+    unresolved = reconcile_fills(log_path, repo_root, accounts, label)
+    try:
+        for account in accounts:
+            snapshot_account_with_retry(log_path, repo_root, account, label)
+    except Exception as exc:
+        raise StepFailedError(str(exc), {UNRESOLVED_ORDERS_KEY: unresolved}) from exc
+    return {"accounts": list(accounts), "count": len(accounts), UNRESOLVED_ORDERS_KEY: unresolved}
+
+
+def _unresolved_orders(log_path: Path, output: str) -> dict[str, dict[str, list[str]]]:
+    """Accounts whose orders reconcile could not resolve, from its ``UNRESOLVED_ORDERS_LINE_PREFIX`` lines."""
+    unresolved: dict[str, dict[str, list[str]]] = {}
+    for line in output.splitlines():
+        if not line.startswith(UNRESOLVED_ORDERS_LINE_PREFIX):
+            continue
+        try:
+            entry = json.loads(line[len(UNRESOLVED_ORDERS_LINE_PREFIX) :])
+            unresolved[str(entry["account"])] = {
+                "pending": [str(order_id) for order_id in entry["pending"]],
+                "unreported": [str(order_id) for order_id in entry["unreported"]],
+            }
+        except ValueError, KeyError, TypeError:
+            tee_line(log_path, f"[{ts()}] WARN: could not read a reconcile line: {line}")
+    return unresolved
 
 
 def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str]:
@@ -161,6 +244,48 @@ def kill_switch_accounts_from_dag(step_results: list[DagStepResult]) -> list[str
     details = step_result(step_results, "06_pretrade_risk_gate").details
     accounts = details.get("kill_switch_accounts")
     return [str(account) for account in accounts] if isinstance(accounts, list) else []
+
+
+def broker_anomaly_accounts_from_dag(step_results: list[DagStepResult]) -> list[str]:
+    """Accounts whose broker misbehaved mid-submission, read back out of step 05's result.
+
+    Their orders may be in an unknown state: the next run's pre-trade reconcile
+    applies any fills before it trades.
+    """
+    details = step_result(step_results, FIRST_ORDER_STEP_ID).details
+    accounts = details.get(BROKER_ANOMALY_ACCOUNTS_KEY)
+    return [str(account) for account in accounts] if isinstance(accounts, list) else []
+
+
+def unresolved_orders_from_dag(step_results: list[DagStepResult]) -> dict[str, dict[str, list[str]]]:
+    """Accounts with orders reconcile could not resolve, read from the pre- and post-trade reconcile steps.
+
+    The post-trade pass has the last word for the accounts it reconciled; the pre-trade report stands for the
+    rest (an account left out of step 08, or a run that failed before it). Reported, not acted on: an unresolved
+    order does not stop that account from trading.
+    """
+    pre_trade = step_result(step_results, PRE_TRADE_RECONCILE_STEP_ID).details
+    post_trade = step_result(step_results, POST_TRADE_RECONCILE_STEP_ID).details
+    reconciled_after_trading = post_trade.get("accounts")
+    still_open: dict[str, dict[str, list[str]]] = {}
+    for account, ids in _unresolved_in(pre_trade).items():
+        if not isinstance(reconciled_after_trading, list) or account not in reconciled_after_trading:
+            still_open[account] = ids
+    still_open.update(_unresolved_in(post_trade))
+    return still_open
+
+
+def _unresolved_in(details: dict[str, object]) -> dict[str, dict[str, list[str]]]:
+    found = details.get(UNRESOLVED_ORDERS_KEY)
+    return found if isinstance(found, dict) else {}
+
+
+def _describe_unresolved(unresolved: dict[str, dict[str, list[str]]]) -> str:
+    parts = [
+        f"{account} ({len(ids['pending'])} sent but never confirmed, {len(ids['unreported'])} not reported by the broker)"
+        for account, ids in unresolved.items()
+    ]
+    return "; ".join(parts)
 
 
 def _int_field(details: dict[str, object], key: str) -> int:
@@ -205,6 +330,44 @@ def build_run_summary(
     }
 
 
+def _interpreter_for(repo_root: Path) -> str:
+    """The running interpreter as a repo-relative path when it lives in the repo (the ``.venv``), else ``python``."""
+    try:
+        return str(Path(sys.executable).absolute().relative_to(repo_root.absolute()))
+    except ValueError:
+        return "python"
+
+
+def catch_up_command(args: argparse.Namespace, context: DailyRunContext, skipped: dict[str, str]) -> str:
+    """The command that runs *skipped* accounts later with this run's effective options.
+
+    Run from the repo root. Trade caps are the resolved per-account caps, so the primary-account options need no carrying.
+    The webhook URL is left out; the environment supplies it.
+    """
+    options = [
+        "--accounts",
+        ",".join(skipped),
+        "--account-trade-caps",
+        ",".join(f"{name}:{context.account_trade_caps[name]}" for name in skipped),
+        "--fee",
+        str(args.fee),
+        "--run-source",
+        "manual",
+        "--force-run",
+        "--repo-root",
+        str(context.repo_root),
+    ]
+    if args.seed is not None:
+        options += ["--seed", str(args.seed)]
+    if args.as_of_date:
+        options += ["--as-of-date", args.as_of_date]
+    if args.run_challenger_shadow_eval:
+        options.append("--run-challenger-shadow-eval")
+        if args.shadow_eval_rolling_window_days is not None:
+            options += ["--shadow-eval-rolling-window-days", str(args.shadow_eval_rolling_window_days)]
+    return shlex.join([_interpreter_for(context.repo_root), "-m", DAILY_PAPER_TRADING_MODULE, *options])
+
+
 def _finish_run(
     args: argparse.Namespace,
     context: DailyRunContext,
@@ -222,14 +385,21 @@ def _finish_run(
     A run that completed every step but tripped a kill switch is still a success
     by ``status`` — steps ran, nothing threw — but it did not trade what it
     intended. ``kill_switch_accounts`` carries that so the artifact and the alert
-    say so instead of reading as a clean run.
+    say so instead of reading as a clean run. Skipped accounts and
+    ``broker_anomaly_accounts`` are reported the same way.
     """
     failed = error is not None
     kill_switch_accounts = kill_switch_accounts_from_dag(step_results)
+    unresolved_orders = unresolved_orders_from_dag(step_results)
+    broker_anomaly_accounts = broker_anomaly_accounts_from_dag(step_results) or (
+        error.accounts if isinstance(error, BrokerAnomalyError) else []
+    )
     payload: dict[str, object] = {
         **context.run_meta,
         "status": DAILY_RUN_STATUS_FAILED if failed else DAILY_RUN_STATUS_SUCCESS,
         "kill_switch_accounts": kill_switch_accounts,
+        BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
+        UNRESOLVED_ORDERS_KEY: unresolved_orders,
         "summary": build_run_summary(
             step_results, accounts=context.accounts, kill_switch_accounts=kill_switch_accounts
         ),
@@ -242,10 +412,57 @@ def _finish_run(
         payload["failed_step"] = failed_step_id(step_results)
         payload["error"] = str(error)
 
+    # The pre-trade step wraps the error so the step keeps its details; the run's skips are on the cause.
+    no_account_error = error if isinstance(error, NoAccountCanTradeError) else error and error.__cause__
+    skipped_accounts = (
+        no_account_error.skipped if isinstance(no_account_error, NoAccountCanTradeError) else context.skipped_accounts
+    )
+    if skipped_accounts:
+        payload["skipped_accounts"] = skipped_accounts
+
     if failed:
         message = f"Daily paper trading run failed: {error}"
-    elif kill_switch_accounts:
-        message = f"Daily paper trading run completed with kill switches on: {', '.join(kill_switch_accounts)}"
+        if broker_anomaly_accounts and not isinstance(error, BrokerAnomalyError):
+            message += (
+                f". Broker API anomaly earlier on: {', '.join(broker_anomaly_accounts)}; orders may be in an "
+                "unknown state, so check the broker's open orders before any re-run"
+            )
+        elif not isinstance(error, BrokerAnomalyError) and step_result(step_results, FIRST_ORDER_STEP_ID).status in (
+            "running",
+            "ok",
+            "failed",
+        ):
+            message += ". Orders may already have gone out; check the broker's open orders before any re-run"
+        if unresolved_orders:
+            source = (
+                ""
+                if step_result(step_results, POST_TRADE_RECONCILE_STEP_ID).status == "ok"
+                else " (found before trading; the post-trade reconcile did not finish)"
+            )
+            message += f". Orders reconcile could not resolve{source}: {_describe_unresolved(unresolved_orders)}"
+    elif kill_switch_accounts or skipped_accounts or broker_anomaly_accounts or unresolved_orders:
+        notes: list[str] = []
+        if kill_switch_accounts:
+            notes.append(f"completed with kill switches on: {', '.join(kill_switch_accounts)}")
+        if skipped_accounts:
+            notes.append(
+                f"completed without accounts that could not trade today: {', '.join(skipped_accounts)}. "
+                "Each one's reason (session unavailable, books holding more cash than the broker, or the broker's "
+                "cash unreadable) is in the log and the artifact's skipped_accounts. "
+                f"Once the cause is fixed, run them with: {context.catch_up_command}"
+            )
+        if broker_anomaly_accounts:
+            notes.append(
+                f"completed with broker API anomalies on: {', '.join(broker_anomaly_accounts)}. Their orders may be "
+                "in an unknown state and they were left out of the post-trade reconcile; the next run's pre-trade "
+                "reconcile applies any fills first. Check the broker's open orders before you re-run them"
+            )
+        if unresolved_orders:
+            notes.append(
+                f"completed with orders reconcile could not resolve: {_describe_unresolved(unresolved_orders)}. "
+                "Trading went on; check the broker's orders for these accounts"
+            )
+        message = "Daily paper trading run " + " | ".join(notes)
     else:
         message = "Daily paper trading run completed successfully"
 
@@ -255,19 +472,82 @@ def _finish_run(
         webhook_url=args.notify_webhook_url,
         email_config=resolve_email_config_from_env(),
         notify_on_success=args.notify_on_success,
-        # A kill switch is not a step failure, but it is not a quiet success
-        # either — alert on it even when notify_on_success is off.
-        status="fail" if failed else ("warn" if kill_switch_accounts else "ok"),
+        # A kill switch, a skipped account, or a broker anomaly is not a step failure, but it is
+        # not a quiet success either — alert on it even when notify_on_success is off.
+        status="fail"
+        if failed
+        else (
+            "warn"
+            if kill_switch_accounts or skipped_accounts or broker_anomaly_accounts or unresolved_orders
+            else "ok"
+        ),
         message=message,
         details={
             "accounts": context.accounts,
             "account_count": len(context.accounts),
             "kill_switch_accounts": kill_switch_accounts,
+            "skipped_accounts": skipped_accounts,
+            BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
+            UNRESOLVED_ORDERS_KEY: unresolved_orders,
             "log_path": str(context.log_path),
             "run_source": args.run_source,
         },
     )
     return 1 if failed else 0
+
+
+def skip_accounts(
+    args: argparse.Namespace,
+    initial_context: DailyRunContext,
+    context: DailyRunContext,
+    newly_skipped: dict[str, str],
+) -> DailyRunContext:
+    """*context* without the newly skipped accounts, with each skip logged and the catch-up command covering every skip.
+
+    The context is rebuilt from *initial_context*, which still has the caps of accounts skipped earlier.
+    """
+    for name, reason in newly_skipped.items():
+        tee_line(context.log_path, f"[{ts()}] WARN: skipping {name} before trading ({reason})")
+    every_skip = {**context.skipped_accounts, **newly_skipped}
+    skipped_context = exclude_accounts(
+        initial_context, every_skip, catch_up_command(args, initial_context, every_skip)
+    )
+    tee_line(
+        context.log_path,
+        f"[{ts()}] RUN META (after skips): accounts={','.join(skipped_context.accounts)} "
+        f"caps={skipped_context.caps_summary}",
+    )
+    return skipped_context
+
+
+def pre_trade_reconcile_and_cash_check(
+    args: argparse.Namespace,
+    initial_context: DailyRunContext,
+    context: DailyRunContext,
+) -> tuple[dict[str, object], DailyRunContext]:
+    """Post outstanding fills, snapshot, then skip the accounts whose books hold more cash than the broker.
+
+    Returns the step's details and the context to trade with. The cash check counts the books of every account
+    that shares the broker's cash, so those accounts' fills are posted first; accounts skipped at step 00 cannot
+    connect and are left out. A failure keeps the orders the reconcile could not resolve in the step's details.
+    """
+    log_path, repo_root, accounts = context.log_path, context.repo_root, context.accounts
+    details = reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade")
+    pool_mates = [name for name in pool_mates_outside_run(accounts) if name not in context.skipped_accounts]
+    if pool_mates:
+        try:
+            mates_unresolved = reconcile_fills(log_path, repo_root, pool_mates, "Pre-trade pool")
+        except StepFailedError as exc:
+            unresolved = {**_unresolved_in(details), **_unresolved_in(exc.details)}
+            raise StepFailedError(str(exc), {**details, UNRESOLVED_ORDERS_KEY: unresolved}) from exc
+        details[UNRESOLVED_ORDERS_KEY] = {**_unresolved_in(details), **mates_unresolved}
+    try:
+        cash_skipped = check_broker_cash(accounts, already_skipped=context.skipped_accounts)
+    except NoAccountCanTradeError as exc:
+        raise StepFailedError(str(exc), details) from exc
+    if cash_skipped:
+        context = skip_accounts(args, initial_context, context, cash_skipped)
+    return {**details, "skipped_accounts": cash_skipped}, context
 
 
 def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
@@ -276,33 +556,52 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
     artifact_path = context.artifact_path
     accounts = context.accounts
     account_trade_caps = context.account_trade_caps
-    caps_summary = context.caps_summary
     report_date = context.report_date
+    initial_context = context
     step_results = new_step_results()
+
+    skipped_accounts: dict[str, str] = {}
+
+    def _ingest_market_and_account() -> dict[str, object]:
+        nonlocal skipped_accounts
+        skipped_accounts = check_broker_sessions(accounts)
+        return {
+            "accounts": [name for name in accounts if name not in skipped_accounts],
+            "account_count": len(accounts) - len(skipped_accounts),
+            "skipped_accounts": skipped_accounts,
+        }
 
     try:
         run_dag_step(
             step_results,
             step_id="00_ingest_market_and_account",
-            run_fn=lambda: {
-                "accounts": accounts,
-                "account_count": len(accounts),
-                "caps_summary": caps_summary,
-            },
+            run_fn=_ingest_market_and_account,
             now_iso=ts,
         )
+        if skipped_accounts:
+            context = skip_accounts(args, initial_context, context, skipped_accounts)
+            accounts = context.accounts
+            account_trade_caps = context.account_trade_caps
+
         # The pre-submit gate reconciles book equity against the latest equity
         # snapshot and kills the run when that snapshot is missing or disagrees on
         # value. Books are marked to current prices just before that check, so a
         # snapshot from an earlier session fails it. Snapshotting here — before any
         # trading — is what lets the run stand on its own at any point the market
         # is open; the post-trade pass at step 08 still records end-state equity.
+        def _pre_trade_step() -> dict[str, object]:
+            nonlocal context
+            details, context = pre_trade_reconcile_and_cash_check(args, initial_context, context)
+            return details
+
         run_dag_step(
             step_results,
-            step_id="01_mark_book_nav",
-            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Pre-trade"),
+            step_id=PRE_TRADE_RECONCILE_STEP_ID,
+            run_fn=_pre_trade_step,
             now_iso=ts,
         )
+        accounts = context.accounts
+        account_trade_caps = context.account_trade_caps
 
         shadow_eval_summary: dict[str, object] | None = None
         if args.run_challenger_shadow_eval:
@@ -376,34 +675,51 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
         auto_trader_groups: list[dict[str, object]] = []
 
         def _run_all_auto_trader_groups() -> dict[str, object]:
+            broker_anomaly_accounts: list[str] = []
             for limits, group_accounts in sorted(
                 grouped_accounts.items(),
                 key=lambda item: (item[0], item[1]),
             ):
-                run_auto_trader_group(
-                    log_path,
-                    repo_root,
-                    f"Auto Trader (up to {limits} trades)",
-                    group_accounts,
-                    limits,
-                    args.fee,
-                    args.seed,
-                )
+                try:
+                    broker_anomaly_accounts += run_auto_trader_group(
+                        log_path,
+                        repo_root,
+                        f"Auto Trader (up to {limits} trades)",
+                        group_accounts,
+                        limits,
+                        args.fee,
+                        args.seed,
+                    )
+                except Exception as exc:
+                    if broker_anomaly_accounts:
+                        raise BrokerAnomalyError(
+                            f"{exc}. Earlier broker API anomaly on: {', '.join(broker_anomaly_accounts)}; orders "
+                            "may be in an unknown state, so check the broker's open orders before any re-run",
+                            list(broker_anomaly_accounts),
+                        ) from exc
+                    raise
                 auto_trader_groups.append(
                     {
                         "accounts": group_accounts,
                         "max_trades": limits,
                     }
                 )
+            if set(broker_anomaly_accounts) >= set(accounts):
+                raise BrokerAnomalyError(
+                    f"Broker API anomaly on every account: {', '.join(broker_anomaly_accounts)}. Orders may have gone "
+                    "out and may be in an unknown state; check the broker's open orders before any re-run",
+                    list(broker_anomaly_accounts),
+                )
             return {
                 "groups": auto_trader_groups,
                 "group_count": len(auto_trader_groups),
+                BROKER_ANOMALY_ACCOUNTS_KEY: broker_anomaly_accounts,
                 "shadow_eval_summary": shadow_eval_summary,
             }
 
         run_dag_step(
             step_results,
-            step_id="05_build_position_targets_by_book",
+            step_id=FIRST_ORDER_STEP_ID,
             run_fn=_run_all_auto_trader_groups,
             now_iso=ts,
         )
@@ -424,10 +740,12 @@ def run_workflow(args: argparse.Namespace, context: DailyRunContext) -> int:
             now_iso=ts,
         )
 
+        anomalous = broker_anomaly_accounts_from_dag(step_results)
+        post_trade_accounts = [name for name in accounts if name not in anomalous]
         run_dag_step(
             step_results,
-            step_id="08_reconcile_fills_update_ledgers",
-            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, accounts, "Post-trade"),
+            step_id=POST_TRADE_RECONCILE_STEP_ID,
+            run_fn=lambda: reconcile_and_snapshot(log_path, repo_root, post_trade_accounts, "Post-trade"),
             now_iso=ts,
         )
 

@@ -1,6 +1,23 @@
 from __future__ import annotations
 
-from scripts.checks.repo.review_scope_check import classify_paths
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from common.git import changed_paths
+from scripts.checks.repo.review_scope_check import (
+    LARGE_DIFF_LINES,
+    NOTE_RULES,
+    SCOPE_RULES,
+    _numstat_entries,
+    classify_paths,
+    diff_stats,
+    parse_args,
+    run_review_scope_check,
+    suggest_reviewers,
+)
 
 
 def test_classifies_runtime_jobs_as_aggressive_high_risk() -> None:
@@ -59,3 +76,282 @@ def test_empty_changes_get_note() -> None:
     assert report.changed_files == []
     assert report.modes == set()
     assert report.notes == ["No changed files detected."]
+
+
+@pytest.mark.parametrize(
+    ("path", "reason"),
+    [
+        (
+            "src/trading/services/execution/open_order_reconciliation.py",
+            "order submission, fill, or reconciliation change",
+        ),
+        ("src/trading/services/auto_trading/runner.py", "auto-trading decision change"),
+        ("src/trading/domain/auto_trading/sizing.py", "sizing or order policy change"),
+        ("src/trading/domain/risk_gate.py", "risk gate change"),
+        ("src/trading/domain/broker_connection.py", "broker port change"),
+        ("src/trading/repositories/orders.py", "order or fill persistence change"),
+        ("src/trading/repositories/ledger.py", "ledger persistence change"),
+        ("src/trading/persistence/money_columns.py", "money encoding or transaction change"),
+    ],
+)
+def test_money_paths_are_aggressive_high_risk(path: str, reason: str) -> None:
+    report = classify_paths([path])
+
+    assert "aggressive" in report.modes
+    assert report.high_risk == [f"{path}: {reason}"]
+
+
+def test_plan_documents_are_scope_notes_not_modes() -> None:
+    report = classify_paths(["plan/review-mindsets.md"])
+
+    assert report.modes == set()
+    assert report.notes == ["plan/review-mindsets.md: plan document change"]
+
+
+def _reviewer_names(paths: list[str], changed_lines: int = 0, added_modules: list[str] | None = None) -> list[str]:
+    report = classify_paths(paths)
+    return [name for name, _ in suggest_reviewers(report, changed_lines, added_modules)]
+
+
+def test_documentation_only_diffs_get_no_reviewers() -> None:
+    assert _reviewer_names(["docs/maps/scripts-map.md", ".ai/skills/code-review/SKILL.md", "README.md"]) == []
+    assert _reviewer_names(["plan/review-mindsets.md"], changed_lines=900) == []
+
+
+def test_empty_diffs_get_no_reviewers() -> None:
+    assert _reviewer_names([]) == []
+
+
+def test_ordinary_code_changes_get_the_three_base_reviewers() -> None:
+    names = ["Architecture and conventions", "Break it", "Test skeptic"]
+
+    assert _reviewer_names(["scripts/checks/pr.py"]) == names
+    assert _reviewer_names(["apps/paper_trading_web/backend/routes/accounts.py"]) == names
+
+
+def test_aggressive_paths_add_the_opus_sample_and_the_operator() -> None:
+    assert _reviewer_names(["src/infrastructure/brokers/ibkr_web/adapter.py"]) == [
+        "Architecture and conventions",
+        "Break it",
+        "Test skeptic",
+        "Break it, second sample on Opus",
+        "Operator",
+    ]
+
+
+def test_a_large_code_diff_adds_the_simplifier() -> None:
+    below = _reviewer_names(["scripts/checks/pr.py"], changed_lines=LARGE_DIFF_LINES - 1)
+    at = _reviewer_names(["scripts/checks/pr.py"], changed_lines=LARGE_DIFF_LINES)
+
+    assert "Simplifier" not in below
+    assert at[-1] == "Simplifier"
+
+
+def test_a_new_module_adds_the_simplifier_with_the_module_named() -> None:
+    report = classify_paths(["scripts/checks/pr.py"])
+
+    reviewers = suggest_reviewers(report, changed_lines=10, added_modules=["scripts/checks/pr.py"])
+
+    assert reviewers[-1] == ("Simplifier", "new module: scripts/checks/pr.py")
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.email=t@example.test", "-c", "user.name=t", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _init_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(tmp_path, "init", "-b", "main", str(repo))
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    _git(repo, "checkout", "-b", "feature")
+    return repo
+
+
+def _repo_with_broker_change(tmp_path: Path) -> Path:
+    repo = _init_repo(tmp_path)
+    (repo / "src" / "infrastructure" / "brokers").mkdir(parents=True)
+    (repo / "docs").mkdir()
+    (repo / "src" / "infrastructure" / "brokers" / "adapter.py").write_text("x = 1\n" * 30, encoding="utf-8")
+    (repo / "src" / "infrastructure" / "brokers" / "__init__.py").write_text("", encoding="utf-8")
+    (repo / "docs" / "note.md").write_text("doc\n" * 500, encoding="utf-8")
+    (repo / "README.md").write_text("base\nchanged\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "change")
+    return repo
+
+
+def test_diff_stats_counts_code_lines_and_names_added_modules_but_not_documentation(tmp_path: Path) -> None:
+    repo = _repo_with_broker_change(tmp_path)
+
+    changed_lines, added_modules = diff_stats(repo, base_ref="main")
+
+    assert changed_lines == 30
+    assert added_modules == ["src/infrastructure/brokers/adapter.py"]
+
+
+def test_run_review_scope_check_prints_the_suggested_reviewers(tmp_path: Path, capsys) -> None:
+    repo = _repo_with_broker_change(tmp_path)
+
+    assert run_review_scope_check(repo, base_ref="main") == 0
+
+    output = capsys.readouterr().out
+    assert "Suggested review modes: aggressive" in output
+    assert "- Operator: aggressive-mode paths" in output
+    assert "- Simplifier: new module: src/infrastructure/brokers/adapter.py" in output
+
+
+def test_run_review_scope_check_reports_no_reviewers_for_a_documentation_only_diff(tmp_path: Path, capsys) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "README.md").write_text("base\nchanged\n", encoding="utf-8")
+    _git(repo, "commit", "-am", "docs")
+
+    assert run_review_scope_check(repo, base_ref="main") == 0
+
+    assert "Suggested reviewers: none" in capsys.readouterr().out
+
+
+def test_a_head_ref_is_classified_without_checking_it_out(tmp_path: Path, capsys) -> None:
+    repo = _repo_with_broker_change(tmp_path)
+    _git(repo, "checkout", "main")
+
+    assert run_review_scope_check(repo, base_ref="main", head_ref="feature") == 0
+
+    output = capsys.readouterr().out
+    assert "Diff: main...feature" in output
+    assert "- Operator: aggressive-mode paths" in output
+    assert not (repo / "src").exists()
+    assert diff_stats(repo, base_ref="main", head_ref="feature") == (30, ["src/infrastructure/brokers/adapter.py"])
+
+
+def test_head_without_base_is_rejected(monkeypatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["review_scope_check", "--head", "feature"])
+
+    with pytest.raises(SystemExit):
+        parse_args()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "src/trading/domain/accounting/book.py",
+        "src/trading/domain/rotation/policy.py",
+        "src/trading/services/books/provisioning.py",
+        "src/trading/services/books/rotation/engine.py",
+        "src/trading/services/accounts/deletions.py",
+        "src/trading/repositories/accounts.py",
+        "src/trading/repositories/book_rotation_settings.py",
+        "src/trading/repositories/rotation_decisions.py",
+        "src/trading/repositories/book_strategy_history.py",
+        "src/trading/repositories/strategy_decisions.py",
+    ],
+)
+def test_accounting_book_rotation_and_account_paths_are_aggressive(path: str) -> None:
+    report = classify_paths([path])
+
+    assert "aggressive" in report.modes
+    assert report.high_risk, path
+
+
+def test_every_scope_rule_prefix_exists_in_the_repo() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    missing = [
+        rule.prefix for rule in (*SCOPE_RULES, *NOTE_RULES) if not (repo_root / rule.prefix.rstrip("/")).exists()
+    ]
+
+    assert missing == []
+
+
+def test_numstat_entries_follow_a_rename_to_its_new_path_and_skip_binary_files() -> None:
+    output = "5\t2\tsrc/a.py\0" + "0\t0\t\0src/old.py\0src/new.py\0" + "-\t-\timage.png\0"
+
+    assert _numstat_entries(output) == [(5, 2, "src/a.py"), (0, 0, "src/new.py")]
+
+
+def test_a_pure_rename_adds_no_changed_lines(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "old.py").write_text("x = 1\n" * 400, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "add")
+    _git(repo, "checkout", "-b", "rename")
+    _git(repo, "mv", "src/old.py", "src/new.py")
+    _git(repo, "commit", "-am", "rename")
+
+    assert diff_stats(repo, base_ref="feature", head_ref="rename") == (0, [])
+
+
+def _commit_branch(tmp_path: Path, files: dict[str, str], base_files: dict[str, str] | None = None) -> Path:
+    repo = _init_repo(tmp_path)
+    for name, text in (base_files or {}).items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "more base", "--allow-empty")
+    _git(repo, "checkout", "-b", "change")
+    for name, text in files.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "change")
+    return repo
+
+
+def test_a_renamed_documentation_file_that_becomes_code_counts_its_changed_lines(tmp_path: Path) -> None:
+    repo = _init_repo(tmp_path)
+    (repo / "docs").mkdir()
+    (repo / "docs" / "tool.md").write_text("line\n" * 40, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "docs")
+    _git(repo, "checkout", "-b", "rename")
+    (repo / "src").mkdir()
+    _git(repo, "mv", "docs/tool.md", "src/tool.py")
+    (repo / "src" / "tool.py").write_text("line\n" * 30 + "x = 1\n" * 10, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "rename")
+
+    changed_lines, _ = diff_stats(repo, base_ref="feature", head_ref="rename")
+
+    assert changed_lines == 20
+
+
+def test_non_ascii_paths_are_classified_and_detected_as_new_modules(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"src/infrastructure/brokers/módulo.py": "x = 1\n"})
+
+    assert changed_paths(repo, base_ref="main", head_ref="change") == ["src/infrastructure/brokers/módulo.py"]
+    assert diff_stats(repo, base_ref="main", head_ref="change")[1] == ["src/infrastructure/brokers/módulo.py"]
+
+
+def test_a_large_diff_that_also_adds_a_module_names_the_simplifier_once() -> None:
+    report = classify_paths(["scripts/checks/pr.py"])
+
+    reviewers = suggest_reviewers(report, LARGE_DIFF_LINES + 1, ["scripts/checks/pr.py"])
+
+    assert [name for name, _ in reviewers].count("Simplifier") == 1
+    assert reviewers[-1][1] == f"{LARGE_DIFF_LINES + 1} changed lines outside documentation"
+
+
+def test_added_test_files_are_not_new_modules(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"tests/test_new.py": "def test_x():\n    pass\n", "config.json": "{}\n"})
+
+    assert diff_stats(repo, base_ref="main", head_ref="change") == (3, [])
+
+
+def test_diff_stats_without_a_base_reads_the_working_tree_against_head(tmp_path: Path) -> None:
+    repo = _commit_branch(tmp_path, {"src/a.py": "x = 1\n" * 5})
+    (repo / "src" / "a.py").write_text("x = 1\n" * 12, encoding="utf-8")
+
+    assert diff_stats(repo) == (7, [])
+
+
+def test_skills_are_documentation_but_other_files_under_ai_are_code() -> None:
+    assert _reviewer_names([".ai/skills/code-review/SKILL.md"]) == []
+    assert _reviewer_names([".ai/tools/lint.py"]) == ["Architecture and conventions", "Break it", "Test skeptic"]

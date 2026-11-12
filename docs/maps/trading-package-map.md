@@ -3,7 +3,7 @@
 Type: map
 Status: Active
 Created: 2026-03-01
-Last Reviewed: 2026-07-24
+Last Reviewed: 2026-10-06
 Purpose: Explain the src/trading/ hybrid architecture — layered backbone plus bounded contexts — and list every module with its layer placement. Infrastructure adapters live in the sibling [Infrastructure Map](infrastructure-map.md).
 Related: [Navigation Guide](../architecture/nav-guide.md), [Service Cookbook](../architecture/service-cookbook.md), [Service/Repository Boundary](../architecture/service-repository-boundary.md)
 
@@ -76,10 +76,11 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `daily/paper_trading/` | Daily paper-trading job package; job logic in `__init__`, run via `-m …daily.paper_trading` |
 | `daily/paper_trading/__main__.py` | Entrypoint shim that runs the package job |
 | `daily/paper_trading/arguments.py` | Command-line parser and defaults for the daily paper-trading workflow |
+| `daily/paper_trading/broker_preflight.py` | Step 00 connects every run account's broker and returns the ones whose session is unavailable (`check_broker_sessions`); the pre-trade step then calls `check_broker_cash`, which returns the accounts whose pool's books hold more cash than the broker, or whose broker cash cannot be read; `pool_mates_outside_run` names the pool's other accounts so the step reconciles their fills first. `BrokerSessionUnavailableError` and `BrokerCashShortfallError` (both `NoAccountCanTradeError`) fail the run only when every account is skipped |
 | `daily/paper_trading/dag.py` | DAG/sequencing logic for the daily job |
 | `daily/paper_trading/caps.py` | Daily trade-cap enforcement |
 | `daily/paper_trading/reporting.py` | Daily reporting artifact generation |
-| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass (no-op for `paper` accounts; also runnable standalone) |
+| `daily/paper_trading/reconcile_orders.py` | Applies outstanding broker fills to the books before each snapshot pass and prints an `UNRESOLVED_ORDERS` line per account with orders it could not resolve (no-op for `paper` accounts; also runnable standalone) |
 | `daily/paper_trading/run_auto_trades.py` | Auto-trade execution worker the daily job shells out to (also runnable standalone) |
 | `daily/paper_trading/run_context.py` | Resolves accounts, trade caps, artifact paths, and run metadata into the daily workflow context |
 | `daily/paper_trading/validation.py` | Semantic validation for daily paper-trading command-line arguments and account cap overrides |
@@ -94,6 +95,7 @@ Entry points and transport. Nothing below this layer should know about CLI args,
 | `governance/monthly/m3_performance_audit.py` | Monthly performance audit governance job |
 | `governance/payload_models.py` | Governance job payload models |
 | `maintenance/burn_in_status.py` | Burn-in protocol status job |
+| `maintenance/ibkr_gateway_health.py` | Long-running worker that connects to IB Gateway's API port on an interval and alerts when it is down or logged out |
 | `maintenance/replay_daily_runs.py` | Replay/backfill historical daily runs |
 | `maintenance/weekly_db_backup.py` | Weekly database backup job |
 | `job_helpers.py` | Shared job utilities (timing, status writing) |
@@ -197,6 +199,8 @@ Orchestration and composition. Calls repositories and domain; never builds SQL o
 | `operational_settings/queries.py` | Operational setting read operations, including the global settings change-audit trail (`fetch_global_settings_change_history`) |
 | `operational_settings/enforcement.py` | Trade throttle enforcement logic |
 | `operational_settings/presentation.py` | Printed view of the global settings change-audit trail |
+| `operations/broker_cash.py` | Read-only total of every book's cash per broker cash pool (`fetch_book_cash_by_pool`, `account_cash_pool`) and the accounts that share a pool with the run but are not in it (`fetch_pool_mates_outside_run`); the daily run compares the totals with the broker's cash |
+| `operations/account_freshness.py` | Read-only check naming every account whose newest equity snapshot is too many weekdays old (`evaluate_account_freshness`, `check_account_freshness`); run by the daily trader health check |
 | `operations/job_status.py` | Single source of monitored runtime jobs (`MONITORED_JOBS`) and their per-period run status from logs (`evaluate_all_jobs`); read by the web Admin panel and `scripts/check_jobs.py` |
 | `operations/schedule_status.py` | Reader for the schedule-drift artifact (`fetch_schedule_status`) that `manage_job_schedules` writes, so the web app can show registration drift without importing the scheduler layer |
 | `books/book_assignments.py` | Book strategy assignments — the single live assignment record + trading/report book enumerations |
@@ -276,14 +280,16 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | Module | Responsibility |
 |---|---|
 | `auto_trading/sizing.py` | Buy/sell share sizing (`choose_buy_qty`, `allocate_buy_quantities`, `closing_sell_qty`) |
-| `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants |
+| `auto_trading/fairness.py` | Deterministic per-run fair ordering of equally-signalled tickers and capacity claimants, and the even split of an account's trade cap across its books |
 | `auto_trading/exits.py` | Risk-based exit detection: positions past their stop-loss or take-profit |
 | `auto_trading/options.py` | LEAPS/option heuristics: delta/premium estimates, candidate eligibility, contract limits |
 | `advisor.py` | Advisor policy: when a decision's outcome window closes / is due, which digest review flags to raise, which arms a decision is scored on, and the neutral-band verdict rule |
 | `advisor_scorecard.py` | Scorecard statistics: +1/0/-1 verdict points, mean edge with a seeded bootstrap interval, benchmark-regime tags, the minimum count before ranking, and the non-overlapping-interval leader rule |
+| `broker_cash.py` | Which accounts share one broker cash balance (`broker_cash_pool`) and whether the books' cash exceeds the broker's beyond a tolerance (`broker_cash_shortfall`) |
 | `broker_connection.py` | `BrokerConnection` protocol (DI contract) |
 | `exceptions.py` | Domain-level exception types |
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
+| `incremental_fill.py` | Cumulative-to-incremental fill arithmetic: the shares, price and commission still to post from a broker's cumulative report |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
 | `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
 | `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |

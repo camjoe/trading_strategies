@@ -4,7 +4,7 @@ import datetime as dt
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from common.runtime_job_status import TERMINAL_STEP_STATUSES
+from common.runtime_job_status import FIRST_ORDER_STEP_ID, TERMINAL_STEP_STATUSES
 
 # Step *ids* are a persisted contract — they appear in every historical run
 # artifact and `maintenance/replay_daily_runs` reads those — so they stay fixed
@@ -15,19 +15,30 @@ from common.runtime_job_status import TERMINAL_STEP_STATUSES
 # (rotation, pre-submit risk gate, broker submission) in one subprocess. Steps 06
 # and 07 do not gate or submit anything — they summarize rows step 05 already
 # wrote. Step 04 never runs; rotation is enforced inside the step 05 runtime.
+PRE_TRADE_RECONCILE_STEP_ID = "01_mark_book_nav"
+POST_TRADE_RECONCILE_STEP_ID = "08_reconcile_fills_update_ledgers"
+
 DAILY_DAG_STEPS: tuple[tuple[str, str], ...] = (
     ("00_ingest_market_and_account", "Resolve run context (accounts and trade caps)"),
-    ("01_mark_book_nav", "Reconcile fills and snapshot equity (pre-trade)"),
+    (PRE_TRADE_RECONCILE_STEP_ID, "Reconcile fills and snapshot equity (pre-trade)"),
     ("02_run_signals_all_strategies", "Run challenger shadow evaluation"),
     ("03_score_incumbent_vs_challengers", "Record shadow-evaluation summary"),
     ("04_rotation_decision", "Rotation decision (applied inside the step 05 runtime)"),
-    ("05_build_position_targets_by_book", "Run trading books: rotation, risk gate, submission"),
+    (FIRST_ORDER_STEP_ID, "Run trading books: rotation, risk gate, submission"),
     ("06_pretrade_risk_gate", "Report pretrade risk-gate decisions from this run"),
     ("07_submit_ibkr_orders", "Report broker submissions from this run"),
-    ("08_reconcile_fills_update_ledgers", "Reconcile fills and snapshot equity (post-trade)"),
+    (POST_TRADE_RECONCILE_STEP_ID, "Reconcile fills and snapshot equity (post-trade)"),
     ("09_postclose_metrics_and_attribution", "Compare strategies (post-close)"),
     ("10_emit_report_and_alerts", "Emit report and alerts"),
 )
+
+
+class StepFailedError(RuntimeError):
+    """A step failure that keeps what the step had learned: ``details`` is stored on the failed step."""
+
+    def __init__(self, message: str, details: dict[str, object]) -> None:
+        super().__init__(message)
+        self.details = details
 
 
 @dataclass
@@ -90,6 +101,8 @@ def run_dag_step(
         result.finished_at = now_iso()
         result.duration_seconds = round((finish_time - start_time).total_seconds(), 6)
         result.error = str(exc)
+        if isinstance(exc, StepFailedError):
+            result.details = exc.details
         raise
 
     finish_time = dt.datetime.now(dt.timezone.utc)
