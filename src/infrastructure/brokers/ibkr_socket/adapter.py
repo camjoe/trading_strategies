@@ -34,8 +34,12 @@ Async fill note:
 
 from __future__ import annotations
 
+import logging
+import time
+from collections.abc import Callable
+
 from common.time import normalize_utc_iso, utc_now_iso
-from infrastructure.brokers.ibkr_socket.contracts import IbkrOrderRequest
+from infrastructure.brokers.ibkr_socket.contracts import IbkrApiError, IbkrOrderRequest, IbkrTrade
 from infrastructure.brokers.ibkr_socket.protocol import IbkrSocketClient
 from trading.domain.broker_connection import BrokerConnection
 from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderStatus, OrderType
@@ -44,6 +48,12 @@ from trading.models.orders import BrokerOrder, OrderFill, OrderRequest, OrderSta
 _IB_DEFAULT_HOST = "127.0.0.1"
 _IB_DEFAULT_PORT = 7497
 _IB_DEFAULT_CLIENT_ID = 1
+
+# Pauses between connect attempts: IB Gateway refuses connections for a short time while it
+# restarts or finishes its own startup sync. A longer outage is left to fail.
+_CONNECT_RETRY_DELAYS_SECONDS = (5.0, 15.0)
+
+logger = logging.getLogger(__name__)
 
 # IB account summary tags used by get_account_info.
 _ACCOUNT_TAGS = frozenset(("TotalCashValue", "BuyingPower", "GrossPositionValue", "NetLiquidation"))
@@ -68,20 +78,50 @@ class IbkrSocketAdapter(BrokerConnection):
         host: str = _IB_DEFAULT_HOST,
         port: int = _IB_DEFAULT_PORT,
         client_id: int = _IB_DEFAULT_CLIENT_ID,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._client = client
+        self._sleep = sleep
         self.host = host
         self.port = port
         self.client_id = client_id
 
     def connect(self) -> None:
-        """Connect to TWS/IB Gateway."""
-        self._client.connect(self.host, self.port, client_id=self.client_id)
+        """Connect to TWS/IB Gateway, retrying a refused or timed-out attempt after a short pause.
+
+        Only OS-level failures are retried (refused, timed out, sync error); anything else
+        propagates at once. The last failure is raised when every attempt fails.
+        """
+        for delay in (*_CONNECT_RETRY_DELAYS_SECONDS, None):
+            try:
+                self._client.connect(self.host, self.port, client_id=self.client_id)
+                return
+            except OSError as exc:
+                if delay is None:
+                    raise
+                logger.warning("IBKR socket connect failed (%s); retrying in %.0f s.", exc, delay)
+                self._sleep(delay)
 
     def disconnect(self) -> None:
         """Disconnect from TWS/IB Gateway."""
         if self._client.is_connected():
             self._client.disconnect()
+
+    def abandon(self) -> None:
+        """Tear the client down even when it already reports itself disconnected.
+
+        ``disconnect`` skips a client that says it is not connected, which leaves a dropped
+        connection's resources (the native backend's message-loop thread) unreleased.
+        """
+        self._client.disconnect()
+
+    def errors(self) -> list[IbkrApiError]:
+        """Messages IBKR has sent since connecting, oldest first (the most recent ones)."""
+        return self._client.errors()
+
+    def is_connected(self) -> bool:
+        """Whether the underlying client still holds its connection to TWS/IB Gateway."""
+        return self._client.is_connected()
 
     def managed_accounts(self) -> list[str]:
         """Account ids this session can trade.
@@ -134,38 +174,17 @@ class IbkrSocketAdapter(BrokerConnection):
         Each returned order reflects the latest known fill state from IB.
         """
         self._require_connected()
-        result: list[BrokerOrder] = []
-        for trade in self._client.trades():
-            fills = [
-                OrderFill(
-                    filled_qty=fill.shares,
-                    fill_price=fill.price,
-                    # Each backend spells its execution time differently; the
-                    # stored form is canonical (see common.time.as_utc_iso).
-                    fill_time=normalize_utc_iso(fill.time),
-                    commission=fill.commission,
-                    exec_id=fill.exec_id,
-                )
-                for fill in trade.fills
-            ]
-            broker_order = BrokerOrder(
-                account_id=0,  # caller sets from their account context
-                ticker=trade.symbol,
-                side=trade.action.lower(),
-                qty=trade.total_quantity,
-                price=trade.limit_price,
-                # IB echoes orderRef; empty for an order placed outside this system.
-                client_order_id=trade.order_ref or None,
-                broker_order_id=str(trade.order_id),
-                status=_map_ib_status(trade.status),
-                filled_qty=trade.filled,
-                avg_fill_price=trade.avg_fill_price,
-                commission=sum(f.commission for f in fills),
-                fills=fills,
-                status_reason=trade.status_reason,
-            )
-            result.append(broker_order)
-        return result
+        return [_to_broker_order(trade) for trade in self._client.trades()]
+
+    def get_order(self, broker_order_id: str) -> BrokerOrder | None:
+        """Return one order by its IB order id, or None when this backend cannot report it.
+
+        Covers an order that filled while no job was connected, which ``get_open_trades``
+        omits. The native ``ibapi`` backend always returns None.
+        """
+        self._require_connected()
+        trade = self._client.find_trade(int(broker_order_id))
+        return None if trade is None else _to_broker_order(trade)
 
     # ------------------------------------------------------------------
     # Account and market data
@@ -202,6 +221,37 @@ class IbkrSocketAdapter(BrokerConnection):
     def _require_connected(self) -> None:
         if not self._client.is_connected():
             raise RuntimeError("IbkrSocketAdapter is not connected. Call connect() first.")
+
+
+def _to_broker_order(trade: IbkrTrade) -> BrokerOrder:
+    fills = [
+        OrderFill(
+            filled_qty=fill.shares,
+            fill_price=fill.price,
+            # Each backend spells its execution time differently; the
+            # stored form is canonical (see common.time.as_utc_iso).
+            fill_time=normalize_utc_iso(fill.time),
+            commission=fill.commission,
+            exec_id=fill.exec_id,
+        )
+        for fill in trade.fills
+    ]
+    return BrokerOrder(
+        account_id=0,  # caller sets from their account context
+        ticker=trade.symbol,
+        side=trade.action.lower(),
+        qty=trade.total_quantity,
+        price=trade.limit_price,
+        # IB echoes orderRef; empty for an order placed outside this system.
+        client_order_id=trade.order_ref or None,
+        broker_order_id=str(trade.order_id),
+        status=_map_ib_status(trade.status),
+        filled_qty=trade.filled,
+        avg_fill_price=trade.avg_fill_price,
+        commission=sum(f.commission for f in fills),
+        fills=fills,
+        status_reason=trade.status_reason,
+    )
 
 
 # IB order status strings → our OrderStatus enum.

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections import deque
 from typing import Any
 
 from common.coercion import coerce_float
 from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrAccountValue,
+    IbkrApiError,
     IbkrFill,
     IbkrOrderRequest,
     IbkrPosition,
@@ -17,6 +19,19 @@ from infrastructure.brokers.ibkr_socket.contracts import (
 # ib_async defaults to 4 seconds for the whole startup sync, which IB Gateway
 # routinely exceeds — especially in the minutes after it starts.
 _CONNECT_TIMEOUT_SECONDS = 20.0
+
+# ib_async waits forever on a request by default (`RequestTimeout = 0`); a Gateway that never
+# answers a lookup request must not hang the run that asked.
+_LOOKUP_REQUEST_TIMEOUT_SECONDS = 20.0
+
+# ib_async marks an unset float field with sys.float_info.max; anything this large is unset.
+_UNSET_QUANTITY_THRESHOLD = 1e300
+
+# How many of IBKR's most recent messages are kept for errors().
+_ERROR_HISTORY = 100
+
+# A rebuilt order's summed fills may differ from its total by float noise only.
+_FILL_TOTAL_TOLERANCE = 1e-6
 
 
 class IbAsyncClient:
@@ -33,6 +48,13 @@ class IbAsyncClient:
         import ib_async  # noqa: PLC0415
 
         self._ib = ib_async.IB()
+        self._errors: deque[IbkrApiError] = deque(maxlen=_ERROR_HISTORY)
+        self._ib.errorEvent += self._record_error
+        self._completed_orders: list[Any] | None = None
+        self._completed_error: Exception | None = None
+        # Trades reqCompletedOrders returned, by id(). The objects are held so a freed id cannot
+        # be reused by a later trade.
+        self._completed_trades: dict[int, Any] = {}
 
     def connect(self, host: str, port: int, *, client_id: int) -> None:
         import ib_async  # noqa: PLC0415
@@ -48,6 +70,10 @@ class IbAsyncClient:
         # orders and per-sub-account updates are never read, and each one is
         # another request that can time out. Positions are always fetched by
         # ib_async regardless of the flags.
+        self._completed_orders = None
+        self._completed_error = None
+        self._completed_trades = {}
+        self._errors.clear()
         self._ib.connect(
             host,
             port,
@@ -56,6 +82,13 @@ class IbAsyncClient:
             raiseSyncErrors=True,
             fetchFields=ib_async.StartupFetch.ORDERS_OPEN | ib_async.StartupFetch.EXECUTIONS,
         )
+
+    def _record_error(self, req_id: int, code: int, message: str, *_contract: object) -> None:
+        self._errors.append(IbkrApiError(request_id=int(req_id), code=int(code), message=str(message)))
+
+    def errors(self) -> list[IbkrApiError]:
+        self._ib.sleep(0)
+        return list(self._errors)
 
     def disconnect(self) -> None:
         self._ib.disconnect()
@@ -82,14 +115,78 @@ class IbAsyncClient:
         return _normalize_ib_async_trade(self._ib.placeOrder(contract, ib_order))
 
     def cancel_order(self, order_id: int) -> None:
-        for trade in self._ib.trades():
+        for trade in self._session_trades():
             if int(trade.order.orderId) == order_id:
                 self._ib.cancelOrder(trade.order)
                 return
         raise ValueError(f"No open IB order found with id {order_id!r}")
 
     def trades(self) -> list[IbkrTrade]:
-        return [_normalize_ib_async_trade(trade) for trade in self._ib.trades()]
+        # A new pass over the trade list: the next find_trade asks for completed orders again.
+        self._completed_orders = None
+        self._completed_error = None
+        return [_normalize_ib_async_trade(trade) for trade in self._session_trades()]
+
+    def _session_trades(self) -> list[Any]:
+        """The session's trades without the history ``reqCompletedOrders`` adds to them.
+
+        ib_async applies order updates only while its event loop runs, and between requests this
+        synchronous client does not run it, so the loop is given a turn before every read.
+        """
+        self._ib.sleep(0)
+        return [trade for trade in self._ib.trades() if id(trade) not in self._completed_trades]
+
+    def find_trade(self, order_id: int) -> IbkrTrade | None:
+        """Look up one order, including one that filled while no job was connected.
+
+        An execution from before this connection is held in ``fills()`` but attached to no
+        trade, so ``trades()`` omits that order. Its permId links the execution to the
+        completed order that carries the total quantity and final status. Without both, the
+        order cannot be reported and None is returned. So is an order with a fill whose
+        commission report has not arrived, even after the executions are requested again:
+        ib_async reports a missing commission as 0.0, and that figure would be kept for good.
+
+        Completed orders are requested once between calls to ``trades()``, and a timed-out
+        request is raised again until then. ``reqCompletedOrders`` adds them to ib_async's trade
+        list with an unreliable ``orderId``; ``trades()`` leaves them out.
+        """
+        client_id = int(self._ib.client.clientId)
+        for trade in self._session_trades():
+            if int(trade.order.orderId) == order_id and int(trade.order.clientId) == client_id:
+                return _normalize_ib_async_trade(trade)
+
+        fills = [
+            fill
+            for fill in self._ib.fills()
+            if int(fill.execution.orderId) == order_id and int(fill.execution.clientId) == client_id
+        ]
+        perm_ids = {int(fill.execution.permId) for fill in fills}
+        # No fills, an unset permId, or executions of two orders under one reused order id.
+        if len(perm_ids) != 1 or 0 in perm_ids:
+            return None
+        (perm_id,) = perm_ids
+        if _commission_missing(fills):
+            self._ib.run(self._ib.reqExecutionsAsync(), timeout=_LOOKUP_REQUEST_TIMEOUT_SECONDS)
+            if _commission_missing(fills):
+                return None
+        completed = next((trade for trade in self._completed() if int(trade.order.permId) == perm_id), None)
+        if completed is None:
+            return None
+
+        return _rebuild_trade(order_id, fills, completed)
+
+    def _completed(self) -> list[Any]:
+        if self._completed_error is not None:
+            raise self._completed_error
+        if self._completed_orders is None:
+            try:
+                orders = self._ib.run(self._ib.reqCompletedOrdersAsync(True), timeout=_LOOKUP_REQUEST_TIMEOUT_SECONDS)
+            except TimeoutError as exc:
+                self._completed_error = exc
+                raise
+            self._completed_orders = orders
+            self._completed_trades.update((id(trade), trade) for trade in orders)
+        return self._completed_orders
 
     def positions(self) -> list[IbkrPosition]:
         return [
@@ -149,12 +246,56 @@ def _normalize_ib_async_trade(trade: Any) -> IbkrTrade:
     )
 
 
+def _rebuild_trade(order_id: int, fills: list[Any], completed: Any) -> IbkrTrade | None:
+    """An order rebuilt from its executions and its completed order, or None if they disagree."""
+    filled = sum(float(fill.execution.shares) for fill in fills)
+    # A completed order may report no totalQuantity (0) but its filled quantity.
+    reported_filled = _set_quantity(getattr(completed.order, "filledQuantity", None))
+    total_quantity = float(completed.order.totalQuantity)
+    if total_quantity <= 0:
+        total_quantity = reported_filled if reported_filled is not None else filled
+    if reported_filled is None and str(completed.orderStatus.status) != "Filled":
+        # Without IBKR's filled quantity, a partial view of an order that stopped short cannot be
+        # told from the whole of it.
+        return None
+    expected_filled = reported_filled if reported_filled is not None else total_quantity
+    if filled < expected_filled - _FILL_TOTAL_TOLERANCE:
+        # An execution is missing from this connection's view; posting the rest would
+        # close the order with less than the broker holds.
+        return None
+    notional = sum(float(fill.execution.shares) * float(fill.execution.price) for fill in fills)
+    return IbkrTrade(
+        order_id=order_id,
+        symbol=str(completed.contract.symbol),
+        action=str(completed.order.action),
+        total_quantity=total_quantity,
+        limit_price=float(completed.order.lmtPrice or 0.0),
+        status=str(completed.orderStatus.status),
+        filled=filled,
+        avg_fill_price=notional / filled if filled else None,
+        fills=tuple(_normalize_ib_async_fill(fill) for fill in fills),
+        status_reason=_ib_async_status_reason(completed, str(completed.orderStatus.status)),
+        order_ref=str(getattr(completed.order, "orderRef", "") or ""),
+    )
+
+
+def _set_quantity(value: object) -> float | None:
+    """A quantity ib_async reports, or None when it is unset (a huge sentinel) or not positive."""
+    quantity = coerce_float(value)
+    return quantity if quantity is not None and 0 < quantity < _UNSET_QUANTITY_THRESHOLD else None
+
+
+def _commission_missing(fills: list[Any]) -> bool:
+    # A report that has not arrived keeps ib_async's default, which has no execId.
+    return any(fill.commissionReport is None or not fill.commissionReport.execId for fill in fills)
+
+
 def _normalize_ib_async_fill(fill: Any) -> IbkrFill:
     execution = fill.execution
     fill_time = execution.time
     return IbkrFill(
         shares=float(execution.shares),
-        price=float(execution.avgPrice),
+        price=float(execution.price),
         time=fill_time.isoformat() if hasattr(fill_time, "isoformat") else str(fill_time),
         commission=(float(fill.commissionReport.commission) if fill.commissionReport is not None else 0.0),
         exec_id=str(execution.execId) if getattr(execution, "execId", None) else None,
