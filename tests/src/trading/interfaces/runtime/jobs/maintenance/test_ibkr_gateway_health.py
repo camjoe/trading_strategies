@@ -109,6 +109,48 @@ def test_main_builds_the_client_inside_each_check(monkeypatch) -> None:
     assert checks == [(module.GatewayState.REJECTED, "ImportError: No module named 'ib_async'")]
 
 
+def test_main_passes_its_arguments_to_the_check_the_loop_and_the_alert(monkeypatch) -> None:
+    checked: list[dict[str, object]] = []
+    loop: dict[str, object] = {}
+    alerts: list[dict[str, object]] = []
+
+    def check_gateway(build_client, **kwargs):
+        checked.append({"build_client": build_client, **kwargs})
+        return module.GatewayState.ALIVE, ""
+
+    def run_once(check, *, notify, **kwargs):
+        loop.update(kwargs)
+        check()
+        notify(module.GatewayState.UNREACHABLE, "refused")
+
+    monkeypatch.setenv(module.RUNTIME_ALERT_WEBHOOK_ENV, "https://example.test/hook")
+    monkeypatch.setattr(module, "resolve_email_config_from_env", lambda: None)
+    monkeypatch.setattr(module, "check_gateway", check_gateway)
+    monkeypatch.setattr(module, "run_health_check", run_once)
+    monkeypatch.setattr(module, "send_state_alert", lambda state, detail, **kwargs: alerts.append(kwargs))
+
+    module.main(
+        [
+            "--host",
+            "10.0.0.5",
+            "--port",
+            "4001",
+            "--client-id",
+            "902",
+            "--interval-seconds",
+            "60",
+            "--grace-seconds",
+            "120",
+        ]
+    )
+
+    assert checked == [
+        {"build_client": module.build_ibkr_socket_client, "host": "10.0.0.5", "port": 4001, "client_id": 902}
+    ]
+    assert loop == {"interval_seconds": 60.0, "grace_seconds": 120.0}
+    assert alerts == [{"webhook_url": "https://example.test/hook", "email_config": None}]
+
+
 def test_a_timeout_is_unreachable_and_names_the_exception() -> None:
     state, detail = _check(FakeClient(TimeoutError("startup sync")))
 

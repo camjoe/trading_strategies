@@ -23,7 +23,7 @@ from infrastructure.brokers.ibkr_socket.contracts import (
     IbkrTrade,
 )
 from infrastructure.brokers.ibkr_socket.factory import build_ibkr_socket_client
-from infrastructure.brokers.ibkr_socket.ib_async_client import IbAsyncClient
+from infrastructure.brokers.ibkr_socket.ib_async_client import _LOOKUP_REQUEST_TIMEOUT_SECONDS, IbAsyncClient
 from infrastructure.brokers.ibkr_socket.ibapi_client import (
     IbApiClient,
     _build_native_app,
@@ -538,6 +538,21 @@ class TestIbkrMessages:
         assert len(messages) == 100
         assert messages[-1].code == 149
 
+    def test_ib_async_client_connect_clears_the_messages_of_the_previous_connection(self, monkeypatch):
+        backend, event = self._backend_with_error_event()
+        monkeypatch.setitem(
+            sys.modules,
+            "ib_async",
+            SimpleNamespace(IB=MagicMock(return_value=backend), StartupFetch=_FakeStartupFetch),
+        )
+        client = IbAsyncClient()
+        handler = event.__iadd__.call_args.args[0]
+        handler(6, 201, "Order rejected", None)
+
+        client.connect("127.0.0.1", 4002, client_id=7)
+
+        assert client.errors() == []
+
     def test_native_client_returns_the_callback_errors(self):
         client = IbApiClient()
         client._callbacks.record_error(7, 201, "rejected", None)
@@ -768,7 +783,7 @@ class TestIbAsyncFindTrade:
         assert client.find_trade(42) is None
         backend.reqCompletedOrdersAsync.assert_not_called()
 
-    def test_requests_completed_orders_once_per_connection_with_a_timeout(self, monkeypatch):
+    def test_requests_completed_orders_once_per_trades_pass_with_the_lookup_timeout(self, monkeypatch):
         client, backend = self._client(
             monkeypatch,
             fills=[_sdk_fill(), _sdk_fill(order_id=43, perm_id=9002, exec_id="e9")],
@@ -779,7 +794,7 @@ class TestIbAsyncFindTrade:
         assert client.find_trade(43) is not None
 
         backend.reqCompletedOrdersAsync.assert_called_once_with(True)
-        assert backend.run.call_args.kwargs["timeout"] > 0
+        assert backend.run.call_args.kwargs["timeout"] == _LOOKUP_REQUEST_TIMEOUT_SECONDS
 
     def test_a_timed_out_request_is_not_repeated_until_the_next_pass(self, monkeypatch):
         client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed(total=4.0)])
@@ -941,6 +956,22 @@ class TestIbAsyncFindTrade:
         client.find_trade(42)
 
         assert backend.reqCompletedOrdersAsync.call_count == 2
+
+    def test_connect_clears_a_timed_out_completed_orders_request(self, monkeypatch):
+        client, backend = self._client(monkeypatch, fills=[_sdk_fill()], completed=[_sdk_completed(total=4.0)])
+        monkeypatch.setitem(
+            sys.modules,
+            "ib_async",
+            SimpleNamespace(IB=MagicMock(return_value=backend), StartupFetch=_FakeStartupFetch),
+        )
+        backend.run.side_effect = TimeoutError
+        with pytest.raises(TimeoutError):
+            client.find_trade(42)
+
+        backend.run.side_effect = lambda awaitable, timeout=None: awaitable
+        client.connect("127.0.0.1", 4002, client_id=7)
+
+        assert client.find_trade(42) is not None
 
 
 class TestIbAsyncConnect:
