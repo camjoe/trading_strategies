@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import sqlite3
-from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date
@@ -22,7 +21,7 @@ from backtesting.models import BacktestConfig, BacktestResult, RunUniverse
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
 from backtesting.services.run_inputs import RunStrategy, resolve_run_strategy, resolve_universe
 from common.constants import BASIS_POINTS_DIVISOR
-from trading.domain.accounting.account import apply_buy, apply_sell
+from trading.domain.accounting.holdings import Holdings
 from trading.domain.auto_trading.sizing import allocate_buy_quantities, choose_buy_qty
 from trading.domain.metrics.portfolio_math import compute_market_value, compute_unrealized_pnl
 from trading.domain.metrics.returns import total_return_pct
@@ -124,10 +123,7 @@ class _PortfolioState:
     loop did before they were separated out.
     """
 
-    cash: float
-    realized_pnl: float = 0.0
-    positions: dict[str, float] = field(default_factory=lambda: defaultdict(float))
-    avg_cost: dict[str, float] = field(default_factory=lambda: defaultdict(float))
+    holdings: Holdings[float]
     trade_count: int = 0
     executed_trades: list[dict[str, object]] = field(default_factory=list)
 
@@ -191,27 +187,18 @@ def _execute_sells(
 ) -> None:
     """Close signalled positions. Runs before buys so the proceeds are spendable."""
     for ticker in tickers:
-        if signals[ticker] != "sell" or state.positions[ticker] <= 0:
+        if signals[ticker] != "sell" or state.holdings.positions[ticker] <= 0:
             continue
         px = _tradeable_price(trade_prices[ticker])
         if px is None:
             continue
 
         exec_px = px * ctx.slippage_multiplier_sell
-        qty_float = float(state.positions[ticker])
+        qty_float = float(state.holdings.positions[ticker])
         if qty_float <= 0:
             continue
 
-        state.cash, state.realized_pnl = apply_sell(
-            ticker,
-            qty_float,
-            exec_px,
-            ctx.cfg.fee_per_trade,
-            state.positions,
-            state.avg_cost,
-            state.cash,
-            state.realized_pnl,
-        )
+        state.holdings.sell(ticker, qty_float, exec_px, ctx.cfg.fee_per_trade)
         _record_trade(
             ctx,
             state,
@@ -237,12 +224,12 @@ def _execute_buys(
     """Open signalled positions, sharing the bar's cash across all of them."""
     # Every buy is sized against the same post-sell equity, so sizing does not
     # drift as earlier buys in the list execute.
-    post_sell_equity = state.cash + compute_market_value(state.positions, trade_prices.to_dict())
+    post_sell_equity = state.holdings.cash + compute_market_value(state.holdings.positions, trade_prices.to_dict())
     # The backtest sizes whole shares: choose_buy_qty/allocate_buy_quantities default
     # to WHOLE_SHARE_STEP, so these float quantities are whole-valued.
     sized_buys: list[tuple[str, float, float]] = []
     for ticker in tickers:
-        if signals[ticker] != "buy" or ticker not in active_tickers or state.positions[ticker] > 0:
+        if signals[ticker] != "buy" or ticker not in active_tickers or state.holdings.positions[ticker] > 0:
             continue
         px = _tradeable_price(trade_prices[ticker])
         if px is None:
@@ -251,26 +238,24 @@ def _execute_buys(
         if exec_px <= 0:
             continue
         requested_qty = choose_buy_qty(
-            state.cash,
+            state.holdings.cash,
             exec_px,
             ctx.cfg.fee_per_trade,
             trade_size_pct=ctx.default_book.trade_size_pct if ctx.default_book is not None else None,
             max_position_pct=ctx.default_book.max_position_pct if ctx.default_book is not None else None,
-            current_position_value=float(state.positions[ticker]) * px,
+            current_position_value=float(state.holdings.positions[ticker]) * px,
             portfolio_equity=post_sell_equity,
         )
         if requested_qty >= 1:
             sized_buys.append((ticker, exec_px, requested_qty))
 
-    granted = allocate_buy_quantities(sized_buys, cash=state.cash, fee_per_trade=ctx.cfg.fee_per_trade)
+    granted = allocate_buy_quantities(sized_buys, cash=state.holdings.cash, fee_per_trade=ctx.cfg.fee_per_trade)
     for ticker, exec_px, requested_qty in sized_buys:
         qty_int = granted.get(ticker, 0)
         if qty_int < 1:
             continue
 
-        state.cash = apply_buy(
-            ticker, float(qty_int), exec_px, ctx.cfg.fee_per_trade, state.positions, state.avg_cost, state.cash
-        )
+        state.holdings.buy(ticker, float(qty_int), exec_px, ctx.cfg.fee_per_trade)
         _record_trade(
             ctx,
             state,
@@ -324,10 +309,10 @@ def _record_snapshot(
         ctx.conn,
         run_id=ctx.run_id,
         snapshot_time=snapshot_date.date().isoformat(),
-        cash=state.cash,
+        cash=state.holdings.cash,
         market_value=market_value,
         equity=equity,
-        realized_pnl=state.realized_pnl,
+        realized_pnl=state.holdings.realized_pnl,
         unrealized_pnl=unrealized_pnl,
     )
 
@@ -348,8 +333,8 @@ def _simulate_bars(
     every buy rather than only to tickers later in the iteration order.
     """
     first_prices = {ticker: float(close.loc[dates[scoring_idx], ticker]) for ticker in ctx.universe.all_tickers}
-    first_mv = compute_market_value(state.positions, first_prices)
-    first_equity = state.cash + first_mv
+    first_mv = compute_market_value(state.holdings.positions, first_prices)
+    first_equity = state.holdings.cash + first_mv
     _record_snapshot(
         ctx,
         state,
@@ -367,7 +352,7 @@ def _simulate_bars(
 
         month_key = f"{signal_date.year:04d}-{signal_date.month:02d}"
         active_tickers = ctx.universe.month_to_tickers.get(month_key, ctx.universe.default_tickers)
-        held_tickers = [ticker for ticker, qty in state.positions.items() if qty > 0]
+        held_tickers = [ticker for ticker, qty in state.holdings.positions.items() if qty > 0]
         strategy_tickers = sorted(set(active_tickers) | set(held_tickers))
 
         signals = _evaluate_signals(ctx, strategy_tickers, signal_date=signal_date, signal_index=index - 1)
@@ -390,15 +375,15 @@ def _simulate_bars(
         )
 
         marks = {ticker: float(trade_prices[ticker]) for ticker in ctx.universe.all_tickers}
-        market_value = compute_market_value(state.positions, marks)
-        equity = state.cash + market_value
+        market_value = compute_market_value(state.holdings.positions, marks)
+        equity = state.holdings.cash + market_value
         _record_snapshot(
             ctx,
             state,
             snapshot_date=trade_date,
             market_value=market_value,
             equity=equity,
-            unrealized_pnl=compute_unrealized_pnl(state.positions, state.avg_cost, marks),
+            unrealized_pnl=compute_unrealized_pnl(state.holdings.positions, state.holdings.avg_cost, marks),
         )
         equity_curve.append(equity)
 
@@ -599,7 +584,7 @@ def run_backtest(
             else 0
         )
 
-        state = _PortfolioState(cash=float(scope.account.initial_cash))
+        state = _PortfolioState(holdings=Holdings.starting_with(float(scope.account.initial_cash)))
         ctx = _ExecutionContext(
             conn=conn,
             run_id=run_id,

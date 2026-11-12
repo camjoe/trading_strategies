@@ -1,14 +1,15 @@
 # Plan: shared types for sides, holdings, trades, payloads, and small vocabulary cleanups
 
-Status (2026-11-11): drafted. Item 1 is built on `feature/side-and-gate-action-vocabulary`, not committed.
-Items 2-5 are not started. No owner decision is open.
+Status (2026-11-11): drafted. Item 1 is committed on `feature/side-and-gate-action-vocabulary`; its pull
+request is not open yet. Item 2 is built on `feature/holdings-type` (stacked on item 1), not committed.
+Items 3-5 are not started. No owner decision is open.
 
 Keep this file until the "Left to do" list is empty.
 
 ## Left to do
 Check these off in the pull request that does each one; delete this file when none remain.
-1. **Item 1, side and gate-action vocabulary.** Built, uncommitted. Commit, open the pull request, merge.
-2. **Item 2, one holdings type.**
+1. **Item 1, side and gate-action vocabulary.** Committed. Open the pull request, merge.
+2. **Item 2, one holdings type.** Built, uncommitted. `_WorkingState` left as is (see item 2).
 3. **Item 3, a `Trade` value object.**
 4. **Item 4, typed payloads** (4a position analysis, 4b autonomy monitor, 4c burn-in entries).
 5. **Item 5, small cleanups** (5a instrument-mode vocabulary, 5b attribute reads on records, 5c two named
@@ -64,7 +65,7 @@ Names, not line numbers; lines move.
 ## Work items
 One pull request per item, in order. Each passes the gate on its own.
 
-### 1. Side and gate-action vocabulary (built, uncommitted)
+### 1. Side and gate-action vocabulary (committed)
 - Done: the two enums, literal replacements in 23 source files, and `tests/src/trading/models/test_vocabulary.py`.
 - Left untouched on purpose: strategy **signals** (`"buy"` / `"sell"` / `"hold"` in
   `trading/domain/strategies/signals/technical.py`, and the signal comparisons in `selection.py` and
@@ -90,9 +91,9 @@ Add `Holdings` in a new module `trading/domain/accounting/holdings.py` (domain, 
   - `_closed_trade_stats` replays into a `Holdings[float]`.
   - `_PortfolioState` keeps `trade_count` and `executed_trades` and holds a `Holdings[float]` for the rest.
   - `_WorkingState` is replaced by `Holdings[float]` if selection needs nothing else from it.
-    **Unverified:** selection pops closed tickers out of both dicts directly and never calls `apply_sell`;
-    confirm `Holdings.sell` gives the same cash and positions there before switching, otherwise leave
-    `_WorkingState` and say so in the summary.
+    **Decided (built):** left as is. Selection pops a closed ticker out of both dicts and credits cash with no
+    oversell check, while `Holdings.sell` leaves a zero-quantity entry behind, which changes what
+    `positions` iteration sees. Switching it needs its own look.
 - Stays as it is: `AccountState` and `BookTradeState` (passive models, read in many places), the
   `TradePreparationStateLike` protocol, and both valuation policies in `trading/domain/metrics/portfolio_math.py`
   (its docstring says not to converge them). Valuation methods on `Holdings` are not part of this item.

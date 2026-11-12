@@ -3,8 +3,6 @@ from decimal import Decimal
 import pytest
 
 from trading.domain.accounting.account import (
-    apply_buy,
-    apply_sell,
     compute_account_state,
     normalize_trade_fields_decimal,
 )
@@ -39,99 +37,6 @@ class TestNormalizeTradeFieldsDecimal:
             {"ticker": "AAPL", "side": "sell", "qty": None, "price": None, "fee": None}
         )
         assert (qty, price, fee) == (Decimal("0"), Decimal("0"), Decimal("0"))
-
-
-class TestApplyBuy:
-    """The shared buy primitive — the live replay and the backtest both fill through it.
-
-    These exercise the float path (the backtest caller); the Decimal path is covered
-    through ``compute_account_state`` below.
-    """
-
-    def test_negative_qty_raises_value_error(self) -> None:
-        positions = {"AAPL": 0.0}
-        avg_cost = {"AAPL": 0.0}
-
-        with pytest.raises(ValueError, match="positive"):
-            apply_buy("AAPL", -5.0, 100.0, 0.0, positions, avg_cost, 1000.0)
-
-    def test_zero_qty_raises_value_error(self) -> None:
-        positions = {"AAPL": 0.0}
-        avg_cost = {"AAPL": 0.0}
-
-        with pytest.raises(ValueError, match="positive"):
-            apply_buy("AAPL", 0.0, 100.0, 0.0, positions, avg_cost, 1000.0)
-
-    def test_fractional_qty_is_allowed(self) -> None:
-        # Fractional shares are supported: the whole-units guard was removed in
-        # the money-representation plan (Stage 4).
-        positions = {"AAPL": 0.0}
-        avg_cost = {"AAPL": 0.0}
-        remaining_cash = apply_buy("AAPL", 1.5, 100.0, 0.0, positions, avg_cost, 1000.0)
-
-        assert positions["AAPL"] == pytest.approx(1.5)
-        assert remaining_cash == pytest.approx(850.0)
-
-    def test_valid_buy_updates_position_and_avg_cost(self) -> None:
-        positions = {"AAPL": 0.0}
-        avg_cost = {"AAPL": 0.0}
-        remaining_cash = apply_buy("AAPL", 2.0, 50.0, 1.0, positions, avg_cost, 200.0)
-
-        assert positions["AAPL"] == pytest.approx(2.0)
-        # Fee is capitalized: avg_cost = (0*0 + 2*50 + 1) / 2 = 50.5
-        assert avg_cost["AAPL"] == pytest.approx(50.5)
-        assert remaining_cash == pytest.approx(200.0 - (2.0 * 50.0 + 1.0))
-
-    def test_buy_adds_to_existing_position(self) -> None:
-        positions = {"AAPL": 3.0}
-        avg_cost = {"AAPL": 40.0}
-        apply_buy("AAPL", 2.0, 60.0, 0.0, positions, avg_cost, 500.0)
-
-        assert positions["AAPL"] == pytest.approx(5.0)
-        # avg_cost = (3*40 + 2*60) / 5 = 48.0
-        assert avg_cost["AAPL"] == pytest.approx(48.0)
-
-    def test_decimal_path_returns_decimal(self) -> None:
-        # The live caller fills in Decimal and gets Decimal back — exact, no float dust.
-        positions = {"AAPL": Decimal("0")}
-        avg_cost = {"AAPL": Decimal("0")}
-        remaining_cash = apply_buy(
-            "AAPL", Decimal("3"), Decimal("10.01"), Decimal("0"), positions, avg_cost, Decimal("100")
-        )
-
-        assert positions["AAPL"] == Decimal("3")
-        assert avg_cost["AAPL"] == Decimal("10.01")
-        assert remaining_cash == Decimal("69.97")
-
-
-class TestApplySell:
-    def test_sell_reduces_position_and_updates_realized_pnl(self) -> None:
-        positions = {"AAPL": 5.0}
-        avg_cost = {"AAPL": 40.0}
-        cash, realized = apply_sell("AAPL", 2.0, 60.0, 1.0, positions, avg_cost, 100.0, 0.0)
-
-        assert positions["AAPL"] == pytest.approx(3.0)
-        # proceeds = 2*60 - 1 = 119; pnl = (60-40)*2 - 1 = 39
-        assert cash == pytest.approx(219.0)
-        assert realized == pytest.approx(39.0)
-
-    def test_sell_all_flattens_position_and_keeps_avg_cost(self) -> None:
-        # A closed position keeps its stale average cost rather than being zeroed
-        # inline: nothing reads it at zero quantity, and _compact_positions drops
-        # the key on the live path.
-        positions = {"AAPL": 3.0}
-        avg_cost = {"AAPL": 50.0}
-        apply_sell("AAPL", 3.0, 50.0, 0.0, positions, avg_cost, 0.0, 0.0)
-
-        assert positions["AAPL"] == pytest.approx(0.0)
-        assert avg_cost["AAPL"] == pytest.approx(50.0)
-
-    def test_overselling_raises_rather_than_going_negative(self) -> None:
-        positions = {"AAPL": 2.0}
-        avg_cost = {"AAPL": 50.0}
-
-        with pytest.raises(ValueError, match="trying to sell"):
-            apply_sell("AAPL", 3.0, 60.0, 0.0, positions, avg_cost, 0.0, 0.0)
 
 
 class TestComputeAccountState:
@@ -225,7 +130,7 @@ class TestComputeAccountState:
 class TestFractionalQuantities:
     """Fractional shares are supported (Stage 4). Exact Decimal arithmetic over
     truncated quantities keeps a fully-sold position at exactly zero, so
-    ``_compact_positions`` (``qty > 0``) never reads a fraction as a phantom open
+    ``Holdings.open_positions`` (``qty > 0``) never reads a fraction as a phantom open
     position."""
 
     def test_allows_a_fractional_buy(self) -> None:

@@ -291,9 +291,10 @@ Side-effect-free logic: policy, math, state transitions, and DI contracts. No I/
 | `feature_provider.py` | `FeatureFetcherSet`/`ExternalFeatureProvider` DI contracts + `ExternalFeatureBundle` |
 | `incremental_fill.py` | Cumulative-to-incremental fill arithmetic: the shares, price and commission still to post from a broker's cumulative report |
 | `risk_gate.py` | Book risk-gate decision policy (notional/concentration caps) |
-| `accounting/account.py` | Cash and equity accounting rules, plus the `apply_buy`/`apply_sell` ledger primitives the backtest fills through too |
+| `accounting/account.py` | Cash and equity accounting rules and the live account replay (`compute_account_state`) |
+| `accounting/holdings.py` | `Holdings`: cash, positions, and average cost with `buy`/`sell` fills, shared by the live replay (Decimal) and the backtest (float) |
 | `accounting/book.py` | Book-level fill accounting math (builds `models.books.BookFillTransition`) |
-| `accounting/ledger.py` | Pure per-fill buy/sell deltas (`buy_position_delta`, `sell_position_delta`) shared by the account replay (`apply_buy`/`apply_sell`) and book fills |
+| `accounting/ledger.py` | Pure per-fill buy/sell deltas (`buy_position_delta`, `sell_position_delta`) shared by the account replay (`Holdings.buy`/`Holdings.sell`) and book fills |
 | `accounting/validation.py` | Shared order-input validation (`normalize_order_input`, `validate_order_values`, `ensure_sufficient_cash_for_buy`) for both trade replay and book fills |
 | `evaluation/backtest_freshness.py` | `assess_backtest_freshness` — advisory staleness policy over backtest timestamps |
 | `evaluation/confidence.py` | Evaluation confidence scoring logic + `EvaluationConfidenceSettings` policy knobs |

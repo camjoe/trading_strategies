@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Mapping
 from decimal import Decimal
 
 from common.coercion import row_decimal, row_float
 from common.constants import SETTLEMENT_TICKER
-from trading.domain.accounting.ledger import Number, buy_position_delta, sell_position_delta
+from trading.domain.accounting.holdings import Holdings
 from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
 from trading.models.orders import Side
@@ -48,101 +47,30 @@ def normalize_trade_fields_decimal(trade: Mapping[str, object]) -> tuple[str, st
     )
 
 
-def apply_buy(
-    ticker: str,
-    qty: Number,
-    price: Number,
-    fee: Number,
-    positions: dict[str, Number],
-    avg_cost: dict[str, Number],
-    cash: Number,
-) -> Number:
-    """Apply a buy fill, returning the new cash balance.
-
-    Raises the position and re-averages its cost **in place** in the caller's
-    ``positions`` and ``avg_cost`` dicts. The fee is capitalized into the cost
-    basis, so ``avg_cost`` is what the shares actually cost to acquire.
-
-    Shared with the backtest (float) and the live replay (Decimal): the number
-    type follows the caller's, and a fill costs the same on both paths. Quantities
-    may be fractional; exact Decimal (or float in the backtest) arithmetic keeps a
-    fully-sold position at exactly zero for ``_compact_positions``.
-    """
-    old_qty = positions[ticker]
-    if old_qty + qty <= 0:
-        raise ValueError(
-            f"Buy of {qty} for {ticker} leaves a non-positive position ({old_qty + qty}); qty must be > 0."
-        )
-    delta = buy_position_delta(position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee)
-    positions[ticker] = delta.ending_qty
-    avg_cost[ticker] = delta.ending_avg_cost
-    return cash + delta.cash_delta
-
-
-def apply_sell(
-    ticker: str,
-    qty: Number,
-    price: Number,
-    fee: Number,
-    positions: dict[str, Number],
-    avg_cost: dict[str, Number],
-    cash: Number,
-    realized: Number,
-) -> tuple[Number, Number]:
-    """Apply a sell fill, returning the new ``(cash, realized)`` pair.
-
-    Reduces the position **in place**. The fee is charged against realized P&L and
-    netted out of proceeds, so a round trip is costed on both legs. Shared with the
-    backtest (float) and the live replay (Decimal): the number type follows the caller's.
-    """
-    old_qty = positions[ticker]
-    if qty > old_qty:
-        raise ValueError(f"Invalid sell for {ticker}: trying to sell {qty}, holding {old_qty}.")
-    delta = sell_position_delta(
-        position_qty=old_qty, position_avg_cost=avg_cost[ticker], qty=qty, price=price, fee=fee
-    )
-    positions[ticker] = delta.ending_qty
-    return cash + delta.cash_delta, realized + delta.realized_delta
-
-
-def _compact_positions(
-    positions: dict[str, Decimal], avg_cost: dict[str, Decimal]
-) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
-    """Drop sold-out positions, keeping the average cost of the ones still open.
-
-    A closed position's stale ``avg_cost`` is dropped here rather than cleared on
-    the sell: at zero quantity nothing reads it. Exact arithmetic (Decimal live,
-    float in the backtest) over truncated quantities keeps a fully-sold position at
-    exactly zero, so ``qty > 0`` is a reliable open-position test even for fractions.
-    """
-    open_positions = {ticker: qty for ticker, qty in positions.items() if qty > 0}
-    open_avg_cost = {ticker: avg_cost[ticker] for ticker in open_positions}
-    return open_positions, open_avg_cost
-
-
 def _apply_trade_to_state(
     trade: dict[str, object],
-    positions: dict[str, Decimal],
-    avg_cost: dict[str, Decimal],
-    cash: Decimal,
-    realized: Decimal,
+    holdings: Holdings[Decimal],
     total_deposited: Decimal,
     settlement_ticker: str | None,
-) -> tuple[Decimal, Decimal, Decimal]:
+) -> Decimal:
+    """Apply one trade to ``holdings`` and return the new ``total_deposited``."""
     ticker, side, qty, price, fee = normalize_trade_fields_decimal(trade)
     validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
         if side == Side.BUY:
             deposit = qty * price
-            return cash + deposit, realized, total_deposited + deposit
+            holdings.cash += deposit
+            return total_deposited + deposit
         if side == Side.SELL:
-            return cash - (qty * price + fee), realized, total_deposited
+            holdings.cash -= qty * price + fee
+            return total_deposited
     if side == Side.BUY:
-        return apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized, total_deposited
+        holdings.buy(ticker, qty, price, fee)
+        return total_deposited
     if side == Side.SELL:
-        new_cash, new_realized = apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
-        return new_cash, new_realized, total_deposited
+        holdings.sell(ticker, qty, price, fee)
+        return total_deposited
     raise ValueError(f"Unsupported side: {side}")
 
 
@@ -171,20 +99,15 @@ def compute_account_state(
         ``state.cash``.  Pass ``None`` to disable this behaviour and treat every
         ticker as a regular equity.
     """
-    positions: dict[str, Decimal] = defaultdict(Decimal)
-    avg_cost: dict[str, Decimal] = defaultdict(Decimal)
-    cash = initial_cash
-    realized = Decimal("0")
+    holdings = Holdings.starting_with(initial_cash)
     total_deposited = Decimal("0")
     for trade in trades:
-        cash, realized, total_deposited = _apply_trade_to_state(
-            trade, positions, avg_cost, cash, realized, total_deposited, settlement_ticker
-        )
-    positions, avg_cost = _compact_positions(positions, avg_cost)
+        total_deposited = _apply_trade_to_state(trade, holdings, total_deposited, settlement_ticker)
+    positions, avg_cost = holdings.open_positions()
     return AccountState(
-        cash=cash,
+        cash=holdings.cash,
         positions=positions,
         avg_cost=avg_cost,
-        realized_pnl=realized,
+        realized_pnl=holdings.realized_pnl,
         total_deposited=total_deposited,
     )

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -8,7 +7,8 @@ import pandas as pd
 
 from common.coercion import row_float
 from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_PER_YEAR
-from trading.domain.accounting.account import apply_buy, apply_sell, normalize_trade_fields
+from trading.domain.accounting.account import normalize_trade_fields
+from trading.domain.accounting.holdings import Holdings
 from trading.domain.metrics.returns import total_return_pct
 from trading.domain.metrics.risk_ratios import sharpe_ratio as shared_sharpe_ratio
 from trading.models.orders import Side
@@ -147,10 +147,7 @@ def calmar_ratio(
 
 
 def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[float], list[float]]:
-    positions: dict[str, float] = defaultdict(float)
-    avg_cost: dict[str, float] = defaultdict(float)
-    cash = 0.0
-    realized_pnl = 0.0
+    holdings = Holdings.starting_with(0.0)
     pnl_values: list[float] = []
     return_values: list[float] = []
     for trade in trades:
@@ -162,22 +159,13 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
         if side == Side.BUY:
             if price <= 0:
                 raise ValueError("Buy trade price must be > 0 for backtest metrics.")
-            cash = apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
+            holdings.buy(ticker, qty, price, fee)
             continue
         if side != Side.SELL:
             raise ValueError(f"Unsupported trade side {side!r} for backtest metrics.")
-        cost_basis = avg_cost[ticker] * qty
-        pnl = ((price - avg_cost[ticker]) * qty) - fee
-        cash, realized_pnl = apply_sell(
-            ticker,
-            qty,
-            price,
-            fee,
-            positions,
-            avg_cost,
-            cash,
-            realized_pnl,
-        )
+        cost_basis = holdings.avg_cost[ticker] * qty
+        pnl = ((price - holdings.avg_cost[ticker]) * qty) - fee
+        holdings.sell(ticker, qty, price, fee)
         pnl_values.append(pnl)
         if cost_basis > 0:
             return_values.append((pnl / cost_basis) * PERCENT_SCALE)
