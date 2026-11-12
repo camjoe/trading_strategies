@@ -21,7 +21,14 @@ from dataclasses import replace
 
 from trading.domain.auto_trading.sizing import WHOLE_SHARE_STEP, quantity_step_for
 from trading.domain.risk_gate import evaluate_risk_gate as evaluate_risk_gate_policy, point_in_time_drawdown_pct
-from trading.models.execution import BookTradeCandidate, BookTradeIntent, GateResult, RiskGateConfig, RiskGatePosition
+from trading.models.execution import (
+    BookTradeCandidate,
+    BookTradeIntent,
+    GateResult,
+    RiskGateAction,
+    RiskGateConfig,
+    RiskGatePosition,
+)
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.snapshots import EquitySnapshotRepository
@@ -147,9 +154,9 @@ class BookPreSubmitGate:
         blocked: list[BookTradeIntent] = []
         rescaled: list[BookTradeIntent] = []
         for original, decision in zip(intents, result.decisions, strict=True):
-            if decision.action == "block":
+            if decision.action == RiskGateAction.BLOCK:
                 blocked.append(original)
-            elif decision.action == "rescale":
+            elif decision.action == RiskGateAction.RESCALE:
                 adjusted = replace(original, qty=float(decision.approved_qty))
                 approved.append(adjusted)
                 rescaled.append(adjusted)

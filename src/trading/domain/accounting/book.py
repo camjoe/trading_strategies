@@ -7,6 +7,7 @@ from decimal import Decimal
 from trading.domain.accounting.ledger import buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import normalize_order_input, validate_order_values
 from trading.models.books import BookFillTransition
+from trading.models.orders import Side
 
 
 def _compute_slippage_amount(
@@ -25,7 +26,7 @@ def _compute_slippage_amount(
         return Decimal("0")
     expected_notional = requested_price * qty
     actual_notional = fill_price * qty
-    if side == "buy":
+    if side == Side.BUY:
         return actual_notional - expected_notional
     return expected_notional - actual_notional
 
@@ -52,10 +53,10 @@ def apply_book_fill_transition(
         commission=commission,
         noun="Fill",
     )
-    if normalized_side == "sell" and qty > position_qty:
+    if normalized_side == Side.SELL and qty > position_qty:
         raise ValueError(f"Invalid sell for {normalized_symbol}: trying to sell {qty}, holding {position_qty}.")
 
-    if normalized_side == "buy":
+    if normalized_side == Side.BUY:
         buy = buy_position_delta(
             position_qty=position_qty,
             position_avg_cost=position_avg_cost,

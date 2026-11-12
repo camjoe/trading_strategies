@@ -11,6 +11,7 @@ from common.constants import SETTLEMENT_TICKER
 from trading.domain.accounting.ledger import Number, buy_position_delta, sell_position_delta
 from trading.domain.accounting.validation import validate_order_values
 from trading.models import AccountState
+from trading.models.orders import Side
 
 
 def normalize_trade_fields(trade: Mapping[str, object]) -> tuple[str, str, float, float, float]:
@@ -132,14 +133,14 @@ def _apply_trade_to_state(
     validate_order_values(side=side, qty=qty, price=price, noun="Trade")
     if settlement_ticker and ticker == settlement_ticker:
         # Settlement ticker buys are cash deposits (inflow); sells are withdrawals.
-        if side == "buy":
+        if side == Side.BUY:
             deposit = qty * price
             return cash + deposit, realized, total_deposited + deposit
-        if side == "sell":
+        if side == Side.SELL:
             return cash - (qty * price + fee), realized, total_deposited
-    if side == "buy":
+    if side == Side.BUY:
         return apply_buy(ticker, qty, price, fee, positions, avg_cost, cash), realized, total_deposited
-    if side == "sell":
+    if side == Side.SELL:
         new_cash, new_realized = apply_sell(ticker, qty, price, fee, positions, avg_cost, cash, realized)
         return new_cash, new_realized, total_deposited
     raise ValueError(f"Unsupported side: {side}")

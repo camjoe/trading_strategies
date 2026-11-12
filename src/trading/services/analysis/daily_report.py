@@ -19,6 +19,7 @@ import sqlite3
 from dataclasses import asdict, dataclass, field
 
 from trading.models.books import BookAssignmentView, BookRecord
+from trading.models.execution import RiskGateAction
 from trading.models.orders import OrderRecord
 from trading.repositories.daily_metrics import DailyMetricsRepository
 from trading.repositories.orders import OrderRepository
@@ -147,9 +148,9 @@ def _build_risk_violations(
         account_id=account_id,
         report_date=report_date,
     )
-    block_count = sum(1 for d in decisions if d.action == "block")
-    rescale_count = sum(1 for d in decisions if d.action == "rescale")
-    allow_count = sum(1 for d in decisions if d.action == "allow")
+    block_count = sum(1 for d in decisions if d.action == RiskGateAction.BLOCK)
+    rescale_count = sum(1 for d in decisions if d.action == RiskGateAction.RESCALE)
+    allow_count = sum(1 for d in decisions if d.action == RiskGateAction.ALLOW)
 
     reason_counts: dict[str, int] = {}
     for d in decisions:

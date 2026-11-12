@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from trading.domain.accounting.ledger import Number
+from trading.models.orders import Side
 
 # Supported order directions for both account trades and book fills.
-VALID_SIDES = {"buy", "sell"}
+VALID_SIDES = frozenset(Side)
 
 
 def normalize_order_input(side: str, symbol: str, *, require_symbol: bool = False) -> tuple[str, str]:
@@ -39,7 +40,7 @@ def validate_order_values(
     """
     if qty <= 0:
         raise ValueError(f"{noun} quantity must be > 0.")
-    if side == "buy" and price <= 0:
+    if side == Side.BUY and price <= 0:
         raise ValueError(f"{noun} price must be > 0.")
     if price < 0:
         raise ValueError(f"{noun} price must be >= 0.")
@@ -55,7 +56,7 @@ def ensure_sufficient_cash_for_buy(
     available_cash: Number,
 ) -> None:
     """Raise if a buy's notional plus fee exceeds ``available_cash``. Sells are exempt."""
-    if side != "buy":
+    if side != Side.BUY:
         return
     required_cash = qty * price + fee
     if required_cash > available_cash:

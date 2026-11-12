@@ -26,6 +26,7 @@ from trading.domain.auto_trading.sizing import (
 )
 from trading.domain.feature_provider import FeatureFetcherSet
 from trading.domain.strategies.resolution import evaluate_signal_over_bars, resolve_strategy
+from trading.models.orders import Side
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,7 @@ def prepare_book_trades(
     ):
         if len(selections) >= max_trades:
             break
-        selections.append(("sell", ticker, qty, price, None, None))
+        selections.append((Side.SELL, ticker, qty, price, None, None))
         working.cash += (qty * price) - fee
         working.positions.pop(ticker, None)
         working.avg_cost.pop(ticker, None)
@@ -425,7 +426,7 @@ def prepare_buy_trades(
         quantity_step=quantity_step_for(instrument_mode),
     )
     return [
-        ("buy", ticker, granted[ticker], price, delta_est, iv_est)
+        (Side.BUY, ticker, granted[ticker], price, delta_est, iv_est)
         for ticker, price, _qty, delta_est, iv_est in sized
         if granted.get(ticker, 0.0) > 0
     ]

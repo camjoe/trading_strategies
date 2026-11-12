@@ -13,6 +13,7 @@ from trading.domain.exceptions import NotFoundError
 from trading.domain.metrics.portfolio_math import strategy_return_pct
 from trading.models import AccountRecord
 from trading.models.books import BookAssignmentView, BookRecord
+from trading.models.execution import RiskGateAction
 from trading.repositories.accounts import AccountRepository
 from trading.repositories.books import BookRepository
 from trading.repositories.daily_metrics import DailyMetricsRepository
@@ -159,7 +160,7 @@ def _fetch_risk_summary(conn: sqlite3.Connection, account_id: int) -> dict[str, 
                 "decision_id": rec.id,
                 "symbol": rec.symbol or "unknown",
                 "side": rec.side or "—",
-                "action": rec.action or "allow",
+                "action": rec.action or RiskGateAction.ALLOW,
                 "reason": rec.reason_code or "—",
                 "notional_usd": rec.approved_notional or 0.0,
                 "max_notional_usd": rec.requested_notional or 0.0,

@@ -16,7 +16,7 @@ from typing import Any
 from common.json_columns import dumps_json_column
 from trading.domain.risk_gate import point_in_time_drawdown_pct, resolve_sector_for_symbol
 from trading.models.books import BookRecord, PositionRecord, RiskDecisionInsert, RiskSnapshotInsert
-from trading.models.execution import BookRunAudit
+from trading.models.execution import BookRunAudit, RiskGateAction
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.repositories.risk import RiskDecisionRepository, RiskSnapshotRepository
@@ -107,7 +107,7 @@ def persist_normalized_risk_decisions(
 ) -> None:
     repository = RiskDecisionRepository(conn)
     for decision in risk_decisions:
-        action = str(decision.get("action", "block")).strip().lower()
+        action = str(decision.get("action", RiskGateAction.BLOCK)).strip().lower()
         reason_code = str(decision.get("reason_code", "unspecified")).strip().lower()
         book_id_value = decision.get("book_id")
         book_id = int(book_id_value) if book_id_value is not None else None

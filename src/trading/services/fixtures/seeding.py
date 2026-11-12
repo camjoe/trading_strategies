@@ -34,7 +34,7 @@ from common.json_columns import dumps_json_column
 from common.time import as_utc_iso
 from trading.models import AccountConfig
 from trading.models.evaluation import EvaluationBasicScope, StrategyEvaluationArtifact
-from trading.models.orders import OrderInsert
+from trading.models.orders import OrderInsert, Side
 from trading.models.promotion import (
     PromotionAssessment,
     PromotionReviewEventType,
@@ -331,7 +331,7 @@ def _place_day_trades(
             book_id=book.book_id,
             account_id=plan.account_id,
             symbol=trade.symbol,
-            side="buy" if isinstance(trade, FixtureBuy) else "sell",
+            side=Side.BUY if isinstance(trade, FixtureBuy) else Side.SELL,
             qty=qty,
             price=price,
             when_iso=when_iso,
@@ -371,7 +371,7 @@ def _apply_cash_events(conn: sqlite3.Connection, *, plan: _AccountPlan, day_inde
         record_trade(
             conn,
             plan.spec.name,
-            "buy" if event.amount > 0 else "sell",
+            Side.BUY if event.amount > 0 else Side.SELL,
             SETTLEMENT_TICKER,
             abs(event.amount),
             1.0,

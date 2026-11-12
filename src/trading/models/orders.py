@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, StrEnum
 
 from common.coercion import row_expect_int, row_expect_str, row_int, row_str
 from trading.persistence.money_columns import (
@@ -20,6 +20,13 @@ from trading.persistence.money_columns import (
 # `OrderStatus.PENDING` (IBKR PendingSubmit), which means the broker definitely
 # holds the order — that still collapses to 'submitted'.
 ORDER_STATUS_PENDING = "pending"
+
+
+class Side(StrEnum):
+    """Order direction; members compare equal to the stored ``"buy"``/``"sell"`` text."""
+
+    BUY = "buy"
+    SELL = "sell"
 
 
 class OrderStatus(Enum):

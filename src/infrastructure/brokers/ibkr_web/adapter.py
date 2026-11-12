@@ -18,7 +18,7 @@ from infrastructure.brokers.ibkr_web import (
     InteractiveBrokersWebClient,
 )
 from trading.domain.broker_connection import BrokerConnection
-from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType
+from trading.models.orders import BrokerOrder, OrderRequest, OrderStatus, OrderType, Side
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ _TERMINAL_NON_FILL_STATUSES = frozenset((OrderStatus.CANCELLED, OrderStatus.REJE
 
 
 # Side codes on the order status reply.
-_STATUS_SIDE = {"B": "buy", "S": "sell"}
+_STATUS_SIDE = {"B": Side.BUY, "S": Side.SELL}
 
 # Compact UTC layout ``yymmddHHMMSS`` of the status reply's ``order_time`` and the order
 # list's ``lastExecutionTime``.

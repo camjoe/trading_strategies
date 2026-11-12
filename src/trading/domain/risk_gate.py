@@ -90,11 +90,13 @@ from dataclasses import replace
 from trading.domain.metrics.returns import total_return_pct
 from trading.models.execution import (
     BookTradeCandidate,
+    RiskGateAction,
     RiskGateConfig,
     RiskGateDecision,
     RiskGatePosition,
     RiskGateResult,
 )
+from trading.models.orders import Side
 from trading.models.portfolio import UNCATEGORIZED_SECTOR
 
 
@@ -245,7 +247,7 @@ def evaluate_risk_gate(
                     book_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
-                    action="block",
+                    action=RiskGateAction.BLOCK,
                     reason_code="non_positive_qty",
                     requested_qty=requested_qty,
                     approved_qty=0,
@@ -255,7 +257,7 @@ def evaluate_risk_gate(
             )
             continue
 
-        if side == "sell":
+        if side == Side.SELL:
             allowed_count += 1
             approved_intents.append(intent)
             exposure_delta = min(symbol_exposure.get(symbol, 0.0), requested_notional)
@@ -271,7 +273,7 @@ def evaluate_risk_gate(
                     book_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
-                    action="allow",
+                    action=RiskGateAction.ALLOW,
                     reason_code="risk_reducing_sell",
                     requested_qty=requested_qty,
                     approved_qty=requested_qty,
@@ -288,7 +290,7 @@ def evaluate_risk_gate(
                     book_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
-                    action="block",
+                    action=RiskGateAction.BLOCK,
                     reason_code="drawdown_breaker",
                     requested_qty=requested_qty,
                     approved_qty=0,
@@ -329,7 +331,7 @@ def evaluate_risk_gate(
                     book_id=int(intent.book_id),
                     symbol=symbol,
                     side=side,
-                    action="block",
+                    action=RiskGateAction.BLOCK,
                     reason_code=_resolve_blocking_reason(
                         remaining_book_notional=remaining_book_notional,
                         remaining_symbol_notional=remaining_symbol_notional,
@@ -348,7 +350,7 @@ def evaluate_risk_gate(
         approved_notional = float(approved_qty) * price
         if approved_qty < requested_qty:
             rescaled_count += 1
-            action = "rescale"
+            action = RiskGateAction.RESCALE
             reason_code = _resolve_blocking_reason(
                 remaining_book_notional=remaining_book_notional,
                 remaining_symbol_notional=remaining_symbol_notional,
@@ -358,7 +360,7 @@ def evaluate_risk_gate(
             approved_intents.append(replace(intent, qty=approved_qty))
         else:
             allowed_count += 1
-            action = "allow"
+            action = RiskGateAction.ALLOW
             reason_code = "within_limits"
             approved_intents.append(intent)
 

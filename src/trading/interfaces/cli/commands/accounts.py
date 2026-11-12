@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Callable
 
 from trading.interfaces.cli.commands.options import add_account_arg, add_book_arg
+from trading.models.orders import Side
 
 
 def add_account_commands(
@@ -46,7 +47,7 @@ def add_account_commands(
 
     p_trade = sub.add_parser("trade", help="Record a mock buy or sell.")
     add_account_arg(p_trade)
-    p_trade.add_argument("--side", required=True, choices=["buy", "sell"], help="Order side")
+    p_trade.add_argument("--side", required=True, choices=[side.value for side in Side], help="Order side")
     p_trade.add_argument("--ticker", required=True, help="Ticker symbol")
     p_trade.add_argument("--qty", type=float, required=True, help="Trade quantity")
     p_trade.add_argument("--price", type=float, required=True, help="Execution price")

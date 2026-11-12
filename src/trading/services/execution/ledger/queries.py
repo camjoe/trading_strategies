@@ -6,6 +6,7 @@ from decimal import Decimal
 from common.constants import SETTLEMENT_TICKER
 from trading.domain.accounting.account import compute_account_state
 from trading.models import AccountState
+from trading.models.orders import Side
 from trading.repositories.ledger import LedgerRepository
 from trading.repositories.orders import OrderRepository
 
@@ -37,7 +38,7 @@ def _cash_events(conn: sqlite3.Connection, account_id: int) -> list[dict[str, ob
             {
                 "book_id": entry.book_id,
                 "ticker": SETTLEMENT_TICKER,
-                "side": "buy" if entry.entry_type == "deposit" else "sell",
+                "side": Side.BUY if entry.entry_type == "deposit" else Side.SELL,
                 "qty": abs(entry.amount),
                 "price": Decimal("1"),
                 "fee": Decimal("0"),

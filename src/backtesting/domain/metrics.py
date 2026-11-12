@@ -11,6 +11,7 @@ from common.constants import ANNUALIZATION_FACTOR, PERCENT_SCALE, TRADING_DAYS_P
 from trading.domain.accounting.account import apply_buy, apply_sell, normalize_trade_fields
 from trading.domain.metrics.returns import total_return_pct
 from trading.domain.metrics.risk_ratios import sharpe_ratio as shared_sharpe_ratio
+from trading.models.orders import Side
 
 # Minimum equity observations needed to compute a return series.
 MIN_RETURN_OBSERVATIONS = 2
@@ -158,12 +159,12 @@ def _closed_trade_stats(trades: Sequence[Mapping[str, object]]) -> tuple[list[fl
             raise ValueError("Trade quantity must be > 0 for backtest metrics.")
         if price < 0:
             raise ValueError("Trade price must be >= 0 for backtest metrics.")
-        if side == "buy":
+        if side == Side.BUY:
             if price <= 0:
                 raise ValueError("Buy trade price must be > 0 for backtest metrics.")
             cash = apply_buy(ticker, qty, price, fee, positions, avg_cost, cash)
             continue
-        if side != "sell":
+        if side != Side.SELL:
             raise ValueError(f"Unsupported trade side {side!r} for backtest metrics.")
         cost_basis = avg_cost[ticker] * qty
         pnl = ((price - avg_cost[ticker]) * qty) - fee

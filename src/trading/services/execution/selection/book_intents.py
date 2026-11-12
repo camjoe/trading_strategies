@@ -10,6 +10,7 @@ from trading.models import AccountRecord
 from trading.models.books import TradingBook
 from trading.models.execution import BookTradeCandidate, BookTradeState
 from trading.models.market_data import MarketInputs
+from trading.models.orders import Side
 from trading.repositories.books import BookRepository
 from trading.repositories.positions import PositionRepository
 from trading.services.books.book_assignments import enumerate_trading_books
@@ -145,7 +146,7 @@ def generate_book_trade_intents(
             selection_seed=selection_seed,
         )
         forced_sell_set = set(forced_sells)
-        exits = [item for item in selections if item[0] == "sell" and item[1] in forced_sell_set]
+        exits = [item for item in selections if item[0] == Side.SELL and item[1] in forced_sell_set]
         others = [item for item in selections if item not in exits]
         for side, symbol, qty, requested_price, delta_est, iv_est in [*exits, *others[:book_budget]]:
             intents.append(
@@ -158,7 +159,7 @@ def generate_book_trade_intents(
                     qty=qty,
                     requested_price=requested_price,
                     # Only the sells that actually breached carry the flag.
-                    forced_sell=symbol if side == "sell" and symbol in forced_sell_set else None,
+                    forced_sell=symbol if side == Side.SELL and symbol in forced_sell_set else None,
                     delta_est=delta_est,
                     iv_est=iv_est,
                 )

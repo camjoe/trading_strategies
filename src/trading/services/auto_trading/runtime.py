@@ -17,6 +17,7 @@ from trading.models.execution import (
     AccountRunResult,
     BookRunAudit,
     BookTradeIntent,
+    RiskGateAction,
     RiskGateConfig,
     RiskGateDecision,
 )
@@ -173,7 +174,7 @@ def _run_books_for_account(
         audit.record_block(reason)
     audit.blocked_count = len(gate_result.blocked_intents)
     audit.rescaled_count = len(gate_result.rescaled_intents)
-    audit.allowed_count = sum(1 for d in gate_result.decisions if d.action == "allow")
+    audit.allowed_count = sum(1 for d in gate_result.decisions if d.action == RiskGateAction.ALLOW)
 
     # Any kill-switch reason (stale-price, reconciliation, or unpriced position)
     # holds the whole run.

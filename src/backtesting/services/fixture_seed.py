@@ -12,6 +12,7 @@ from datetime import date
 
 from backtesting.models import BacktestConfig
 from backtesting.repositories.runs import insert_run, insert_snapshot, insert_trade
+from trading.models.orders import Side
 
 FIXTURE_TICKERS_FILE = "synthetic:FIXTURE"
 
@@ -65,8 +66,8 @@ def seed_fixture_backtest(
     )
 
     for execution_date, side, price in (
-        (curve[execution_margin_days - 1][0], "buy", _SAMPLE_BUY_PRICE),
-        (curve[-execution_margin_days][0], "sell", _SAMPLE_SELL_PRICE),
+        (curve[execution_margin_days - 1][0], Side.BUY, _SAMPLE_BUY_PRICE),
+        (curve[-execution_margin_days][0], Side.SELL, _SAMPLE_SELL_PRICE),
     ):
         insert_trade(
             conn,

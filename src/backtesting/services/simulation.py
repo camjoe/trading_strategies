@@ -33,6 +33,7 @@ from trading.domain.strategies.indicator_view import (
 from trading.domain.strategies.resolution import evaluate_signal
 from trading.models import AccountRecord
 from trading.models.books import BookRecord
+from trading.models.orders import Side
 from trading.persistence.unit_of_work import unit_of_work
 from trading.services.accounts.mutations import get_account
 from trading.services.books.book_assignments import active_strategy_for_account, get_default_book
@@ -216,7 +217,7 @@ def _execute_sells(
             state,
             trade_date=trade_date,
             ticker=ticker,
-            side="sell",
+            side=Side.SELL,
             qty=qty_float,
             exec_px=exec_px,
             note="signal=sell",
@@ -275,7 +276,7 @@ def _execute_buys(
             state,
             trade_date=trade_date,
             ticker=ticker,
-            side="buy",
+            side=Side.BUY,
             qty=float(qty_int),
             exec_px=exec_px,
             # Record when the bar's cash could not fund the full signal set —

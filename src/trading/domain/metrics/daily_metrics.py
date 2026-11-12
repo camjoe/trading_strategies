@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from common.constants import BASIS_POINTS_SCALE, PERCENT_SCALE
 from trading.domain.metrics.returns import total_return_pct
 from trading.domain.metrics.risk_ratios import sharpe_ratio
+from trading.models.orders import Side
 
 # Trailing window (in scored sessions, including the current day) the daily
 # risk-adjusted score is computed over — roughly one trading month.
@@ -146,7 +147,7 @@ def _average_slippage_bps(trades: list[DailyTrade]) -> float | None:
     for trade in priced:
         requested = trade.requested_price
         assert requested is not None  # narrowed by the filter above
-        if trade.side == "buy":
+        if trade.side == Side.BUY:
             total_fraction += (trade.avg_fill_price - requested) / requested
         else:
             total_fraction += (requested - trade.avg_fill_price) / requested

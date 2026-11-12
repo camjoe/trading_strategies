@@ -11,7 +11,7 @@ from trading.domain.accounting.book import apply_book_fill_transition
 from trading.domain.broker_connection import BrokerConnection
 from trading.domain.exceptions import RuntimeTradeThrottleExceededError
 from trading.models.execution import BookTradeIntent, SubmissionResult
-from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus
+from trading.models.orders import ORDER_STATUS_PENDING, OrderInsert, OrderRequest, OrderStatus, Side
 from trading.persistence.money_columns import snap_money
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
@@ -138,7 +138,7 @@ def apply_book_fill(
         # exact for fractional fills (check_cash_invariant); truncating on two grids
         # left a sub-cent divergence per fill.
         gross_cash = transition.qty * transition.fill_price
-        trade_amount = snap_money(-gross_cash if transition.side == "buy" else gross_cash)
+        trade_amount = snap_money(-gross_cash if transition.side == Side.BUY else gross_cash)
         fee_amount = snap_money(transition.commission)
         ledger_repo.insert(
             book_id=book_id,
@@ -183,7 +183,7 @@ def apply_book_fill(
         # A sell realizes P&L against the position's average cost; persist it on the
         # order so daily-metrics can derive hit_rate/expectancy. Buys realize nothing
         # (delta is 0.0) and are left NULL, so NOT NULL marks a closing trade.
-        if transition.side == "sell":
+        if transition.side == Side.SELL:
             OrderRepository(conn).add_realized_pnl_delta(
                 order_id=order_id,
                 realized_pnl_delta=transition.realized_pnl_delta,

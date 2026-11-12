@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 from common.coercion import row_expect_float, row_expect_int, row_expect_str
 
@@ -123,12 +124,21 @@ class RiskGatePosition:
         )
 
 
+class RiskGateAction(StrEnum):
+    """What the risk gate did with one intent; the ``risk_decisions.action`` vocabulary."""
+
+    ALLOW = "allow"
+    # Approved at a smaller quantity than requested.
+    RESCALE = "rescale"
+    BLOCK = "block"
+
+
 @dataclass(frozen=True, slots=True)
 class RiskGateDecision:
     book_id: int
     symbol: str
     side: str
-    action: str
+    action: RiskGateAction
     reason_code: str
     requested_qty: float
     approved_qty: float
@@ -228,7 +238,7 @@ class BookRunAudit:
 
     def record_block(self, reason_code: str, *, book_id: int | None = None) -> None:
         """Append a block decision. ``book_id`` is omitted for run-wide reasons."""
-        decision: dict[str, object] = {"action": "block", "reason_code": reason_code}
+        decision: dict[str, object] = {"action": RiskGateAction.BLOCK, "reason_code": reason_code}
         if book_id is not None:
             decision["book_id"] = book_id
         self.risk_decisions.append(decision)

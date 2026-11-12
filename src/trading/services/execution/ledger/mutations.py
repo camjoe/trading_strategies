@@ -7,7 +7,7 @@ from common.constants import SETTLEMENT_TICKER
 from common.time import utc_now_iso
 from trading.domain.accounting.validation import ensure_sufficient_cash_for_buy, normalize_order_input
 from trading.domain.exceptions import NotFoundError, ValidationError
-from trading.models.orders import OrderInsert
+from trading.models.orders import OrderInsert, Side
 from trading.persistence.money_columns import snap_money
 from trading.persistence.unit_of_work import unit_of_work
 from trading.repositories.books import BookRepository
@@ -34,11 +34,11 @@ def _record_cash_event(
     assert book is not None
     # Snap to the storage grid so the ledger entry and the cash move by the same
     # figure, keeping current_cash - start_equity == SUM(ledger.amount) exact.
-    signed = snap_money(amount if side == "buy" else -amount)
+    signed = snap_money(amount if side == Side.BUY else -amount)
     with unit_of_work(conn):
         LedgerRepository(conn).insert(
             book_id=book_id,
-            entry_type="deposit" if side == "buy" else "withdrawal",
+            entry_type="deposit" if side == Side.BUY else "withdrawal",
             amount=signed,
             reference_type=_LEDGER_REFERENCE_TYPE_MANUAL,
             reference_id=None,
@@ -100,7 +100,7 @@ def record_trade(
         )
         return
 
-    if side == "buy":
+    if side == Side.BUY:
         ensure_sufficient_cash_for_buy(side, qty_amount, price_amount, fee_amount, book.current_cash)
     else:
         position = PositionRepository(conn).fetch(book_id=book.id, symbol=ticker)
