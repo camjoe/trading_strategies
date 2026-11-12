@@ -17,6 +17,9 @@ playwright>=1.50.0
 alembic==1.18.5
 sqlalchemy==2.0.51
 
+# Reads .github/workflows/ci.yml for the CI pipeline asset (scripts/documentation_ui/ci).
+pyyaml==6.0.3
+
 # Quality tools invoked by scripts/run_checks and the CI quality gates.
 # Pinned so local runs and .github/workflows/ci.yml use the same versions.
 ruff==0.15.21

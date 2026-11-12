@@ -107,6 +107,7 @@ Top-level feature modules. Each feature coordinates a view: loads data, renders 
 | `compare.ts` | Account comparison feature |
 | `about.ts` | About page: builds the stat tiles from the generated assets and opens linked tabs |
 | `catalog-check-runner.ts` | Live "Repository checks" card for the Quality Checks group: runs each runnable check through `/api/catalog/run`, one at a time, with a pass, warn, or fail line per check |
+| `catalog-ci-pipeline.ts` | CI pipeline card for the Quality Checks group: draws triggers and jobs by `needs` depth from `assets/ci.json`, with each job's run condition and steps |
 | `catalog-showcases.ts` | Visual cards at the top of a catalog group; the Data and Database card embeds the checked-in `docs/reference/database-diagram-viewer.html`, loaded only when opened |
 | `catalog.ts` | Command catalog: one Reference page per kind (CLI, Jobs, Tools), each with its own search and expandable entries read from `assets/commands.json`; a family of related entries shows as one row that opens to its members |
 | `portfolio.ts` | Cross-account portfolio rollup view (exposure, concentration, sectors) |
@@ -157,6 +158,7 @@ TypeScript type definitions for API response shapes. One file per backend domain
 | `autonomy-monitor.ts` | Autonomy monitor response shapes |
 | `about.ts` | About page stat and overview-facts shapes |
 | `catalog.ts` | Command catalog entry and filter shapes |
+| `ci.ts` | CI pipeline shapes read from `assets/ci.json` |
 | `portfolio.ts` | Portfolio rollup response shapes |
 | `signals.ts` | Feature/signal response shapes |
 
@@ -213,6 +215,7 @@ Static JSON assets consumed by the in-app docs renderer.
 | File | Content |
 |---|---|
 | `api.json` | API reference documentation content |
+| `ci.json` | Generated CI pipeline (triggers, jobs, conditions, path filters, steps) from `.github/workflows/ci.yml` |
 | `finance.json` | Generated finance/strategy documentation content from `docs/reference/financial-market-knowledge.md` |
 | `software.json` | Software architecture documentation content |
 

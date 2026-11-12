@@ -1,6 +1,7 @@
 /** Visual cards shown at the top of a catalog group, before its rows, while the search is empty. */
 import type { CatalogEntry } from "../types/catalog";
 import { CHECKS_GROUP, handleCheckRunnerClick, renderCheckRunner } from "./catalog-check-runner";
+import { handleCiPipelineClick, renderCiPipeline } from "./catalog-ci-pipeline";
 
 const DIAGRAM_GROUP = "Data and Database";
 
@@ -36,7 +37,7 @@ const DIAGRAM_SHOWCASE = `
   </div>`;
 
 const SHOWCASES: Record<string, (entries: CatalogEntry[]) => string> = {
-  [CHECKS_GROUP]: renderCheckRunner,
+  [CHECKS_GROUP]: (entries) => renderCheckRunner(entries) + renderCiPipeline(),
   [DIAGRAM_GROUP]: () => DIAGRAM_SHOWCASE,
 };
 
@@ -95,7 +96,7 @@ async function toggleDiagram(card: HTMLElement, button: HTMLButtonElement): Prom
 
 /** Handle a click inside a catalog panel; returns true when a showcase control took it. */
 export function handleShowcaseClick(target: HTMLElement): boolean {
-  if (handleCheckRunnerClick(target)) {
+  if (handleCheckRunnerClick(target) || handleCiPipelineClick(target)) {
     return true;
   }
   const toggle = target.closest<HTMLButtonElement>("[data-showcase-toggle]");

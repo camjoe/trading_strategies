@@ -525,3 +525,191 @@
     display: none;
   }
 }
+
+.ci-pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0.4rem 1rem 1rem;
+  overflow-x: auto;
+}
+
+.ci-stage {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 13rem;
+}
+
+.ci-stage--trigger {
+  flex: 0 0 11rem;
+  min-width: 11rem;
+}
+
+.ci-stage-label,
+.ci-filters-label {
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ci-triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ci-trigger {
+  padding: 0.35rem 0.6rem;
+  border: 1px dashed var(--chip-border);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.ci-arrow {
+  position: relative;
+  flex: 0 0 2rem;
+  align-self: center;
+  height: 2px;
+  margin: 0 0.25rem;
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+.ci-arrow::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -1px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--accent);
+}
+
+.ci-job {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface-white);
+}
+
+.ci-job-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.ci-job-name {
+  font-family: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ci-job-runner {
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+}
+
+.ci-job-when {
+  margin: 0.25rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.ci-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.ci-filters-label {
+  flex-basis: 100%;
+}
+
+.ci-filter {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--chip-border);
+  border-radius: 999px;
+  background: var(--chip-bg);
+  font-size: 0.75rem;
+  cursor: help;
+}
+
+.ci-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.55rem 0 0;
+  padding: 0.5rem 0 0;
+  border-top: 1px solid var(--line-subtle);
+  list-style: none;
+}
+
+.ci-steps[hidden] {
+  display: none;
+}
+
+.ci-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+}
+
+.ci-step--run {
+  color: var(--ink);
+}
+
+.ci-step code {
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--log-bg);
+  color: var(--log-ink);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 760px) {
+  .ci-pipeline {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .ci-stage,
+  .ci-stage--trigger {
+    flex: none;
+    min-width: 0;
+  }
+
+  .ci-arrow {
+    flex: 0 0 1.5rem;
+    width: 2px;
+    height: auto;
+    margin: 0;
+  }
+
+  .ci-arrow::after {
+    top: auto;
+    right: -4px;
+    bottom: -1px;
+    border-top: 7px solid var(--accent);
+    border-right: 5px solid transparent;
+    border-bottom: 0;
+    border-left: 5px solid transparent;
+  }
+}

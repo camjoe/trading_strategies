@@ -54,6 +54,10 @@ Orientation docs — typically the first thing read when entering a package. Go 
 | `scripts/README.md` | Dev and ops tooling orientation | Scripts added, removed, or renamed |
 | `apps/paper_trading_web/README.md` | UI app orientation, how to run backend and frontend | UI entry points, ports, or dev workflow change |
 | `docs/runbooks/README.md` | Runbook index | A runbook is added or removed |
+| `docs/plans/README.md` | Index of forward-looking plans that are not yet built | A plan is added, shipped, or removed |
+| `docs/plans/adaptive-learning.md` | Staged, evidence-gated plan for a learned layer on the static decision score | The advisor scorecard, decision score, or P10 scope changes |
+| `docs/plans/ui.md` | Trading Workbench UI work: what shipped on features/command-catalog and the open items | A UI open item ships or a new one is found |
+| `docs/plans/project-agnostic-tooling.md` | Plan to extract reusable script tools with per-project config | `scripts/screenshot_ui.py`, `scripts/checks/_runner.py`, or the extraction trigger changes |
 
 ---
 

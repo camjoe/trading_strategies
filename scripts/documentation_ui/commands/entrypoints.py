@@ -300,6 +300,7 @@ STANDALONE_CHECK_MODULES = frozenset({"scripts.checks.run_suite"})
 # Modules that define `main` but are wrapped by a listed entry, so they stay off the page.
 EXCLUDED_MODULE_PREFIXES: tuple[str, ...] = (
     "scripts.documentation_ui.api.",
+    "scripts.documentation_ui.ci.",
     "scripts.documentation_ui.commands.",
     "scripts.documentation_ui.finance.",
     "scripts.documentation_ui.overview.",

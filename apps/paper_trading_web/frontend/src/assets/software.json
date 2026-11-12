@@ -170,6 +170,13 @@
       "purpose": "Parallel test execution plugin used to speed up larger local and CI pytest runs."
     },
     {
+      "name": "pyyaml",
+      "version": "==6.0.3",
+      "scope": "development",
+      "group": "Developer Tooling",
+      "purpose": "YAML parser that reads the CI workflow to build the pipeline diagram on the Tools page."
+    },
+    {
       "name": "ruff",
       "version": "==0.15.21",
       "scope": "development",

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from common.git import get_repo_root
 from scripts.documentation_ui.api.check import run_api_reference_check
+from scripts.documentation_ui.ci.check import run_ci_check
 from scripts.documentation_ui.commands.check import run_commands_reference_check
 from scripts.documentation_ui.finance.check import run_finance_reference_check
 from scripts.documentation_ui.overview.check import run_overview_check
@@ -18,6 +19,7 @@ def run_reference_docs_check(
     include_api: bool = True,
     include_commands: bool = True,
     include_overview: bool = True,
+    include_ci: bool = True,
 ) -> int:
     if include_finance:
         finance_exit = run_finance_reference_check(repo_root=repo_root)
@@ -44,6 +46,11 @@ def run_reference_docs_check(
         if overview_exit != 0:
             return overview_exit
 
+    if include_ci:
+        ci_exit = run_ci_check(repo_root=repo_root)
+        if ci_exit != 0:
+            return ci_exit
+
     print("\nReference documentation checks completed successfully.")
     return 0
 
@@ -58,6 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-api", action="store_true", help="Skip the API reference check.")
     parser.add_argument("--skip-commands", action="store_true", help="Skip the Command reference check.")
     parser.add_argument("--skip-overview", action="store_true", help="Skip the Overview facts check.")
+    parser.add_argument("--skip-ci", action="store_true", help="Skip the CI pipeline check.")
     return parser.parse_args()
 
 
@@ -71,6 +79,7 @@ def main() -> int:
         include_api=not args.skip_api,
         include_commands=not args.skip_commands,
         include_overview=not args.skip_overview,
+        include_ci=not args.skip_ci,
     )
 
 

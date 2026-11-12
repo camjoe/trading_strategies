@@ -39,6 +39,7 @@ GROUP_BY_PACKAGE = {
     "python-dotenv": "Backend & Validation",
     "ruff": "Developer Tooling",
     "pytrends": "Data & Market Access",
+    "pyyaml": "Developer Tooling",
     "uvicorn": "Backend & Validation",
     "vadersentiment": "Analysis & Modeling",
     "yfinance": "Data & Market Access",
@@ -67,6 +68,7 @@ PURPOSE_BY_PACKAGE = {
     "praw": "Reddit API client used by alternative strategy features to fetch social discussion inputs.",
     "pytest-xdist": "Parallel test execution plugin used to speed up larger local and CI pytest runs.",
     "ruff": "Python linter and formatter used by local and CI quality gates.",
+    "pyyaml": "YAML parser that reads the CI workflow to build the pipeline diagram on the Tools page.",
     "pytrends": "Google Trends client used by alternative strategy features to pull search-interest signals.",
     "vadersentiment": (
         "Rule-based sentiment scoring library used to convert fetched text into lightweight sentiment features."

@@ -8,6 +8,7 @@ from common.git import get_repo_root
 from scripts.checks._runner import resolve_python_exe, run_step
 from scripts.checks.python.ruff_check import DEFAULT_TARGETS
 from scripts.documentation_ui.api.build_registry import run_build as build_api_reference
+from scripts.documentation_ui.ci.build_registry import run_build as build_ci_pipeline
 from scripts.documentation_ui.commands.build_registry import run_build as build_commands_reference
 from scripts.documentation_ui.overview.build_registry import run_build as build_overview_facts
 from scripts.documentation_ui.software.build_registry import run_build as build_software_reference
@@ -45,11 +46,12 @@ def run_fix_checks(
             [python_exe, "-m", "ruff", "format", *selected_targets],
             repo_root,
         )
-        print("\n==> Reference docs: sync generated API/software/command assets")
+        print("\n==> Reference docs: sync generated API/software/command/CI assets")
         build_api_reference(repo_root)
         build_software_reference(repo_root)
         build_commands_reference(repo_root)
         build_overview_facts(repo_root)
+        build_ci_pipeline(repo_root)
         print("\n==> Docs drift fix: DB schema Quick Reference")
         exit_code = run_db_schema_fix(repo_root)
         if exit_code:

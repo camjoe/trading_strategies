@@ -6779,6 +6779,20 @@
           "default": false,
           "choices": null,
           "help": "Skip the Overview facts check."
+        },
+        {
+          "scope": "command",
+          "flags": [
+            "--skip-ci"
+          ],
+          "dest": "skip_ci",
+          "positional": false,
+          "kind": "flag",
+          "type": "flag",
+          "required": false,
+          "default": false,
+          "choices": null,
+          "help": "Skip the CI pipeline check."
         }
       ]
     },
